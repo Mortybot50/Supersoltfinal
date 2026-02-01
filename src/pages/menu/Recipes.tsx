@@ -1,0 +1,186 @@
+import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Plus, Search, ChefHat } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { useDataStore } from '@/lib/store/dataStore'
+
+const CATEGORIES = [
+  { value: 'mains', label: 'Mains' },
+  { value: 'sides', label: 'Sides' },
+  { value: 'drinks', label: 'Drinks' },
+  { value: 'desserts', label: 'Desserts' },
+  { value: 'prep', label: 'Prep' },
+  { value: 'other', label: 'Other' },
+]
+
+export default function Recipes() {
+  const navigate = useNavigate()
+  const { recipes } = useDataStore()
+  
+  const [searchQuery, setSearchQuery] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  
+  // Filter recipes
+  const filteredRecipes = useMemo(() => {
+    let filtered = recipes
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter((r) => r.name.toLowerCase().includes(query))
+    }
+    
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter((r) => r.category === categoryFilter)
+    }
+    
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter((r) => r.status === statusFilter)
+    }
+    
+    return filtered.sort(
+      (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    )
+  }, [recipes, searchQuery, categoryFilter, statusFilter])
+  
+  return (
+    <div className="space-y-6 p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Recipes</h1>
+          <p className="text-muted-foreground">
+            Manage recipes, costs, and menu pricing
+          </p>
+        </div>
+        <Button onClick={() => navigate('/menu/recipes/new')} size="lg">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Recipe
+        </Button>
+      </div>
+      
+      {/* Filters */}
+      <Card className="p-6">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search recipes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-full md:w-48">
+              <SelectValue placeholder="All Categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {CATEGORIES.map((cat) => (
+                <SelectItem key={cat.value} value={cat.value}>
+                  {cat.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full md:w-48">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="published">Published</SelectItem>
+              <SelectItem value="archived">Archived</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </Card>
+      
+      {/* Recipes Table */}
+      {filteredRecipes.length === 0 ? (
+        <Card className="p-12 text-center">
+          <ChefHat className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">
+            {recipes.length === 0 ? 'No recipes yet' : 'No recipes found'}
+          </h3>
+          <p className="text-sm text-muted-foreground mb-6">
+            {recipes.length === 0
+              ? "Click 'Add Recipe' to get started."
+              : 'Try adjusting your filters'}
+          </p>
+          {recipes.length === 0 && (
+            <Button onClick={() => navigate('/menu/recipes/new')}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Recipe
+            </Button>
+          )}
+        </Card>
+      ) : (
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Servings</TableHead>
+                <TableHead>Cost/Serve</TableHead>
+                <TableHead>Suggested Price</TableHead>
+                <TableHead>GP %</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredRecipes.map((recipe) => (
+                <TableRow
+                  key={recipe.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => navigate(`/menu/recipes/${recipe.id}`)}
+                >
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <ChefHat className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{recipe.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {CATEGORIES.find((c) => c.value === recipe.category)?.label}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{recipe.serves}</TableCell>
+                  <TableCell className="font-semibold">
+                    ${(recipe.cost_per_serve / 100).toFixed(2)}
+                  </TableCell>
+                  <TableCell className="font-semibold text-green-600">
+                    ${(recipe.suggested_price / 100).toFixed(2)}
+                  </TableCell>
+                  <TableCell>{recipe.gp_target_percent}%</TableCell>
+                  <TableCell>
+                    {recipe.status === 'draft' && (
+                      <Badge variant="secondary">Draft</Badge>
+                    )}
+                    {recipe.status === 'published' && (
+                      <Badge className="bg-green-600">Published</Badge>
+                    )}
+                    {recipe.status === 'archived' && (
+                      <Badge variant="outline">Archived</Badge>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
+    </div>
+  )
+}

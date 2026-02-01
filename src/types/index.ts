@@ -1,0 +1,1045 @@
+// ============================================
+// CORE ENTITIES
+// ============================================
+
+export interface Organization {
+  id: string
+  name: string
+  abn?: string
+  timezone: string
+  currency_code: string
+  week_starts_on: 'Monday' | 'Sunday'
+  gst_rate_percent: number
+  price_display_mode: 'INC_GST' | 'EX_GST'
+  default_gp_target_percent: number
+  created_at: Date
+  updated_at: Date
+}
+
+export interface OrgBranding {
+  org_id: string
+  logo_url?: string
+  brand_color_hex: string
+  receipt_footer_text?: string
+  menu_print_header?: string
+  created_at: Date
+  updated_at: Date
+}
+
+export interface OrgMenuDefaults {
+  org_id: string
+  menu_sections: MenuSection[]
+  default_allergen_list: string[]
+  price_endings: '.00' | '.50' | '.90' | '.95' | '.99'
+  rounding_mode: 'NEAREST' | 'UP' | 'DOWN'
+  default_gst_mode_items: 'INC' | 'EX'
+  created_at: Date
+  updated_at: Date
+}
+
+export interface OrgApprovals {
+  org_id: string
+  price_change_max_percent_no_approval: number
+  roster_over_budget_percent_requires_owner: number
+  po_amount_over_requires_owner: number
+  below_gp_threshold_alert_percent: number
+  enable_ai_suggestions: boolean
+  require_reason_on_override: boolean
+  created_at: Date
+  updated_at: Date
+}
+
+export interface OrgHolidays {
+  org_id: string
+  state: 'VIC' | 'NSW' | 'QLD' | 'SA' | 'WA' | 'TAS' | 'NT' | 'ACT'
+  use_au_public_holidays: boolean
+  custom_closed_dates: string[]
+  created_at: Date
+  updated_at: Date
+}
+
+export interface OrgExportMappings {
+  org_id: string
+  pos_provider: 'Square' | 'Lightspeed' | 'Kounta' | 'Other'
+  default_tax_code: string
+  csv_columns: string[]
+  accounting_price_inc_gst: boolean
+  created_at: Date
+  updated_at: Date
+}
+
+export interface OrgSecurity {
+  org_id: string
+  pii_redaction_on_exports: boolean
+  document_retention_months: number
+  allow_crew_view_costs: boolean
+  created_at: Date
+  updated_at: Date
+}
+
+export interface OrgAuditLog {
+  id: string
+  org_id: string
+  actor_user_id: string
+  actor_name: string
+  action: string
+  before_snapshot: any
+  after_snapshot: any
+  created_at: Date
+}
+
+export const DEFAULT_ORG_SETTINGS = {
+  timezone: 'Australia/Melbourne',
+  currency_code: 'AUD',
+  week_starts_on: 'Monday' as const,
+  gst_rate_percent: 10,
+  price_display_mode: 'INC_GST' as const,
+  default_gp_target_percent: 65,
+}
+
+export const DEFAULT_BRANDING = {
+  brand_color_hex: '#6C5CE7',
+}
+
+export const DEFAULT_MENU_SECTIONS: MenuSection[] = [
+  { id: 'entrees', name: 'Entrees', is_drinks: false, display_order: 0, organization_id: '', tax_mode: 'FOLLOW_ITEM', created_at: new Date(), updated_at: new Date() },
+  { id: 'mains', name: 'Mains', is_drinks: false, display_order: 1, organization_id: '', tax_mode: 'FOLLOW_ITEM', created_at: new Date(), updated_at: new Date() },
+  { id: 'sides', name: 'Sides', is_drinks: false, display_order: 2, organization_id: '', tax_mode: 'FOLLOW_ITEM', created_at: new Date(), updated_at: new Date() },
+  { id: 'desserts', name: 'Desserts', is_drinks: false, display_order: 3, organization_id: '', tax_mode: 'FOLLOW_ITEM', created_at: new Date(), updated_at: new Date() },
+  { id: 'drinks', name: 'Drinks', is_drinks: true, display_order: 4, organization_id: '', tax_mode: 'FOLLOW_ITEM', created_at: new Date(), updated_at: new Date() },
+]
+
+export const FSANZ_ALLERGENS = [
+  'Gluten (Wheat, Rye, Barley, Oats)',
+  'Milk',
+  'Eggs',
+  'Peanuts',
+  'Tree Nuts',
+  'Sesame Seeds',
+  'Soybeans',
+  'Fish',
+  'Crustaceans',
+  'Molluscs',
+  'Sulphites',
+  'Lupin',
+]
+
+export const DEFAULT_CSV_COLUMNS = [
+  'section_name',
+  'item_name',
+  'plu_code',
+  'price_inc_gst',
+  'price_ex_gst',
+  'gst_rate_percent',
+  'gst_mode',
+  'recipe_id',
+]
+
+export const AU_STATES = [
+  { value: 'VIC', label: 'Victoria' },
+  { value: 'NSW', label: 'New South Wales' },
+  { value: 'QLD', label: 'Queensland' },
+  { value: 'SA', label: 'South Australia' },
+  { value: 'WA', label: 'Western Australia' },
+  { value: 'TAS', label: 'Tasmania' },
+  { value: 'NT', label: 'Northern Territory' },
+  { value: 'ACT', label: 'Australian Capital Territory' },
+]
+
+export const AU_TIMEZONES = [
+  { value: 'Australia/Melbourne', label: 'Melbourne (AEST/AEDT)' },
+  { value: 'Australia/Sydney', label: 'Sydney (AEST/AEDT)' },
+  { value: 'Australia/Brisbane', label: 'Brisbane (AEST)' },
+  { value: 'Australia/Adelaide', label: 'Adelaide (ACST/ACDT)' },
+  { value: 'Australia/Perth', label: 'Perth (AWST)' },
+  { value: 'Australia/Darwin', label: 'Darwin (ACST)' },
+  { value: 'Australia/Hobart', label: 'Hobart (AEST/AEDT)' },
+]
+
+export interface Venue {
+  id: string
+  organization_id: string
+  name: string
+  location_type: 'cafe' | 'restaurant' | 'kiosk' | 'bar'
+  address: string
+  timezone: string
+  active: boolean
+}
+
+export interface User {
+  id: string
+  organization_id: string
+  email: string
+  name: string
+  role: 'owner' | 'manager' | 'supervisor' | 'crew'
+  active: boolean
+}
+
+// ============================================
+// SALES & ORDERS
+// ============================================
+
+export interface Order {
+  id: string
+  order_number: string
+  venue_id: string
+  order_datetime: Date
+  channel: 'dine-in' | 'takeaway' | 'delivery' | 'online'
+  
+  gross_amount: number
+  tax_amount: number
+  discount_amount: number
+  service_charge: number
+  tip_amount: number
+  net_amount: number
+  
+  is_void: boolean
+  is_refund: boolean
+  refund_reason?: string
+  
+  customer_id?: string
+  staff_id?: string
+}
+
+export interface OrderItem {
+  id: string
+  order_id: string
+  menu_item_id: string
+  menu_item_name: string
+  quantity: number
+  unit_price: number
+  total_price: number
+  menu_category: string
+  menu_group: 'food' | 'beverages' | 'other'
+}
+
+export interface Tender {
+  id: string
+  order_id: string
+  payment_method: 'card' | 'cash' | 'digital_wallet'
+  payment_provider?: string
+  amount: number
+}
+
+// ============================================
+// INVENTORY
+// ============================================
+
+export interface Ingredient {
+  id: string
+  venue_id: string
+  name: string
+  category: 'produce' | 'meat' | 'seafood' | 'dairy' | 'dry-goods' | 'beverages' | 'other'
+  unit: 'kg' | 'g' | 'L' | 'mL' | 'ea'
+  
+  current_stock: number
+  par_level: number
+  reorder_point: number // Trigger reorder when stock falls below this
+  
+  cost_per_unit: number
+  last_cost_update: Date
+  
+  supplier_id?: string
+  supplier_name?: string
+  product_code?: string // Supplier's product code/SKU
+  pack_size?: number // e.g., 1 for single unit, 12 for dozen, 20 for case (legacy)
+  gst_applicable?: boolean
+  
+  // New unit conversion fields
+  units_per_pack?: number // Number of units in pack (e.g., 24 for case of 24)
+  unit_size?: number // Size of each unit (e.g., 330 for 330mL bottles)
+  base_unit?: string // Base unit (g, mL, ea)
+  pack_to_base_factor?: number // Total base units in pack (e.g., 7920 for 24×330mL)
+  unit_cost_ex_base?: number // Cost per base unit in cents (e.g., 0.2879 cents/mL)
+  pack_size_text?: string // Display text (e.g., "24×330mL")
+  
+  active: boolean
+}
+
+export interface StockCount {
+  id: string
+  venue_id: string
+  count_number: string
+  count_date: Date
+  counted_by_user_id: string
+  counted_by_name: string
+  status: 'in-progress' | 'completed' | 'reviewed'
+  total_variance_value: number
+  notes?: string
+  items?: StockCountItem[]
+}
+
+export interface StockCountItem {
+  id: string
+  stock_count_id: string
+  ingredient_id: string
+  ingredient_name: string
+  expected_quantity: number
+  actual_quantity: number
+  variance: number
+  variance_value: number
+}
+
+export interface WasteEntry {
+  id: string
+  venue_id: string
+  waste_date: Date
+  waste_time: string
+  ingredient_id: string
+  ingredient_name: string
+  quantity: number
+  unit: string
+  value: number
+  reason: 'spoilage' | 'spillage' | 'prep-waste' | 'over-production' | 'damaged' | 'other'
+  notes?: string
+  recorded_by_user_id: string
+  recorded_by_name: string
+}
+
+export interface PurchaseOrder {
+  id: string
+  po_number: string
+  venue_id: string
+  supplier_id: string
+  supplier_name: string
+  order_date: Date
+  expected_delivery_date: Date
+  status: 'draft' | 'submitted' | 'confirmed' | 'delivered' | 'cancelled'
+  subtotal: number
+  tax_amount: number
+  total: number
+  items?: PurchaseOrderItem[]
+  notes?: string
+  created_by?: string
+  created_by_name?: string
+  submitted_at?: Date
+  submitted_by?: string
+  confirmed_at?: Date
+  delivered_at?: Date
+  cancelled_at?: Date
+  cancellation_reason?: string
+  created_at?: Date
+  updated_at?: Date
+}
+
+export interface PurchaseOrderItem {
+  id: string
+  purchase_order_id: string
+  ingredient_id: string
+  ingredient_name: string
+  product_code?: string
+  quantity_ordered: number
+  quantity_received: number
+  unit: string
+  unit_cost: number
+  line_total: number
+  notes?: string
+}
+
+export interface Supplier {
+  id: string
+  organization_id: string
+  name: string
+  contact_person?: string
+  email?: string
+  phone?: string
+  address?: string
+  category: 'produce' | 'meat' | 'dry-goods' | 'beverages' | 'equipment' | 'other'
+  payment_terms: 'net-7' | 'net-14' | 'net-30' | 'cod'
+  account_number?: string
+  delivery_days: number[] // Array of day numbers (0=Sunday, 1=Monday, etc.)
+  cutoff_time: string // HH:MM format (24hr)
+  delivery_lead_days: number // Days between order and delivery
+  minimum_order?: number // Minimum order value in cents
+  notes?: string
+  active: boolean
+}
+
+// ============================================
+// MENU & RECIPES
+// ============================================
+
+export interface MenuItem {
+  id: string
+  venue_id: string
+  name: string
+  description?: string
+  category: string
+  menu_group: 'food' | 'beverages' | 'other'
+  
+  selling_price: number
+  cost_price: number
+  margin_percent: number
+  
+  active: boolean
+  launch_date?: Date
+}
+
+export interface Recipe {
+  id: string
+  organization_id: string
+  name: string
+  category: 'mains' | 'sides' | 'drinks' | 'desserts' | 'prep' | 'other'
+  serves: number // Number of portions (min > 0)
+  wastage_percent: number // 0-100, default 0
+  gp_target_percent: number // Gross profit target % (default 65)
+  instructions?: string // Long text instructions
+  steps: string[] // Ordered step-by-step instructions
+  allergens: string[] // List of allergens
+  status: 'draft' | 'published' | 'archived'
+  
+  // Calculated fields (auto-computed)
+  total_cost: number // Sum of all ingredient line costs (in cents)
+  cost_per_serve: number // total_cost / serves (in cents)
+  suggested_price: number // Based on GP target (in cents)
+  
+  created_by: string
+  created_by_name?: string
+  created_at: Date
+  updated_at: Date
+  published_at?: Date
+  archived_at?: Date
+}
+
+export interface RecipeIngredient {
+  id: string
+  recipe_id: string
+  product_id: string // Links to Ingredient from inventory
+  product_name: string // Denormalized for display
+  quantity: number // Amount needed
+  unit: 'g' | 'kg' | 'mL' | 'L' | 'ea'
+  
+  // Calculated fields
+  cost_per_unit: number // Cost per selected unit (in cents) - DEPRECATED, use unit_cost_ex_base
+  line_cost: number // quantity × unit_cost_ex_base (in cents)
+  unit_cost_ex_base?: number // Cost per base unit from ingredient (cents per g/mL/ea)
+  
+  // Reference data (from Ingredient)
+  product_unit: string // Original unit from ingredient
+  product_cost: number // Original cost per unit from ingredient (pack cost)
+}
+
+// Common Australian allergens (FSANZ)
+export const COMMON_ALLERGENS = [
+  'Gluten (Wheat, Rye, Barley, Oats)',
+  'Crustaceans',
+  'Eggs',
+  'Fish',
+  'Milk',
+  'Peanuts',
+  'Tree Nuts',
+  'Soybeans',
+  'Sesame Seeds',
+  'Lupin',
+  'Molluscs',
+  'Sulphites',
+]
+
+// ============================================
+// MENU MANAGEMENT
+// ============================================
+
+export interface MenuSection {
+  id: string
+  organization_id: string
+  name: string // "Entrees", "Mains", "Desserts", "Drinks", etc.
+  display_order: number
+  is_drinks: boolean // Special handling for drinks section
+  tax_mode: 'GST_INC' | 'GST_EX' | 'FOLLOW_ITEM' // Default tax handling
+  created_at: Date
+  updated_at: Date
+  
+  // Computed aggregations
+  items_count?: number
+  section_revenue?: number // Ex-GST (in cents)
+  section_cogs?: number // Cost of goods sold (in cents)
+  section_gp_percent?: number // Gross profit %
+}
+
+export interface MenuItem {
+  id: string
+  organization_id: string
+  section_id: string
+  name: string
+  recipe_id: string // Must link to published recipe
+  recipe_name?: string // Denormalized for display
+  plu_code?: string // PLU code for POS
+  
+  // Pricing
+  price_mode: 'AUTO_FROM_RECIPE' | 'MANUAL'
+  price: number // In cents (manual price or override)
+  gst_mode: 'INC' | 'EX' // GST inclusive or exclusive
+  gst_rate_percent: number // Default 10 for AU
+  
+  // Display
+  show_on_menu: boolean
+  tags: string[] // 'vegan', 'gf', 'spicy', etc.
+  allergens: string[] // Copied from recipe, editable
+  display_order: number
+  
+  // Drinks specific
+  abv_percent?: number // Alcohol by volume
+  volume_ml?: number // Serving size in ml
+  std_drinks?: number // Standard drinks (calculated)
+  
+  // Costing (from recipe)
+  cost_per_serve: number // In cents (from linked recipe)
+  gp_target_percent: number // Target GP% (from recipe or override)
+  
+  // Calculated fields
+  effective_price?: number // Auto from recipe or manual (in cents)
+  price_ex_gst?: number // Price excluding GST (in cents)
+  gst_amount?: number // GST component (in cents)
+  gp_percent?: number // Actual GP%
+  
+  created_at: Date
+  updated_at: Date
+}
+
+export interface MenuAnalytics {
+  total_items: number
+  total_sections: number
+  menu_revenue: number // Total ex-GST (in cents)
+  menu_cogs: number // Total COGS (in cents)
+  menu_gp_percent: number // Overall GP%
+  warnings: MenuWarning[]
+}
+
+export interface MenuWarning {
+  type: 'low_gp' | 'missing_plu' | 'price_below_cost' | 'unpublished_recipe'
+  severity: 'error' | 'warning'
+  item_id: string
+  item_name: string
+  message: string
+}
+
+export const COMMON_MENU_TAGS = [
+  'Vegetarian',
+  'Vegan',
+  'Gluten Free',
+  'Dairy Free',
+  'Nut Free',
+  'Spicy',
+  'Chef Special',
+  'Popular',
+  'New',
+  'Signature',
+  'Seasonal',
+]
+
+// ============================================
+// WORKFORCE
+// ============================================
+
+export interface Staff {
+  id: string
+  organization_id: string
+  venue_id: string
+  
+  name: string
+  email: string
+  phone?: string
+  
+  role: 'manager' | 'supervisor' | 'crew'
+  employment_type?: 'full-time' | 'part-time' | 'casual'
+  award_classification?: string
+  hourly_rate: number  // cents
+  start_date: Date
+  status: 'active' | 'inactive'
+  
+  // Onboarding
+  onboarding_status: 'not_started' | 'invited' | 'in_progress' | 'pending_review' | 'roster_ready'
+  onboarding_progress: number  // 0-100
+  onboarding_completed_at?: Date
+  
+  // Personal Details
+  date_of_birth?: Date
+  emergency_contact_name?: string
+  emergency_contact_phone?: string
+  emergency_contact_relationship?: string
+  address_line1?: string
+  address_line2?: string
+  suburb?: string
+  state?: string
+  postcode?: string
+  
+  // TFN
+  tfn_number?: string
+  tfn_exemption: boolean
+  tfn_claimed_tax_free_threshold: boolean
+  tfn_has_help_debt: boolean
+  tfn_has_tsl_debt: boolean
+  tfn_tax_offset_claimed: boolean
+  tfn_signature?: string
+  tfn_signed_at?: Date
+  
+  // Bank
+  bank_account_name?: string
+  bank_bsb?: string
+  bank_account_number?: string
+  bank_institution_name?: string
+  
+  // Super
+  super_fund_name?: string
+  super_fund_abn?: string
+  super_fund_usi?: string
+  super_member_number?: string
+  super_use_employer_default: boolean
+  super_signed_at?: Date
+  
+  external_payroll_id?: string
+  created_at?: Date
+}
+
+export interface OnboardingInvite {
+  id: string
+  staff_id: string
+  token: string
+  sent_to_email: string
+  sent_at: Date
+  expires_at: Date
+  accessed_at?: Date
+  completed_at?: Date
+}
+
+export interface OnboardingStep {
+  id: string
+  staff_id: string
+  step_number: number
+  step_name: string
+  status: 'not_started' | 'in_progress' | 'completed'
+  completed_at?: Date
+}
+
+export interface OnboardingDocument {
+  id: string
+  staff_id: string
+  document_type: 'id_proof' | 'tfn_declaration' | 'super_choice' | 'rsa_rsg' | 'food_safety' | 'first_aid'
+  file_name: string
+  file_url: string
+  file_size: number
+  mime_type: string
+  status: 'pending' | 'approved' | 'rejected'
+  uploaded_at: Date
+  uploaded_by?: string
+  reviewed_by?: string
+  reviewed_at?: Date
+}
+
+export interface Shift {
+  id: string
+  venue_id: string
+  staff_id: string
+  staff_name: string
+  
+  date: Date
+  start_time: string
+  end_time: string
+  break_minutes: number
+  
+  role: string
+  
+  total_hours: number
+  total_cost: number
+}
+
+export interface Timesheet {
+  id: string
+  venue_id: string
+  staff_id: string
+  staff_name: string
+  
+  date: Date
+  clock_in: Date
+  clock_out?: Date
+  break_minutes: number
+  
+  total_hours: number
+  gross_pay: number
+  
+  status: 'pending' | 'approved' | 'rejected'
+  notes?: string
+}
+
+// ============================================
+// FORECASTS & TARGETS
+// ============================================
+
+export interface Forecast {
+  id: string
+  venue_id: string
+  date: Date
+  channel: string
+  forecast_sales: number
+  confidence_lower: number
+  confidence_upper: number
+}
+
+export interface Target {
+  id: string
+  venue_id: string
+  date: Date
+  channel: string
+  target_sales: number
+  target_type: 'budget' | 'goal' | 'stretch'
+}
+
+// ============================================
+// CALCULATED METRICS (NOT STORED)
+// ============================================
+
+export interface SalesMetrics {
+  net_sales: number
+  avg_check: number
+  total_orders: number
+  total_items: number
+  items_per_order: number
+  
+  variance_vs_previous: {
+    absolute: number
+    percentage: number | null
+  }
+  
+  variance_vs_forecast: {
+    absolute: number
+    percentage: number | null
+  }
+}
+
+export interface PacingMetrics {
+  actual_to_date: number
+  target_to_date: number
+  pacing_percent: number
+  projected_finish: number
+  target_total: number
+  on_track: boolean
+}
+
+export interface RefundMetrics {
+  refund_count: number
+  refund_rate_percent: number
+  refund_value: number
+  refund_value_percent: number
+  void_count: number
+  void_rate_percent: number
+}
+
+export interface ChannelMetrics {
+  channel: string
+  sales: number
+  orders: number
+  avg_check: number
+  share_pct: number
+}
+
+export interface PaymentMix {
+  payment_method: string
+  amount: number
+  transaction_count: number
+  share_pct: number
+  avg_transaction: number
+}
+
+export interface LabourMetrics {
+  total_hours: number
+  total_cost: number
+  labour_percent: number
+  avg_hourly_rate: number
+  staff_count: number
+  cost_vs_sales: number
+}
+
+export interface InventoryMetrics {
+  total_stock_value: number
+  items_below_par: number
+  items_to_order: number
+  total_waste_value: number
+  stock_turnover_days: number
+}
+
+export interface COGSMetrics {
+  total_cogs: number
+  cogs_percent: number
+  theoretical_cogs: number
+  actual_cogs: number
+  variance: number
+  variance_percent: number
+}
+
+export interface DateRangeFilter {
+  startDate: Date
+  endDate: Date
+}
+
+export interface VenueFilter {
+  venueIds: string[]
+}
+
+export interface GeneralFilters {
+  dateRange?: DateRangeFilter
+  venues?: string[]
+  channels?: string[]
+  categories?: string[]
+  staff?: string[]
+}
+
+// Order Guide Recommendation
+export interface OrderRecommendation {
+  product: Ingredient
+  current_stock: number
+  par_level: number
+  usage_per_thousand_sales: number // e.g., 2.5 kg per $1000 sales
+  forecasted_sales: number // in dollars
+  estimated_usage: number // based on forecast
+  days_until_delivery: number
+  recommended_quantity: number
+  estimated_cost: number // in cents
+  urgency: 'critical' | 'low' | 'adequate' | 'overstocked'
+}
+
+// Inventory Transaction (for tracking usage)
+export interface InventoryTransaction {
+  id: string
+  organization_id: string
+  product_id: string
+  transaction_type: 'purchase' | 'usage' | 'waste' | 'adjustment' | 'transfer'
+  quantity: number // Positive for additions, negative for usage
+  unit_cost?: number // Cost at time of transaction (in cents)
+  transaction_date: Date
+  reference_id?: string // Link to PO, waste log, etc.
+  notes?: string
+  created_by: string
+  created_at: Date
+}
+
+// Renamed types for consistency
+export type WasteLog = WasteEntry
+export type RosterShift = Shift
+export type RecipeItem = RecipeIngredient
+
+// Additional types for comprehensive coverage
+export interface BankAccount {
+  id: string
+  organization_id: string
+  account_name: string
+  bsb: string
+  account_number: string
+  current_balance: number
+  institution: string
+  account_type: 'operating' | 'savings' | 'credit'
+  active: boolean
+  created_at: Date
+}
+
+export interface CashFlowObligation {
+  id: string
+  organization_id: string
+  description: string
+  obligation_type: 'payroll' | 'superannuation' | 'bas-gst' | 'bas-paye' | 'rent' | 'utilities' | 'supplier' | 'other'
+  amount: number
+  due_date: Date
+  status: 'upcoming' | 'paid' | 'overdue'
+  recurrence: 'once' | 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'annual'
+  notes?: string
+  created_at: Date
+}
+
+export interface BudgetLine {
+  id: string
+  organization_id: string
+  venue_id?: string
+  category: 'sales' | 'cogs' | 'labour' | 'expenses'
+  subcategory: string
+  period_type: 'daily' | 'weekly' | 'monthly'
+  period_start: Date
+  budgeted_amount: number
+  actual_amount?: number
+  variance?: number
+  variance_percent?: number
+  notes?: string
+  created_at: Date
+}
+
+export interface DaybookEntry {
+  id: string
+  venue_id: string
+  entry_date: Date
+  entry_time: string
+  category: 'incident' | 'maintenance' | 'delivery' | 'observation' | 'task' | 'other'
+  description: string
+  priority: 'low' | 'medium' | 'high'
+  status: 'open' | 'in-progress' | 'resolved'
+  assigned_to?: string
+  resolved_at?: Date
+  resolution_notes?: string
+  created_by: string
+  created_at: Date
+}
+
+export interface ComplianceCheck {
+  id: string
+  organization_id: string
+  venue_id: string
+  check_type: 'fairwork' | 'food-safety' | 'whs' | 'licensing' | 'other'
+  check_name: string
+  check_date: Date
+  status: 'pass' | 'fail' | 'warning'
+  findings?: string
+  corrective_actions?: string
+  due_date?: Date
+  completed: boolean
+  completed_by?: string
+  created_at: Date
+}
+
+export interface AutomationRule {
+  id: string
+  organization_id: string
+  rule_name: string
+  rule_type: 'auto-order' | 'price-alert' | 'roster-alert' | 'compliance-reminder' | 'other'
+  trigger_condition: string
+  action: string
+  active: boolean
+  last_triggered?: Date
+  created_at: Date
+}
+
+// ============================================
+// INVOICE OCR TYPES
+// ============================================
+// DIAGNOSTICS TYPES
+// ============================================
+
+export type DiagnosticsJobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'partial'
+export type DiagnosticsSeverity = 'fail' | 'warn' | 'info' | 'pass'
+export type DiagnosticsCategory = 'settings' | 'suppliers' | 'catalog' | 'ingredients' | 'recipes' | 'menu' | 'locations' | 'rbac' | 'intake'
+
+export interface DiagnosticsJob {
+  id: string
+  org_id: string
+  venue_id?: string
+  started_by_user_id: string
+  status: DiagnosticsJobStatus
+  started_at: Date
+  finished_at?: Date
+  summary_json: { total: number; fail: number; warn: number; info: number; pass: number }
+  created_at: Date
+}
+
+export interface DiagnosticsResult {
+  id: string
+  job_id: string
+  category: DiagnosticsCategory
+  check_id: string
+  title: string
+  severity: DiagnosticsSeverity
+  detail: string
+  evidence: { count?: number; ids?: string[]; rows?: Array<Record<string, any>>; message?: string }
+  quick_fix_available: boolean
+  quick_fix_action?: string
+  quick_fix_url?: string
+  created_at: Date
+}
+
+// ============================================
+// INVOICE OCR TYPES
+// ============================================
+
+export type InvoiceIntakeStatus = 'queued' | 'parsing' | 'needs_review' | 'approved' | 'rejected' | 'failed'
+export type InvoiceIntakeSource = 'UPLOAD' | 'EMAIL' | 'EDI' | 'PEPPOL'
+export type MatchType = 'exact' | 'alias' | 'fuzzy' | 'new_item'
+export type GSTMode = 'INC' | 'EX' | 'NONE'
+
+export interface InvoiceIntakeJob {
+  id: string
+  org_id: string
+  venue_id: string
+  created_by_user_id: string
+  
+  // Source & Status
+  source: InvoiceIntakeSource
+  status: InvoiceIntakeStatus
+  
+  // File
+  file_url: string
+  original_filename: string
+  
+  // Confidence
+  supplier_confidence: number  // 0-1
+  totals_confidence: number    // 0-1
+  
+  // Header (parsed from OCR)
+  header_json: {
+    invoice_number: string
+    invoice_date: string  // ISO date
+    supplier_name: string
+    abn?: string
+    supplier_code?: string
+    po_number?: string
+    gst_mode: GSTMode
+    subtotal: number   // dollars
+    gst: number        // dollars
+    total: number      // dollars
+  }
+  
+  // Lines (parsed from OCR)
+  lines_json: Array<{
+    line_index: number
+    raw_desc: string
+    brand?: string
+    pack_size_text?: string
+    qty: number
+    unit_price: number  // dollars
+    ext_price: number   // dollars
+    gst_code?: string
+    confidence: number  // 0-1
+  }>
+  
+  // Mapping (computed after parsing)
+  mapping_json: Array<{
+    line_index: number
+    match_type: MatchType
+    ingredient_id?: string
+    alias_used?: string
+    pack_to_unit_factor?: number  // e.g., 1kg = 1000g
+    unit: 'g' | 'kg' | 'ml' | 'L' | 'pcs' | 'ea'
+    unit_cost_computed: number  // cents per base unit
+  }>
+  
+  // Duplicate detection
+  dedupe_key: string  // format: "{abn}_{invoice_number}_{invoice_date}"
+  
+  created_at: Date
+  updated_at: Date
+}
+
+export interface SupplierAlias {
+  id: string
+  org_id: string
+  supplier_id: string
+  
+  // Alias details
+  supplier_sku: string
+  supplier_name_at_time: string
+  brand?: string
+  pack_size_text: string
+  uom_base: string  // 'g' | 'ml' | 'ea'
+  uom_qty: number
+  
+  // Link to ingredient
+  ingredient_id: string
+  
+  // Metadata
+  confidence_avg: number  // 0-1
+  last_seen_at: Date
+  created_at: Date
+}
+
+export interface InvoiceIntakeReview {
+  id: string
+  intake_id: string
+  reviewer_user_id: string
+  status: 'approved' | 'rejected'
+  notes?: string
+  created_at: Date
+}
