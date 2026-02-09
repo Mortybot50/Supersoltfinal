@@ -24,6 +24,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { useDataStore } from '@/lib/store/dataStore'
+import { PurchaseOrder, PurchaseOrderItem } from '@/types'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 
@@ -51,7 +52,7 @@ export default function PurchaseOrderDetail() {
     loadSuppliersFromDB()
   }, [])
   
-  const po = purchaseOrders.find((p: any) => p.id === poId)
+  const po = purchaseOrders.find((p: PurchaseOrder) => p.id === poId)
   const supplier = po ? suppliers.find((s) => s.id === po.supplier_id) : null
   
   if (!po) {
@@ -142,22 +143,22 @@ Team`
   
   const handleReceive = () => {
     const quantities: Record<string, number> = {}
-    po.items?.forEach((item: any) => {
-      quantities[item.id] = (item.quantity_ordered || item.quantity) - (item.quantity_received || 0)
+    po.items?.forEach((item: PurchaseOrderItem) => {
+      quantities[item.id] = (item.quantity_ordered) - (item.quantity_received || 0)
     })
     setReceivedQuantities(quantities)
     setReceiveDialogOpen(true)
   }
-  
+
   const confirmReceive = async () => {
     try {
-      const updatedItems = po.items?.map((item: any) => ({
+      const updatedItems = po.items?.map((item: PurchaseOrderItem) => ({
         ...item,
         quantity_received: (item.quantity_received || 0) + (receivedQuantities[item.id] || 0),
       }))
-      
+
       const allReceived = updatedItems?.every(
-        (item: any) => (item.quantity_received || 0) >= (item.quantity_ordered || item.quantity)
+        (item: PurchaseOrderItem) => (item.quantity_received || 0) >= (item.quantity_ordered)
       )
       
       await updatePurchaseOrder(po.id, {
@@ -328,7 +329,7 @@ Team`
             </TableRow>
           </TableHeader>
           <TableBody>
-            {po.items?.map((item: any) => (
+            {po.items?.map((item: PurchaseOrderItem) => (
               <TableRow key={item.id}>
                 <TableCell className="font-medium">{item.ingredient_name}</TableCell>
                 <TableCell>{item.unit}</TableCell>
@@ -485,8 +486,8 @@ Team`
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {po.items?.map((item: any) => {
-                  const remaining = (item.quantity_ordered || item.quantity) - (item.quantity_received || 0)
+                {po.items?.map((item: PurchaseOrderItem) => {
+                  const remaining = (item.quantity_ordered) - (item.quantity_received || 0)
                   
                   return (
                     <TableRow key={item.id}>

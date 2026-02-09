@@ -10,18 +10,20 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { Info } from 'lucide-react'
 
+interface TFNDeclarationData {
+  tfn_number?: string
+  tfn_declaration_status: string
+  tfn_exemption_reason?: string
+  tfn_claimed_tax_free_threshold: boolean
+  tfn_has_help_debt: boolean
+  tfn_has_ssl_debt: boolean
+  tfn_has_tsl_debt: boolean
+}
+
 interface TFNDeclarationStepProps {
   staffId: string
-  initialData?: {
-    tfn_number?: string
-    tfn_declaration_status?: string
-    tfn_exemption_reason?: string
-    tfn_claimed_tax_free_threshold?: boolean
-    tfn_has_help_debt?: boolean
-    tfn_has_ssl_debt?: boolean
-    tfn_has_tsl_debt?: boolean
-  }
-  onComplete: (data: any) => void
+  initialData?: Partial<TFNDeclarationData>
+  onComplete: (data: TFNDeclarationData) => void
   onBack?: () => void
 }
 

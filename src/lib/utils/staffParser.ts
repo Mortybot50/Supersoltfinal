@@ -87,7 +87,7 @@ export async function parseStaffExcel(file: File): Promise<ParseResult> {
       }
     }
     
-    rawData.forEach((row: any, index: number) => {
+    rawData.forEach((row: Record<string, unknown>, index: number) => {
       const rowNumber = index + 2 // Excel is 1-indexed + header row
       const rowErrors: ParseError[] = []
       
@@ -149,7 +149,7 @@ export async function parseStaffExcel(file: File): Promise<ParseResult> {
       }
       
       // Validate Phone
-      const phoneRaw = String(row['Phone'] || '').replace(/[\s\-\(\)]/g, '')
+      const phoneRaw = String(row['Phone'] || '').replace(/[\s\-()]/g, '')
       if (!phoneRaw) {
         rowErrors.push({
           row: rowNumber,
@@ -241,11 +241,11 @@ export async function parseStaffExcel(file: File): Promise<ParseResult> {
       }
     }
     
-  } catch (error: any) {
+  } catch (error) {
     return {
       success: false,
       data: [],
-      errors: [{ row: 0, field: 'file', message: error.message }],
+      errors: [{ row: 0, field: 'file', message: error instanceof Error ? error.message : 'Unknown error' }],
       warnings: [],
       summary: { total_rows: 0, valid_rows: 0, invalid_rows: 0 }
     }

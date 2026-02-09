@@ -86,7 +86,7 @@ export default function VenueSettings() {
     }
   };
 
-  const handleFieldChange = (field: string, value: any) => {
+  const handleFieldChange = (field: string, value: unknown) => {
     setSettings(prev => ({ ...prev, [field]: value }));
     setHasUnsavedChanges(true);
   };

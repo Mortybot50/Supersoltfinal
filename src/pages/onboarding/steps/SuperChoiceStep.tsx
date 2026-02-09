@@ -12,16 +12,18 @@ import { AUSTRALIAN_SUPER_FUNDS } from '@/lib/data/superFunds'
 import { Check, ChevronsUpDown, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+interface SuperChoiceData {
+  super_choice_status: string
+  super_fund_name: string
+  super_fund_abn: string
+  super_fund_usi: string
+  super_member_number: string
+}
+
 interface SuperChoiceStepProps {
   staffId: string
-  initialData?: {
-    super_choice_status?: string
-    super_fund_name?: string
-    super_fund_abn?: string
-    super_fund_usi?: string
-    super_member_number?: string
-  }
-  onComplete: (data: any) => void
+  initialData?: Partial<SuperChoiceData>
+  onComplete: (data: SuperChoiceData) => void
   onBack?: () => void
 }
 

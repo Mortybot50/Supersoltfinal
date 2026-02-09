@@ -77,9 +77,9 @@ interface AuditRecord {
   org_id: string;
   actor_member_id?: string;
   action: string;
-  target?: any;
-  before_snapshot?: any;
-  after_snapshot?: any;
+  target?: Record<string, unknown>;
+  before_snapshot?: Record<string, unknown>;
+  after_snapshot?: Record<string, unknown>;
   created_at: string;
 }
 
@@ -309,7 +309,7 @@ export default function AccessRoles() {
     await supabase.from('access_audit').insert([{
       org_id: orgId,
       action: 'invite.send',
-      target: { member_id: memberData.id, email: inviteForm.email } as any,
+      target: { member_id: memberData.id, email: inviteForm.email } as Record<string, unknown>,
     }]);
 
     toast({ title: 'Success', description: `Invitation sent to ${inviteForm.email}` });
@@ -353,7 +353,7 @@ export default function AccessRoles() {
     await supabase.from('access_audit').insert([{
       org_id: orgId,
       action: 'pin.generate',
-      target: { member_id: selectedMemberForPin } as any,
+      target: { member_id: selectedMemberForPin } as Record<string, unknown>,
     }]);
 
     // Copy to clipboard
@@ -394,7 +394,7 @@ export default function AccessRoles() {
     await supabase.from('access_audit').insert([{
       org_id: orgId,
       action: 'pin.rotate',
-      target: { member_id: memberId } as any,
+      target: { member_id: memberId } as Record<string, unknown>,
     }]);
 
     navigator.clipboard.writeText(newPin);
@@ -419,7 +419,7 @@ export default function AccessRoles() {
     await supabase.from('access_audit').insert([{
       org_id: orgId,
       action: newStatus === 'suspended' ? 'member.suspend' : 'member.activate',
-      target: { member_id: memberId } as any,
+      target: { member_id: memberId } as Record<string, unknown>,
     }]);
 
     toast({ title: 'Success', description: `Member ${newStatus === 'suspended' ? 'suspended' : 'activated'}` });
@@ -447,8 +447,8 @@ export default function AccessRoles() {
     await supabase.from('access_audit').insert([{
       org_id: orgId,
       action: 'role.update',
-      target: { role_id: editingRole.id } as any,
-      after_snapshot: editingRole as any,
+      target: { role_id: editingRole.id } as Record<string, unknown>,
+      after_snapshot: editingRole as unknown as Record<string, unknown>,
     }]);
 
     toast({ title: 'Success', description: 'Role updated successfully' });
@@ -463,7 +463,7 @@ export default function AccessRoles() {
       suspended: 'destructive',
       deactivated: 'outline',
     };
-    return <Badge variant={variants[status] as any}>{status}</Badge>;
+    return <Badge variant={variants[status] as "default" | "secondary" | "destructive" | "outline"}>{status}</Badge>;
   };
 
   const getMemberAssignments = (memberId: string) => {

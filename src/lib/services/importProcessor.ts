@@ -50,12 +50,12 @@ export async function processImport<T>(
             })
           })
         }
-      } catch (error: any) {
+      } catch (error) {
         errors.push({
           row: rowNumber,
           field: 'general',
           value: null,
-          message: error.message
+          message: error instanceof Error ? error.message : 'Unknown error'
         })
       }
     })
@@ -70,11 +70,11 @@ export async function processImport<T>(
       invalidRows: errors.length
     }
     
-  } catch (error: any) {
+  } catch (error) {
     return {
       success: false,
       data: [],
-      errors: [{ row: 0, field: 'file', value: null, message: error.message }],
+      errors: [{ row: 0, field: 'file', value: null, message: error instanceof Error ? error.message : 'Unknown error' }],
       warnings: [],
       totalRows: 0,
       validRows: 0,
@@ -83,8 +83,8 @@ export async function processImport<T>(
   }
 }
 
-function transformRow(row: any, mappings: ColumnMapping[]): any {
-  const transformed: any = {}
+function transformRow(row: Record<string, unknown>, mappings: ColumnMapping[]): Record<string, unknown> {
+  const transformed: Record<string, unknown> = {}
   
   mappings.forEach(mapping => {
     const rawValue = row[mapping.header]
@@ -126,13 +126,14 @@ function transformRow(row: any, mappings: ColumnMapping[]): any {
       case 'phone':
         transformed[mapping.field] = ExcelUtils.cleanPhone(rawValue)
         break
-      case 'enum':
+      case 'enum': {
         const cleanValue = ExcelUtils.cleanString(rawValue).toLowerCase()
         if (mapping.options && !mapping.options.includes(cleanValue)) {
           throw new Error(`${mapping.header} must be one of: ${mapping.options.join(', ')}`)
         }
         transformed[mapping.field] = cleanValue
         break
+      }
     }
     
     // Apply custom transform if exists

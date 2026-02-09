@@ -45,7 +45,7 @@ export function IngredientForm({ onSubmit, onCancel, initialData }: IngredientFo
       ...data,
       cost_per_unit: Math.round(data.cost_per_unit * 100),
     }
-    onSubmit(ingredientData as any)
+    onSubmit(ingredientData as Partial<Types.Ingredient>)
   }
   
   return (

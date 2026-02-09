@@ -19,7 +19,8 @@ import {
 } from '@/lib/utils/orderCalculations'
 import { format, differenceInDays, subDays } from 'date-fns'
 import { toast } from 'sonner'
-import type { OrderRecommendation } from '@/types'
+import type { OrderRecommendation, PurchaseOrder, PurchaseOrderItem } from '@/types'
+import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
 
 export default function OrderGuide() {
   const { suppliers, ingredients, purchaseOrders, orders, loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB } = useDataStore()
@@ -152,7 +153,7 @@ export default function OrderGuide() {
       return
     }
     
-    const items: any[] = []
+    const items: PurchaseOrderItem[] = []
     
     selectedProducts.forEach((productId) => {
       const recommendation = orderRecommendations.find(
@@ -190,7 +191,7 @@ export default function OrderGuide() {
     const total = subtotal + taxAmount
     
     const poId = crypto.randomUUID()
-    const po: any = {
+    const po: PurchaseOrder = {
       id: poId,
       po_number: generatePONumber(purchaseOrders),
       venue_id: 'main-venue',
@@ -255,72 +256,58 @@ export default function OrderGuide() {
     }
   }
   
+  const sidebarMetrics = selectedSupplier ? [
+    { label: "Products", value: orderRecommendations.length },
+    { label: "Selected", value: selectedProducts.size },
+    ...(totalOrderValue > 0 ? [{ label: "Order Total", value: `$${(totalOrderValue / 100).toFixed(2)}` }] : []),
+  ] : [
+    { label: "Suppliers", value: suppliers.filter(s => s.active).length },
+  ]
+
+  const sidebarExtended = selectedSupplier ? [
+    { label: "Next Delivery", value: format(getNextDeliveryDate(selectedSupplier), 'EEE, dd MMM') },
+    ...(salesForecast > 0 ? [{ label: "Forecast (7d)", value: `$${salesForecast.toFixed(0)}` }] : []),
+  ] : undefined
+
+  const sidebar = (
+    <PageSidebar
+      title="Order Guide"
+      metrics={sidebarMetrics}
+      extendedMetrics={sidebarExtended}
+    />
+  )
+
+  const toolbar = (
+    <PageToolbar
+      title="Order Guide"
+      filters={
+        <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId}>
+          <SelectTrigger className="h-8 w-[200px]">
+            <SelectValue placeholder="Select supplier..." />
+          </SelectTrigger>
+          <SelectContent>
+            {suppliers
+              .filter((s) => s.active)
+              .map((supplier) => (
+                <SelectItem key={supplier.id} value={supplier.id}>
+                  {supplier.name}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+      }
+      primaryAction={selectedProducts.size > 0 ? {
+        label: "Create PO",
+        icon: ShoppingCart,
+        onClick: handleCreateOrder,
+        variant: "teal",
+      } : undefined}
+    />
+  )
+
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Order Guide</h1>
-          <p className="text-muted-foreground">
-            Intelligent ordering based on sales forecasts and usage patterns
-          </p>
-        </div>
-      </div>
-      
-      {/* Supplier Selection */}
-      <Card className="p-6">
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <label className="text-sm font-medium mb-2 block">
-              Select Supplier
-            </label>
-            <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a supplier..." />
-              </SelectTrigger>
-              <SelectContent>
-                {suppliers
-                  .filter((s) => s.active)
-                  .map((supplier) => (
-                    <SelectItem key={supplier.id} value={supplier.id}>
-                      {supplier.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {selectedSupplier && (
-            <Card className="p-4 bg-blue-50 dark:bg-blue-950">
-              <div className="flex items-center gap-2 mb-2">
-                <Calendar className="h-4 w-4" />
-                <p className="text-sm font-medium">Next Delivery</p>
-              </div>
-              <p className="text-2xl font-bold">
-                {format(getNextDeliveryDate(selectedSupplier), 'EEE, dd MMM')}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {differenceInDays(getNextDeliveryDate(selectedSupplier), new Date())}{' '}
-                days away
-              </p>
-            </Card>
-          )}
-          
-          {selectedSupplier && salesForecast > 0 && (
-            <Card className="p-4 bg-green-50 dark:bg-green-950">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="h-4 w-4" />
-                <p className="text-sm font-medium">Sales Forecast</p>
-              </div>
-              <p className="text-2xl font-bold">
-                ${salesForecast.toFixed(0)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Next 7 days
-              </p>
-            </Card>
-          )}
-        </div>
-      </Card>
+    <PageShell sidebar={sidebar} toolbar={toolbar}>
+      <div className="p-4 space-y-4">
       
       {/* Products Table */}
       {selectedSupplier && orderRecommendations.length > 0 && (
@@ -492,6 +479,7 @@ export default function OrderGuide() {
           )}
         </Card>
       )}
-    </div>
+      </div>
+    </PageShell>
   )
 }

@@ -30,7 +30,7 @@ export default function DocumentsStep({ staffId, onComplete, onBack }: Documents
       const newDoc = {
         id: crypto.randomUUID(),
         staff_id: staffId,
-        document_type: docType as any,
+        document_type: docType as 'id_proof' | 'tfn_declaration' | 'super_choice' | 'rsa_rsg' | 'food_safety' | 'first_aid',
         file_name: file.name,
         file_url: URL.createObjectURL(file),
         file_size: file.size,
@@ -123,8 +123,9 @@ export default function DocumentsStep({ staffId, onComplete, onBack }: Documents
                       const input = document.createElement('input')
                       input.type = 'file'
                       input.accept = 'application/pdf,image/jpeg,image/png'
-                      input.onchange = (e: any) => {
-                        const file = e.target.files[0]
+                      input.onchange = (e: Event) => {
+                        const target = e.target as HTMLInputElement
+                        const file = target.files?.[0]
                         if (file) handleFileUpload(docType.value, file)
                       }
                       input.click()

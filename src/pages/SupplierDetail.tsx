@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useDataStore } from '@/lib/store/dataStore'
+import { Ingredient } from '@/types'
 import { toast } from 'sonner'
 
 const CATEGORIES = [
@@ -58,7 +59,7 @@ export default function SupplierDetail() {
   const [activeTab, setActiveTab] = useState('products')
   const [searchQuery, setSearchQuery] = useState('')
   const [productDialogOpen, setProductDialogOpen] = useState(false)
-  const [editingProduct, setEditingProduct] = useState<any>(null)
+  const [editingProduct, setEditingProduct] = useState<Ingredient | null>(null)
   
   // Load data from Supabase on mount
   useEffect(() => {
@@ -68,7 +69,7 @@ export default function SupplierDetail() {
   
   const [productForm, setProductForm] = useState({
     name: '',
-    category: 'produce' as any,
+    category: 'produce' as Ingredient['category'],
     unit: 'kg',
     units_per_pack: 1,
     unit_size: 1,
@@ -99,7 +100,7 @@ export default function SupplierDetail() {
   }, [supplierProducts, searchQuery])
   
   const productsByCategory = useMemo(() => {
-    const grouped: Record<string, any[]> = {}
+    const grouped: Record<string, Ingredient[]> = {}
     filteredProducts.forEach((product) => {
       if (!grouped[product.category]) {
         grouped[product.category] = []
@@ -120,7 +121,7 @@ export default function SupplierDetail() {
     )
   }
   
-  const handleOpenProductDialog = (product?: any) => {
+  const handleOpenProductDialog = (product?: Ingredient) => {
     if (product) {
       setEditingProduct(product)
       setProductForm({
@@ -181,7 +182,7 @@ export default function SupplierDetail() {
     const unitCostExBase = calculateCostPerBaseUnit(costCents, packToBaseFactor)
     const packSizeText = formatPackSizeText(unitsPerPack, unitSize, unit)
     
-    const productData: any = {
+    const productData: Partial<Ingredient> = {
       name: productForm.name.trim(),
       category: productForm.category,
       unit: unit,
@@ -207,14 +208,14 @@ export default function SupplierDetail() {
         await updateIngredient(editingProduct.id, productData)
         toast.success('Product updated')
       } else {
-        const newIngredient: any = {
+        const newIngredient = {
           id: crypto.randomUUID(),
           venue_id: 'venue-1',
           supplier_id: supplierId!,
           supplier_name: supplier.name,
           ...productData,
           last_cost_update: new Date(),
-        }
+        } as Ingredient
         await addIngredient(newIngredient)
         toast.success('Product added')
       }
@@ -380,7 +381,7 @@ export default function SupplierDetail() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {products.map((product: any) => (
+                        {products.map((product: Ingredient) => (
                           <TableRow key={product.id}>
                             <TableCell className="font-medium">{product.name}</TableCell>
                             <TableCell>{product.unit}</TableCell>
@@ -527,7 +528,7 @@ export default function SupplierDetail() {
                 <Label htmlFor="category">Category *</Label>
                 <Select
                   value={productForm.category}
-                  onValueChange={(value: any) => setProductForm({ ...productForm, category: value })}
+                  onValueChange={(value: Ingredient['category']) => setProductForm({ ...productForm, category: value })}
                 >
                   <SelectTrigger>
                     <SelectValue />

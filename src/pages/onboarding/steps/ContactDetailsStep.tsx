@@ -5,16 +5,18 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 
+interface ContactDetailsData {
+  phone: string
+  email: string
+  emergency_contact_name: string
+  emergency_contact_phone: string
+  emergency_contact_relationship: string
+}
+
 interface ContactDetailsStepProps {
   staffId: string
-  initialData?: {
-    phone?: string
-    email?: string
-    emergency_contact_name?: string
-    emergency_contact_phone?: string
-    emergency_contact_relationship?: string
-  }
-  onComplete: (data: any) => void
+  initialData?: Partial<ContactDetailsData>
+  onComplete: (data: ContactDetailsData) => void
   onBack?: () => void
 }
 

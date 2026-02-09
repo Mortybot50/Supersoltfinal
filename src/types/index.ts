@@ -83,8 +83,8 @@ export interface OrgAuditLog {
   actor_user_id: string
   actor_name: string
   action: string
-  before_snapshot: any
-  after_snapshot: any
+  before_snapshot: Record<string, unknown> | null
+  after_snapshot: Record<string, unknown> | null
   created_at: Date
 }
 
@@ -631,16 +631,31 @@ export interface Shift {
   venue_id: string
   staff_id: string
   staff_name: string
-  
+
   date: Date
   start_time: string
   end_time: string
   break_minutes: number
-  
+
   role: string
-  
+  notes?: string
+
+  // Status & type
+  status?: 'scheduled' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled'
+  is_open_shift?: boolean // Unassigned shift staff can claim
+
+  // Cost calculation
   total_hours: number
-  total_cost: number
+  base_cost: number // Base hourly rate cost (cents)
+  penalty_cost: number // Additional penalty rate cost (cents)
+  total_cost: number // base_cost + penalty_cost (cents)
+
+  // Penalty rate breakdown
+  penalty_type?: 'none' | 'saturday' | 'sunday' | 'public_holiday' | 'late_night' | 'early_morning'
+  penalty_multiplier?: number // e.g., 1.25 for Saturday, 1.5 for Sunday
+
+  // Template reference
+  template_id?: string
 }
 
 export interface Timesheet {
@@ -934,7 +949,7 @@ export interface DiagnosticsResult {
   title: string
   severity: DiagnosticsSeverity
   detail: string
-  evidence: { count?: number; ids?: string[]; rows?: Array<Record<string, any>>; message?: string }
+  evidence: { count?: number; ids?: string[]; rows?: Array<Record<string, unknown>>; message?: string }
   quick_fix_available: boolean
   quick_fix_action?: string
   quick_fix_url?: string
@@ -1042,4 +1057,244 @@ export interface InvoiceIntakeReview {
   status: 'approved' | 'rejected'
   notes?: string
   created_at: Date
+}
+
+// ============================================
+// ADVANCED ROSTERING TYPES
+// ============================================
+
+/**
+ * Shift Template - Reusable shift patterns
+ */
+export interface ShiftTemplate {
+  id: string
+  organization_id: string
+  venue_id: string
+  name: string // e.g., "Weekend Dinner", "Monday Lunch"
+  description?: string
+
+  // Template configuration
+  start_time: string // HH:MM
+  end_time: string // HH:MM
+  break_minutes: number
+  role: 'manager' | 'supervisor' | 'crew'
+
+  // When to apply
+  days_of_week: number[] // 0=Sun, 1=Mon, etc.
+
+  // Usage tracking
+  usage_count: number
+  last_used_at?: Date
+  created_at: Date
+  updated_at: Date
+}
+
+/**
+ * Staff Availability - When staff can/can't work
+ */
+export interface StaffAvailability {
+  id: string
+  staff_id: string
+  venue_id: string
+
+  // Availability type
+  type: 'available' | 'unavailable' | 'preferred'
+
+  // Date range or recurring
+  is_recurring: boolean
+  day_of_week?: number // 0-6 for recurring
+  specific_date?: Date // For one-off availability
+
+  // Time range (null = all day)
+  start_time?: string // HH:MM
+  end_time?: string // HH:MM
+
+  notes?: string
+  created_at: Date
+  updated_at: Date
+}
+
+/**
+ * Shift Swap Request - Staff-initiated shift swaps
+ */
+export interface ShiftSwapRequest {
+  id: string
+  venue_id: string
+
+  // The shift being swapped
+  original_shift_id: string
+  original_staff_id: string
+  original_staff_name: string
+
+  // Who wants it (null for open swap)
+  target_staff_id?: string
+  target_staff_name?: string
+
+  // Status workflow
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+
+  // Approval tracking
+  requested_at: Date
+  responded_at?: Date
+  responded_by?: string
+  rejection_reason?: string
+
+  notes?: string
+}
+
+/**
+ * Labor Budget - Weekly/monthly labor cost targets
+ */
+export interface LaborBudget {
+  id: string
+  venue_id: string
+
+  // Budget period
+  period_type: 'weekly' | 'monthly'
+  period_start: Date
+  period_end: Date
+
+  // Budget amounts (cents)
+  budgeted_amount: number
+  actual_amount?: number
+
+  // Revenue target for labor % calculation
+  revenue_target?: number
+
+  // Thresholds for warnings
+  warning_threshold_percent: number // e.g., 90 = warn at 90% of budget
+  critical_threshold_percent: number // e.g., 100 = critical at 100%
+
+  notes?: string
+  created_at: Date
+  updated_at: Date
+}
+
+/**
+ * Roster Warning - Compliance and scheduling issues
+ */
+export interface RosterWarning {
+  id: string
+  shift_id?: string
+  staff_id: string
+  staff_name: string
+
+  // Warning type
+  type:
+    | 'overtime_weekly' // >38h/week
+    | 'overtime_daily' // >10h/day
+    | 'rest_gap' // <10h between shifts
+    | 'break_required' // No break scheduled for long shift
+    | 'availability_conflict' // Scheduled during unavailable time
+    | 'qualification_missing' // Missing required cert (RSA, etc.)
+    | 'minor_hours' // Under-18 hour restrictions
+    | 'budget_exceeded' // Over labor budget
+
+  severity: 'info' | 'warning' | 'error'
+  message: string
+
+  // Additional context
+  details?: {
+    hours?: number
+    limit?: number
+    gap_hours?: number
+    shift_date?: string
+  }
+
+  // Resolution
+  acknowledged: boolean
+  acknowledged_by?: string
+  acknowledged_at?: Date
+}
+
+// ============================================
+// AUSTRALIAN HOSPITALITY AWARD RATES
+// ============================================
+
+/**
+ * Australian Hospitality Award penalty rates (as of 2024)
+ * Reference: https://www.fairwork.gov.au/employment-conditions/awards/awards-summary/ma000009-summary
+ */
+export const AU_HOSPITALITY_PENALTY_RATES = {
+  // Casual loading
+  casual_loading: 1.25, // 25% casual loading
+
+  // Day-based penalties (full-time/part-time)
+  saturday: 1.25, // 125%
+  sunday: 1.50, // 150%
+  public_holiday: 2.50, // 250%
+
+  // Time-based penalties
+  late_night: 1.15, // After 10pm weekdays (15% loading)
+  early_morning: 1.10, // Before 7am (10% loading)
+
+  // Overtime rates
+  overtime_first_2_hours: 1.50, // First 2 hours
+  overtime_after_2_hours: 2.00, // After 2 hours
+  overtime_sunday: 2.00, // Sunday overtime
+  overtime_public_holiday: 2.50, // Public holiday overtime
+} as const
+
+/**
+ * Calculate applicable penalty rate for a shift
+ */
+export type PenaltyRateType =
+  | 'none'
+  | 'saturday'
+  | 'sunday'
+  | 'public_holiday'
+  | 'late_night'
+  | 'early_morning'
+  | 'overtime'
+
+// Public holidays for Australian states
+export const AU_PUBLIC_HOLIDAYS_2024: Record<string, string[]> = {
+  national: [
+    '2024-01-01', // New Year's Day
+    '2024-01-26', // Australia Day
+    '2024-03-29', // Good Friday
+    '2024-03-30', // Easter Saturday
+    '2024-03-31', // Easter Sunday
+    '2024-04-01', // Easter Monday
+    '2024-04-25', // ANZAC Day
+    '2024-06-10', // Queen's Birthday (varies by state)
+    '2024-12-25', // Christmas Day
+    '2024-12-26', // Boxing Day
+  ],
+  VIC: ['2024-03-12', '2024-11-05'], // Labour Day, Melbourne Cup
+  NSW: ['2024-06-10', '2024-08-05'], // Queen's Birthday, Bank Holiday
+  QLD: ['2024-05-06', '2024-08-14'], // Labour Day, Ekka
+  SA: ['2024-03-11', '2024-10-07'], // Adelaide Cup, Labour Day
+  WA: ['2024-03-04', '2024-06-03'], // Labour Day, WA Day
+  TAS: ['2024-02-12', '2024-03-11'], // Regatta Day, Eight Hours Day
+  NT: ['2024-05-06', '2024-08-05'], // May Day, Picnic Day
+  ACT: ['2024-03-11', '2024-05-27'], // Canberra Day, Reconciliation Day
+}
+
+// ============================================
+// ROSTER VIEW TYPES
+// ============================================
+
+export type RosterViewMode = 'day' | 'week' | 'fortnight' | 'month'
+export type RosterDisplayMode = 'staff' | 'stacked'
+export type RosterGroupBy = 'none' | 'team' | 'position'
+
+export interface HourlyStaffing {
+  hour: number
+  minute: number
+  label: string
+  staffCount: number
+  predictedDemand: number
+}
+
+export interface DayStats {
+  date: Date
+  totalHours: number
+  totalCost: number
+  shiftCount: number
+  staffCount: number
+  avgHourlyRate: number
+  salesForecast: number
+  sph: number
+  wagePercentRevenue: number
 }

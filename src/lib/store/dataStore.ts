@@ -1,7 +1,83 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import * as Types from '@/types'
-import { Organization, Venue, Staff, Order, Ingredient, Supplier, OnboardingInvite, OnboardingStep, OnboardingDocument } from '@/types'
+import { Organization, Venue, Staff, Order, Ingredient, Supplier, OnboardingInvite, OnboardingStep, OnboardingDocument, StockCountItem, PurchaseOrderItem } from '@/types'
+
+// Type for parsed orders from import
+interface ParsedOrder {
+  order_number: string
+  order_datetime: Date | string
+  channel: 'dine-in' | 'takeaway' | 'delivery' | 'online'
+  payment_method?: string
+  gross_inc_tax: number
+  discounts: number
+  tax_amount: number
+  service_charge: number
+  tip_amount: number
+  is_void: boolean
+  is_refund: boolean
+  refund_reason?: string
+  staff_member?: string
+  customer_name?: string
+}
+
+// Type for database order row
+interface OrderRow {
+  id: string
+  order_number: string
+  venue_id: string
+  order_datetime: string
+  channel: string
+  payment_method: string
+  gross_amount: number
+  tax_amount: number
+  discount_amount: number
+  service_charge: number
+  tip_amount: number
+  net_amount: number
+  is_void: boolean
+  is_refund: boolean
+  refund_reason?: string
+  staff_member?: string
+  customer_name?: string
+}
+
+// Type for database ingredient row
+interface IngredientRow extends Omit<Types.Ingredient, 'last_cost_update'> {
+  last_cost_update: string
+}
+
+// Type for database supplier row
+type SupplierRow = Types.Supplier
+
+// Type for database stock count row
+interface StockCountRow extends Omit<Types.StockCount, 'count_date' | 'items'> {
+  count_date: string
+}
+
+// Type for database waste log row
+interface WasteLogRow extends Omit<Types.WasteEntry, 'waste_date'> {
+  waste_date: string
+}
+
+// Type for database menu item row
+interface MenuItemRow extends Omit<Types.MenuItem, 'launch_date' | 'created_at' | 'updated_at'> {
+  launch_date?: string
+  created_at: string
+  updated_at: string
+}
+
+// Type for database purchase order row
+interface PurchaseOrderRow extends Omit<Types.PurchaseOrder, 'order_date' | 'expected_delivery_date' | 'submitted_at' | 'confirmed_at' | 'delivered_at' | 'cancelled_at' | 'created_at' | 'updated_at' | 'items'> {
+  order_date: string
+  expected_delivery_date: string
+  submitted_at?: string
+  confirmed_at?: string
+  delivered_at?: string
+  cancelled_at?: string
+  created_at?: string
+  updated_at?: string
+}
 
 // Version control for data migrations
 const STORE_VERSION = 2
@@ -91,8 +167,19 @@ interface DataState {
   initializeOrgDefaults: () => void
   publishToVenues: () => void
   setStaff: (staff: Types.Staff[]) => void
+  addStaff: (staff: Types.Staff) => void
+  updateStaff: (id: string, updates: Partial<Types.Staff>) => void
+  deleteStaff: (id: string) => void
   setRosterShifts: (shifts: Types.RosterShift[]) => void
+  addRosterShift: (shift: Types.RosterShift) => void
+  updateRosterShift: (id: string, updates: Partial<Types.RosterShift>) => void
+  deleteRosterShift: (id: string) => void
+  copyPreviousWeekRoster: (targetWeekStart: Date) => void
   setTimesheets: (timesheets: Types.Timesheet[]) => void
+  addTimesheet: (timesheet: Types.Timesheet) => void
+  updateTimesheet: (id: string, updates: Partial<Types.Timesheet>) => void
+  approveTimesheet: (id: string) => void
+  rejectTimesheet: (id: string) => void
   setOrders: (orders: Types.Order[]) => void
   loadOrdersFromDB: () => Promise<void>
   setOrderItems: (items: Types.OrderItem[]) => void
@@ -151,7 +238,7 @@ interface DataState {
   setTargets: (targets: Types.Target[]) => void
   
   importOrders: (orders: Types.Order[], orderItems: Types.OrderItem[], tenders: Types.Tender[]) => Promise<void>
-  importParsedOrders: (parsedOrders: any[]) => Promise<void>
+  importParsedOrders: (parsedOrders: ParsedOrder[]) => Promise<void>
   importStaff: (data: Types.Staff[]) => Promise<void>
   importIngredients: (data: Types.Ingredient[]) => Promise<void>
   importSuppliers: (data: Types.Supplier[]) => Promise<void>
@@ -171,12 +258,47 @@ interface DataState {
   clearAllData: () => void
   exportBackup: () => string
   importBackup: (data: string) => void
-  
+
   // Initialize all data from database
   initializeData: () => Promise<void>
-  
+
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
+
+  // Advanced Rostering - Shift Templates
+  shiftTemplates: Types.ShiftTemplate[]
+  setShiftTemplates: (templates: Types.ShiftTemplate[]) => void
+  addShiftTemplate: (template: Types.ShiftTemplate) => void
+  updateShiftTemplate: (id: string, updates: Partial<Types.ShiftTemplate>) => void
+  deleteShiftTemplate: (id: string) => void
+
+  // Advanced Rostering - Staff Availability
+  staffAvailability: Types.StaffAvailability[]
+  setStaffAvailability: (availability: Types.StaffAvailability[]) => void
+  addStaffAvailability: (availability: Types.StaffAvailability) => void
+  updateStaffAvailability: (id: string, updates: Partial<Types.StaffAvailability>) => void
+  deleteStaffAvailability: (id: string) => void
+  getStaffAvailabilityForWeek: (staffId: string, weekStart: Date) => Types.StaffAvailability[]
+
+  // Advanced Rostering - Shift Swap Requests
+  shiftSwapRequests: Types.ShiftSwapRequest[]
+  setShiftSwapRequests: (requests: Types.ShiftSwapRequest[]) => void
+  createSwapRequest: (shiftId: string, targetStaffId?: string) => void
+  approveSwapRequest: (requestId: string) => void
+  rejectSwapRequest: (requestId: string, reason?: string) => void
+  cancelSwapRequest: (requestId: string) => void
+
+  // Advanced Rostering - Labor Budget
+  laborBudgets: Types.LaborBudget[]
+  setLaborBudgets: (budgets: Types.LaborBudget[]) => void
+  addLaborBudget: (budget: Types.LaborBudget) => void
+  updateLaborBudget: (id: string, updates: Partial<Types.LaborBudget>) => void
+  deleteLaborBudget: (id: string) => void
+  getLaborBudgetForWeek: (weekStart: Date) => Types.LaborBudget | null
+
+  // Advanced Rostering - Open Shifts
+  claimOpenShift: (shiftId: string, staffId: string, staffName: string) => void
+  createOpenShift: (shift: Omit<Types.RosterShift, 'id' | 'staff_id' | 'staff_name'>) => void
 }
 
 export const useDataStore = create<DataState>()(
@@ -220,6 +342,11 @@ export const useDataStore = create<DataState>()(
   budgetLines: [],
   daybookEntries: [],
   complianceChecks: [],
+  // Advanced Rostering
+  shiftTemplates: [],
+  staffAvailability: [],
+  shiftSwapRequests: [],
+  laborBudgets: [],
   automationRules: [],
   forecasts: [],
   targets: [],
@@ -232,8 +359,64 @@ export const useDataStore = create<DataState>()(
   setVenues: (venues) => set({ venues }),
   setCurrentVenue: (venueId) => set({ currentVenueId: venueId }),
   setStaff: (staff) => set({ staff }),
+  addStaff: (staff) => set((state) => ({ staff: [...state.staff, staff] })),
+  updateStaff: (id, updates) => set((state) => ({
+    staff: state.staff.map((s) => s.id === id ? { ...s, ...updates } : s)
+  })),
+  deleteStaff: (id) => set((state) => ({
+    staff: state.staff.filter((s) => s.id !== id),
+    // Also remove related shifts
+    rosterShifts: state.rosterShifts.filter((shift) => shift.staff_id !== id)
+  })),
+
   setRosterShifts: (rosterShifts) => set({ rosterShifts }),
+  addRosterShift: (shift) => set((state) => ({ rosterShifts: [...state.rosterShifts, shift] })),
+  updateRosterShift: (id, updates) => set((state) => ({
+    rosterShifts: state.rosterShifts.map((s) => s.id === id ? { ...s, ...updates } : s)
+  })),
+  deleteRosterShift: (id) => set((state) => ({
+    rosterShifts: state.rosterShifts.filter((s) => s.id !== id)
+  })),
+  copyPreviousWeekRoster: (targetWeekStart) => {
+    const state = get()
+    const prevWeekStart = new Date(targetWeekStart)
+    prevWeekStart.setDate(prevWeekStart.getDate() - 7)
+    const prevWeekEnd = new Date(prevWeekStart)
+    prevWeekEnd.setDate(prevWeekEnd.getDate() + 6)
+
+    // Find shifts from previous week
+    const prevWeekShifts = state.rosterShifts.filter((s) => {
+      const shiftDate = new Date(s.date)
+      return shiftDate >= prevWeekStart && shiftDate <= prevWeekEnd && s.status !== 'cancelled'
+    })
+
+    // Copy shifts to new week
+    const newShifts: Types.RosterShift[] = prevWeekShifts.map((shift) => {
+      const newDate = new Date(shift.date)
+      newDate.setDate(newDate.getDate() + 7)
+      return {
+        ...shift,
+        id: crypto.randomUUID(),
+        date: newDate,
+        status: 'scheduled' as const,
+      }
+    })
+
+    set((state) => ({ rosterShifts: [...state.rosterShifts, ...newShifts] }))
+  },
+
   setTimesheets: (timesheets) => set({ timesheets }),
+  addTimesheet: (timesheet) => set((state) => ({ timesheets: [...state.timesheets, timesheet] })),
+  updateTimesheet: (id, updates) => set((state) => ({
+    timesheets: state.timesheets.map((t) => t.id === id ? { ...t, ...updates } : t)
+  })),
+  approveTimesheet: (id) => set((state) => ({
+    timesheets: state.timesheets.map((t) => t.id === id ? { ...t, status: 'approved' as const } : t)
+  })),
+  rejectTimesheet: (id) => set((state) => ({
+    timesheets: state.timesheets.map((t) => t.id === id ? { ...t, status: 'rejected' as const } : t)
+  })),
+
   setOrders: (orders) => set({ orders }),
   loadOrdersFromDB: async () => {
     try {
@@ -253,7 +436,7 @@ export const useDataStore = create<DataState>()(
           channel: order.channel as 'dine-in' | 'takeaway' | 'delivery' | 'online',
           payment_method: order.payment_method as 'card' | 'cash' | 'digital_wallet'
         }))
-        set({ orders: formattedOrders as any })
+        set({ orders: formattedOrders as Types.Order[] })
         console.log('✅ Loaded orders from DB, dates kept as ISO strings')
       }
     } catch (error) {
@@ -268,11 +451,11 @@ export const useDataStore = create<DataState>()(
       const { supabase } = await import('@/integrations/supabase/client')
       
       // Convert Date to ISO string for Supabase
-      const ingredientData: any = {
+      const ingredientData: Omit<Types.Ingredient, 'last_cost_update'> & { last_cost_update: string } = {
         ...ingredient,
-        last_cost_update: ingredient.last_cost_update instanceof Date 
-          ? ingredient.last_cost_update.toISOString() 
-          : ingredient.last_cost_update
+        last_cost_update: ingredient.last_cost_update instanceof Date
+          ? ingredient.last_cost_update.toISOString()
+          : String(ingredient.last_cost_update)
       }
       
       const { data, error } = await supabase
@@ -284,7 +467,7 @@ export const useDataStore = create<DataState>()(
       if (error) throw error
       
       if (data) {
-        set((state) => ({ ingredients: [...state.ingredients, data as any] }))
+        set((state) => ({ ingredients: [...state.ingredients, data as Types.Ingredient] }))
       }
     } catch (error) {
       console.error('Failed to add ingredient:', error)
@@ -296,9 +479,9 @@ export const useDataStore = create<DataState>()(
       const { supabase } = await import('@/integrations/supabase/client')
       
       // Convert Date to ISO string for Supabase
-      const updateData: any = { ...updates }
-      if (updateData.last_cost_update instanceof Date) {
-        updateData.last_cost_update = updateData.last_cost_update.toISOString()
+      const updateData: Partial<Types.Ingredient> & { last_cost_update?: string } = { ...updates }
+      if (updates.last_cost_update instanceof Date) {
+        updateData.last_cost_update = updates.last_cost_update.toISOString()
       }
       
       const { data, error } = await supabase
@@ -313,7 +496,7 @@ export const useDataStore = create<DataState>()(
       if (data) {
         set((state) => ({
           ingredients: state.ingredients.map((i) =>
-            i.id === id ? data as any : i
+            i.id === id ? data as Types.Ingredient : i
           ),
         }))
       }
@@ -354,7 +537,7 @@ export const useDataStore = create<DataState>()(
       if (error) throw error
       
       if (data) {
-        set((state) => ({ suppliers: [...state.suppliers, data as any] }))
+        set((state) => ({ suppliers: [...state.suppliers, data as Types.Supplier] }))
       }
     } catch (error) {
       console.error('Failed to add supplier:', error)
@@ -376,7 +559,7 @@ export const useDataStore = create<DataState>()(
       if (data) {
         set((state) => ({
           suppliers: state.suppliers.map((s) =>
-            s.id === id ? data as any : s
+            s.id === id ? data as Types.Supplier : s
           ),
         }))
       }
@@ -410,14 +593,14 @@ export const useDataStore = create<DataState>()(
       // Add the new PO to Supabase
       const latestPO = pos[pos.length - 1]
       if (latestPO) {
-        const poData: any = {
+        const poData: PurchaseOrderRow = {
           ...latestPO,
-          order_date: latestPO.order_date instanceof Date 
-            ? latestPO.order_date.toISOString() 
-            : latestPO.order_date,
+          order_date: latestPO.order_date instanceof Date
+            ? latestPO.order_date.toISOString()
+            : String(latestPO.order_date),
           expected_delivery_date: latestPO.expected_delivery_date instanceof Date
             ? latestPO.expected_delivery_date.toISOString()
-            : latestPO.expected_delivery_date
+            : String(latestPO.expected_delivery_date)
         }
         
         const { error } = await supabase
@@ -456,7 +639,7 @@ export const useDataStore = create<DataState>()(
           if (!acc[item.stock_count_id]) acc[item.stock_count_id] = []
           acc[item.stock_count_id].push(item)
           return acc
-        }, {} as Record<string, any[]>)
+        }, {} as Record<string, StockCountItem[]>)
         
         const countsWithItems = countsData.map(count => ({
           ...count,
@@ -464,7 +647,7 @@ export const useDataStore = create<DataState>()(
           count_date: new Date(count.count_date),
         }))
         
-        set({ stockCounts: countsWithItems as any })
+        set({ stockCounts: countsWithItems as Types.StockCount[] })
       }
     } catch (error) {
       console.error('Failed to load stock counts:', error)
@@ -474,7 +657,7 @@ export const useDataStore = create<DataState>()(
     try {
       const { supabase } = await import('@/integrations/supabase/client')
       
-      const countData: any = {
+      const countData: StockCountRow = {
         id: count.id,
         venue_id: count.venue_id,
         count_number: count.count_number,
@@ -521,11 +704,12 @@ export const useDataStore = create<DataState>()(
     try {
       const { supabase } = await import('@/integrations/supabase/client')
       
-      const updateData: any = { ...updates }
-      if (updateData.count_date instanceof Date) {
-        updateData.count_date = updateData.count_date.toISOString()
+      const updateData: Partial<StockCountRow> = { ...updates, count_date: undefined }
+      if (updates.count_date instanceof Date) {
+        updateData.count_date = updates.count_date.toISOString()
+      } else if (updates.count_date) {
+        updateData.count_date = String(updates.count_date)
       }
-      delete updateData.items
       
       const { error } = await supabase
         .from('stock_counts')
@@ -570,7 +754,7 @@ export const useDataStore = create<DataState>()(
       // Update local state
       set((state) => {
         const updatedIngredients = state.ingredients.map((ingredient) => {
-          const countItem = count.items?.find((item: any) => item.ingredient_id === ingredient.id)
+          const countItem = count.items?.find((item: StockCountItem) => item.ingredient_id === ingredient.id)
           if (countItem) {
             return {
               ...ingredient,
@@ -628,7 +812,7 @@ export const useDataStore = create<DataState>()(
           ...waste,
           waste_date: new Date(waste.waste_date),
         }))
-        set({ wasteLogs: formattedWaste as any })
+        set({ wasteLogs: formattedWaste as Types.WasteEntry[] })
       }
     } catch (error) {
       console.error('Failed to load waste logs:', error)
@@ -638,7 +822,7 @@ export const useDataStore = create<DataState>()(
     try {
       const { supabase } = await import('@/integrations/supabase/client')
       
-      const wasteData: any = {
+      const wasteData: WasteLogRow = {
         id: waste.id,
         venue_id: waste.venue_id,
         waste_date: waste.waste_date.toISOString(),
@@ -693,9 +877,11 @@ export const useDataStore = create<DataState>()(
     try {
       const { supabase } = await import('@/integrations/supabase/client')
       
-      const updateData: any = { ...updates }
-      if (updateData.waste_date instanceof Date) {
-        updateData.waste_date = updateData.waste_date.toISOString()
+      const updateData: Partial<WasteLogRow> = { ...updates, waste_date: undefined }
+      if (updates.waste_date instanceof Date) {
+        updateData.waste_date = updates.waste_date.toISOString()
+      } else if (updates.waste_date) {
+        updateData.waste_date = String(updates.waste_date)
       }
       
       const { error } = await supabase
@@ -751,7 +937,7 @@ export const useDataStore = create<DataState>()(
           created_at: new Date(item.created_at),
           updated_at: new Date(item.updated_at),
         }))
-        set({ menuItems: formattedItems as any })
+        set({ menuItems: formattedItems as Types.MenuItem[] })
       }
     } catch (error) {
       console.error('Failed to load menu items:', error)
@@ -761,7 +947,7 @@ export const useDataStore = create<DataState>()(
     try {
       const { supabase } = await import('@/integrations/supabase/client')
       
-      const itemData: any = {
+      const itemData: Partial<MenuItemRow> = {
         id: item.id,
         venue_id: item.venue_id || 'VENUE-001',
         name: item.name,
@@ -772,7 +958,7 @@ export const useDataStore = create<DataState>()(
         cost_price: item.cost_price || 0,
         margin_percent: item.margin_percent || 0,
         active: item.active,
-        launch_date: item.launch_date ? item.launch_date.toISOString() : null,
+        launch_date: item.launch_date ? item.launch_date.toISOString() : undefined,
       }
       
       const { error } = await supabase
@@ -791,12 +977,10 @@ export const useDataStore = create<DataState>()(
     try {
       const { supabase } = await import('@/integrations/supabase/client')
       
-      const updateData: any = { ...updates }
-      if (updateData.launch_date instanceof Date) {
-        updateData.launch_date = updateData.launch_date.toISOString()
+      const updateData: Partial<MenuItemRow> = { ...updates, launch_date: undefined, created_at: undefined, updated_at: undefined }
+      if (updates.launch_date instanceof Date) {
+        updateData.launch_date = updates.launch_date.toISOString()
       }
-      if (updateData.created_at) delete updateData.created_at
-      if (updateData.updated_at) delete updateData.updated_at
       
       const { error } = await supabase
         .from('menu_items')
@@ -1125,7 +1309,7 @@ export const useDataStore = create<DataState>()(
       if (error) throw error
       
       if (data) {
-        set({ suppliers: data as any })
+        set({ suppliers: data as Types.Supplier[] })
       }
     } catch (error) {
       console.error('Failed to load suppliers:', error)
@@ -1143,7 +1327,7 @@ export const useDataStore = create<DataState>()(
       if (error) throw error
       
       if (data) {
-        set({ ingredients: data as any })
+        set({ ingredients: data as Types.Ingredient[] })
       }
     } catch (error) {
       console.error('Failed to load ingredients:', error)
@@ -1175,8 +1359,8 @@ export const useDataStore = create<DataState>()(
           if (!acc[item.purchase_order_id]) acc[item.purchase_order_id] = []
           acc[item.purchase_order_id].push(item)
           return acc
-        }, {} as Record<string, any[]>)
-        
+        }, {} as Record<string, PurchaseOrderItem[]>)
+
         // Combine POs with their items
         const posWithItems = poData.map(po => ({
           ...po,
@@ -1191,7 +1375,7 @@ export const useDataStore = create<DataState>()(
           updated_at: po.updated_at ? new Date(po.updated_at) : undefined,
         }))
         
-        set({ purchaseOrders: posWithItems as any })
+        set({ purchaseOrders: posWithItems as Types.PurchaseOrder[] })
       }
     } catch (error) {
       console.error('Failed to load purchase orders:', error)
@@ -1203,7 +1387,7 @@ export const useDataStore = create<DataState>()(
       const { supabase } = await import('@/integrations/supabase/client')
       
       // Insert PO
-      const poData: any = {
+      const poData: PurchaseOrderRow & { total_amount: number } = {
         id: po.id,
         po_number: po.po_number,
         venue_id: po.venue_id,
@@ -1215,6 +1399,7 @@ export const useDataStore = create<DataState>()(
         subtotal: po.subtotal,
         tax_amount: po.tax_amount,
         total_amount: po.total,
+        total: po.total,
         notes: po.notes,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -1262,21 +1447,23 @@ export const useDataStore = create<DataState>()(
       const { supabase } = await import('@/integrations/supabase/client')
       
       // Prepare update data
-      const updateData: any = { ...updates, updated_at: new Date().toISOString() }
-      
+      const updateData: Partial<PurchaseOrderRow> = { updated_at: new Date().toISOString() }
+
       // Convert dates
-      if (updateData.submitted_at instanceof Date) {
-        updateData.submitted_at = updateData.submitted_at.toISOString()
+      if (updates.submitted_at instanceof Date) {
+        updateData.submitted_at = updates.submitted_at.toISOString()
       }
-      if (updateData.confirmed_at instanceof Date) {
-        updateData.confirmed_at = updateData.confirmed_at.toISOString()
+      if (updates.confirmed_at instanceof Date) {
+        updateData.confirmed_at = updates.confirmed_at.toISOString()
       }
-      if (updateData.delivered_at instanceof Date) {
-        updateData.delivered_at = updateData.delivered_at.toISOString()
+      if (updates.delivered_at instanceof Date) {
+        updateData.delivered_at = updates.delivered_at.toISOString()
       }
-      if (updateData.cancelled_at instanceof Date) {
-        updateData.cancelled_at = updateData.cancelled_at.toISOString()
+      if (updates.cancelled_at instanceof Date) {
+        updateData.cancelled_at = updates.cancelled_at.toISOString()
       }
+      if (updates.status) updateData.status = updates.status
+      if (updates.notes !== undefined) updateData.notes = updates.notes
       
       // If updating items, handle separately
       if (updateData.items) {
@@ -1289,7 +1476,7 @@ export const useDataStore = create<DataState>()(
           .delete()
           .eq('purchase_order_id', id)
         
-        const itemsData = items.map((item: any) => ({
+        const itemsData = items.map((item: PurchaseOrderItem) => ({
           id: item.id,
           purchase_order_id: id,
           ingredient_id: item.ingredient_id,
@@ -1463,9 +1650,9 @@ export const useDataStore = create<DataState>()(
       
       // CRITICAL: REPLACE all orders in store (not append) to prevent duplicates
       set({
-        orders: newOrders as any,
+        orders: newOrders as Types.Order[],
         hasImportedData: true,
-        _lastImportDate: new Date().toISOString() as any,
+        _lastImportDate: new Date(),
       })
       
       localStorage.setItem('supersolt-has-data', 'true')
@@ -1942,6 +2129,230 @@ export const useDataStore = create<DataState>()(
       })
     }
   },
+
+  // ============================================
+  // ADVANCED ROSTERING - SHIFT TEMPLATES
+  // ============================================
+  setShiftTemplates: (templates) => set({ shiftTemplates: templates }),
+
+  addShiftTemplate: (template) => {
+    set((state) => ({
+      shiftTemplates: [...state.shiftTemplates, template],
+    }))
+  },
+
+  updateShiftTemplate: (id, updates) => {
+    set((state) => ({
+      shiftTemplates: state.shiftTemplates.map((t) =>
+        t.id === id ? { ...t, ...updates, updated_at: new Date() } : t
+      ),
+    }))
+  },
+
+  deleteShiftTemplate: (id) => {
+    set((state) => ({
+      shiftTemplates: state.shiftTemplates.filter((t) => t.id !== id),
+    }))
+  },
+
+  // ============================================
+  // ADVANCED ROSTERING - STAFF AVAILABILITY
+  // ============================================
+  setStaffAvailability: (availability) => set({ staffAvailability: availability }),
+
+  addStaffAvailability: (availability) => {
+    set((state) => ({
+      staffAvailability: [...state.staffAvailability, availability],
+    }))
+  },
+
+  updateStaffAvailability: (id, updates) => {
+    set((state) => ({
+      staffAvailability: state.staffAvailability.map((a) =>
+        a.id === id ? { ...a, ...updates, updated_at: new Date() } : a
+      ),
+    }))
+  },
+
+  deleteStaffAvailability: (id) => {
+    set((state) => ({
+      staffAvailability: state.staffAvailability.filter((a) => a.id !== id),
+    }))
+  },
+
+  getStaffAvailabilityForWeek: (staffId, weekStart) => {
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekEnd.getDate() + 6)
+
+    return get().staffAvailability.filter((a) => {
+      if (a.staff_id !== staffId) return false
+
+      if (a.is_recurring) {
+        // Recurring availability applies to all weeks
+        return true
+      }
+
+      if (a.specific_date) {
+        const date = new Date(a.specific_date)
+        return date >= weekStart && date <= weekEnd
+      }
+
+      return false
+    })
+  },
+
+  // ============================================
+  // ADVANCED ROSTERING - SHIFT SWAP REQUESTS
+  // ============================================
+  setShiftSwapRequests: (requests) => set({ shiftSwapRequests: requests }),
+
+  createSwapRequest: (shiftId, targetStaffId) => {
+    const shift = get().rosterShifts.find((s) => s.id === shiftId)
+    if (!shift) return
+
+    const targetStaff = targetStaffId
+      ? get().staff.find((s) => s.id === targetStaffId)
+      : null
+
+    const request: Types.ShiftSwapRequest = {
+      id: `swap-${Date.now()}`,
+      venue_id: shift.venue_id,
+      original_shift_id: shiftId,
+      original_staff_id: shift.staff_id,
+      original_staff_name: shift.staff_name,
+      target_staff_id: targetStaffId,
+      target_staff_name: targetStaff?.name,
+      status: 'pending',
+      requested_at: new Date(),
+    }
+
+    set((state) => ({
+      shiftSwapRequests: [...state.shiftSwapRequests, request],
+    }))
+  },
+
+  approveSwapRequest: (requestId) => {
+    const request = get().shiftSwapRequests.find((r) => r.id === requestId)
+    if (!request || !request.target_staff_id) return
+
+    // Update the shift to the new staff member
+    set((state) => ({
+      shiftSwapRequests: state.shiftSwapRequests.map((r) =>
+        r.id === requestId
+          ? { ...r, status: 'approved' as const, responded_at: new Date() }
+          : r
+      ),
+      rosterShifts: state.rosterShifts.map((s) =>
+        s.id === request.original_shift_id
+          ? {
+              ...s,
+              staff_id: request.target_staff_id!,
+              staff_name: request.target_staff_name || s.staff_name,
+            }
+          : s
+      ),
+    }))
+  },
+
+  rejectSwapRequest: (requestId, reason) => {
+    set((state) => ({
+      shiftSwapRequests: state.shiftSwapRequests.map((r) =>
+        r.id === requestId
+          ? {
+              ...r,
+              status: 'rejected' as const,
+              responded_at: new Date(),
+              rejection_reason: reason,
+            }
+          : r
+      ),
+    }))
+  },
+
+  cancelSwapRequest: (requestId) => {
+    set((state) => ({
+      shiftSwapRequests: state.shiftSwapRequests.map((r) =>
+        r.id === requestId
+          ? { ...r, status: 'cancelled' as const }
+          : r
+      ),
+    }))
+  },
+
+  // ============================================
+  // ADVANCED ROSTERING - LABOR BUDGET
+  // ============================================
+  setLaborBudgets: (budgets) => set({ laborBudgets: budgets }),
+
+  addLaborBudget: (budget) => {
+    set((state) => ({
+      laborBudgets: [...state.laborBudgets, budget],
+    }))
+  },
+
+  updateLaborBudget: (id, updates) => {
+    set((state) => ({
+      laborBudgets: state.laborBudgets.map((b) =>
+        b.id === id ? { ...b, ...updates, updated_at: new Date() } : b
+      ),
+    }))
+  },
+
+  deleteLaborBudget: (id) => {
+    set((state) => ({
+      laborBudgets: state.laborBudgets.filter((b) => b.id !== id),
+    }))
+  },
+
+  getLaborBudgetForWeek: (weekStart) => {
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekEnd.getDate() + 6)
+
+    return (
+      get().laborBudgets.find((b) => {
+        const start = new Date(b.period_start)
+        const end = new Date(b.period_end)
+        return weekStart >= start && weekStart <= end
+      }) || null
+    )
+  },
+
+  // ============================================
+  // ADVANCED ROSTERING - OPEN SHIFTS
+  // ============================================
+  claimOpenShift: (shiftId, staffId, staffName) => {
+    const staffMember = get().staff.find((s) => s.id === staffId)
+    if (!staffMember) return
+
+    set((state) => ({
+      rosterShifts: state.rosterShifts.map((s) =>
+        s.id === shiftId && s.is_open_shift
+          ? {
+              ...s,
+              staff_id: staffId,
+              staff_name: staffName,
+              is_open_shift: false,
+              status: 'scheduled' as const,
+            }
+          : s
+      ),
+    }))
+  },
+
+  createOpenShift: (shiftData) => {
+    const openShift: Types.RosterShift = {
+      ...shiftData,
+      id: `shift-open-${Date.now()}`,
+      staff_id: '',
+      staff_name: 'Open Shift',
+      is_open_shift: true,
+      status: 'scheduled',
+    }
+
+    set((state) => ({
+      rosterShifts: [...state.rosterShifts, openShift],
+    }))
+  },
 }),
 {
   name: 'data-store',
@@ -1951,15 +2362,15 @@ export const useDataStore = create<DataState>()(
   storage: createJSONStorage(() => localStorage),
   
   // IMPORTANT: Don't clear data on version mismatch, migrate it instead
-  migrate: (persistedState: any, version: number) => {
+  migrate: (persistedState: unknown, version: number) => {
     // If old version, preserve all data and just update version
     if (version < STORE_VERSION) {
       return {
-        ...persistedState,
+        ...(persistedState as Partial<DataState>),
         _version: STORE_VERSION,
       }
     }
-    return persistedState
+    return persistedState as Partial<DataState>
   },
   
   // Only persist these specific fields
@@ -1979,6 +2390,7 @@ export const useDataStore = create<DataState>()(
     menuSections: state.menuSections,
     staff: state.staff,
     timesheets: state.timesheets,
+    rosterShifts: state.rosterShifts,
     organization: state.organization,
     branding: state.branding,
     menuDefaults: state.menuDefaults,
@@ -1987,7 +2399,13 @@ export const useDataStore = create<DataState>()(
     exportMappings: state.exportMappings,
     security: state.security,
     auditLogs: state.auditLogs,
-    
+
+    // Advanced Rostering
+    shiftTemplates: state.shiftTemplates,
+    staffAvailability: state.staffAvailability,
+    shiftSwapRequests: state.shiftSwapRequests,
+    laborBudgets: state.laborBudgets,
+
     // Persist metadata
     _version: state._version,
     _lastImportDate: state._lastImportDate,

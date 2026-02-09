@@ -7,16 +7,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast'
 import { AUSTRALIAN_STATES } from '@/lib/data/awards'
 
+interface AddressData {
+  address_line1: string
+  address_line2: string
+  suburb: string
+  state: string
+  postcode: string
+}
+
 interface AddressStepProps {
   staffId: string
-  initialData?: {
-    address_line1?: string
-    address_line2?: string
-    suburb?: string
-    state?: string
-    postcode?: string
-  }
-  onComplete: (data: any) => void
+  initialData?: Partial<AddressData>
+  onComplete: (data: AddressData) => void
   onBack?: () => void
 }
 

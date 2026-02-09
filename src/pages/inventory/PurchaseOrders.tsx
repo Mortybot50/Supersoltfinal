@@ -18,7 +18,9 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useDataStore } from '@/lib/store/dataStore'
+import { PurchaseOrder } from '@/types'
 import { format } from 'date-fns'
+import { PageShell, PageToolbar, PageSidebar, StatusBadge } from '@/components/shared'
 
 const STATUS_CONFIG = {
   draft: {
@@ -107,69 +109,34 @@ export default function PurchaseOrders() {
     return STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.draft
   }
   
-  return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Purchase Orders</h1>
-          <p className="text-muted-foreground">
-            Manage and track orders to suppliers
-          </p>
-        </div>
-        <Button onClick={() => navigate('/inventory/order-guide')} size="lg">
-          <Plus className="h-4 w-4 mr-2" />
-          Create Order
-        </Button>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <FileText className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Total Orders</p>
-          </div>
-          <p className="text-2xl font-bold">{stats.total}</p>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Draft</p>
-          </div>
-          <p className="text-2xl font-bold">{stats.draft}</p>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Send className="h-4 w-4 text-blue-600" />
-            <p className="text-sm text-muted-foreground">Submitted</p>
-          </div>
-          <p className="text-2xl font-bold">{stats.submitted}</p>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Package className="h-4 w-4 text-purple-600" />
-            <p className="text-sm text-muted-foreground">Pending Delivery</p>
-          </div>
-          <p className="text-2xl font-bold">{stats.pending}</p>
-        </Card>
-      </div>
-      
-      <Card className="p-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+  const sidebar = (
+    <PageSidebar
+      title="Orders"
+      metrics={[
+        { label: "Total", value: stats.total },
+        { label: "Draft", value: stats.draft },
+        { label: "Submitted", value: stats.submitted },
+        { label: "Pending", value: stats.pending },
+      ]}
+    />
+  )
+
+  const toolbar = (
+    <PageToolbar
+      title="Purchase Orders"
+      filters={
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by PO number, supplier, or notes..."
+              placeholder="Search PO..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="h-8 w-[180px] pl-8 text-sm"
             />
           </div>
-          
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full md:w-48">
+            <SelectTrigger className="h-8 w-[130px]">
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
             <SelectContent>
@@ -181,9 +148,8 @@ export default function PurchaseOrders() {
               <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
-          
           <Select value={supplierFilter} onValueChange={setSupplierFilter}>
-            <SelectTrigger className="w-full md:w-48">
+            <SelectTrigger className="h-8 w-[130px]">
               <SelectValue placeholder="All Suppliers" />
             </SelectTrigger>
             <SelectContent>
@@ -196,8 +162,14 @@ export default function PurchaseOrders() {
             </SelectContent>
           </Select>
         </div>
-      </Card>
-      
+      }
+      primaryAction={{ label: "Create Order", icon: Plus, onClick: () => navigate('/inventory/order-guide'), variant: "teal" }}
+    />
+  )
+
+  return (
+    <PageShell sidebar={sidebar} toolbar={toolbar}>
+      <div className="p-4">
       {filteredPOs.length === 0 ? (
         <Card className="p-12 text-center">
           <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -232,7 +204,7 @@ export default function PurchaseOrders() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPOs.map((po: any) => {
+              {filteredPOs.map((po: PurchaseOrder) => {
                 const statusConfig = getStatusConfig(po.status)
                 const StatusIcon = statusConfig.icon
                 
@@ -286,6 +258,7 @@ export default function PurchaseOrders() {
           </Table>
         </Card>
       )}
-    </div>
+      </div>
+    </PageShell>
   )
 }

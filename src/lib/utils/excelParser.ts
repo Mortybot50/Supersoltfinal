@@ -111,7 +111,7 @@ export async function parseOrdersExcel(file: File): Promise<ParseResult> {
     let maxDate: Date | null = null
     const orderNumbers = new Set<string>()
     
-    rawData.forEach((row: any, index: number) => {
+    rawData.forEach((row: Record<string, unknown>, index: number) => {
       const rowNumber = index + 2
       let hasErrors = false
       
@@ -237,9 +237,9 @@ export async function parseOrdersExcel(file: File): Promise<ParseResult> {
       
       let paymentMethod: 'card' | 'cash' | 'digital_wallet' | undefined
       if (row.payment_method) {
-        const pm = row.payment_method.toLowerCase().trim()
+        const pm = String(row.payment_method).toLowerCase().trim()
         if (['card', 'cash', 'digital_wallet'].includes(pm)) {
-          paymentMethod = pm as any
+          paymentMethod = pm as 'card' | 'cash' | 'digital_wallet'
         }
       }
       
@@ -247,7 +247,7 @@ export async function parseOrdersExcel(file: File): Promise<ParseResult> {
         const order: ParsedOrder = {
           order_number: row.order_number,
           order_datetime: orderDate,
-          channel: channel as any,
+          channel: channel as 'dine-in' | 'takeaway' | 'delivery' | 'online',
           gross_inc_tax: grossIncTax,
           tax_amount: taxAmount,
           discounts,
@@ -286,14 +286,14 @@ export async function parseOrdersExcel(file: File): Promise<ParseResult> {
       }
     }
     
-  } catch (error: any) {
+  } catch (error) {
     return {
       success: false,
       data: [],
       errors: [{
         row: 0,
         column: 'file',
-        message: `Failed to parse Excel file: ${error.message}`,
+        message: `Failed to parse Excel file: ${error instanceof Error ? error.message : 'Unknown error'}`,
         severity: 'critical'
       }],
       warnings: [],

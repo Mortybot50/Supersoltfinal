@@ -5,7 +5,7 @@ export interface ColumnMapping {
   type: 'string' | 'number' | 'date' | 'boolean' | 'email' | 'phone' | 'enum'
   example: string
   options?: string[]
-  transform?: (value: any) => any
+  transform?: (value: unknown) => unknown
 }
 
 export const staffImportMapping: ColumnMapping[] = [

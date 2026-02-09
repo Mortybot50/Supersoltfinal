@@ -1,3 +1,27 @@
+interface MenuSection {
+  id: string;
+  name: string;
+  display_order: number;
+}
+
+interface DeliveryWindow {
+  supplier_id: string;
+  day: string;
+  start_time: string;
+  end_time: string;
+}
+
+interface OrderCutoff {
+  supplier_id: string;
+  day: string;
+  time: string;
+}
+
+interface PrinterMapping {
+  section_id: string;
+  printer_id: string;
+}
+
 export interface VenueSettings {
   id?: string;
   venue_id: string;
@@ -6,17 +30,17 @@ export interface VenueSettings {
   gst_rate_percent?: number;
   week_starts_on?: string;
   default_gp_target_percent?: number;
-  menu_sections?: any[];
+  menu_sections?: MenuSection[];
   price_endings?: string;
   rounding_mode?: string;
   primary_suppliers?: string[];
-  delivery_windows?: any[];
-  order_cutoffs?: any[];
+  delivery_windows?: DeliveryWindow[];
+  order_cutoffs?: OrderCutoff[];
   payroll_cycle?: string;
   award_region?: string;
   roster_budget_percent?: number;
   pos_provider?: string;
-  printer_map?: any[];
+  printer_map?: PrinterMapping[];
   tax_code_default?: string;
   use_au_public_holidays?: boolean;
   state?: string;
@@ -25,9 +49,10 @@ export interface VenueSettings {
   po_amount_over_requires_owner?: number;
   below_gp_threshold_alert_percent?: number;
   inherit?: Record<string, boolean>;
-  last_published_snapshot?: any;
+  last_published_snapshot?: Record<string, unknown>;
   created_at?: string;
   updated_at?: string;
+  [key: string]: unknown;
 }
 
 export interface OrgSettings {
@@ -36,17 +61,17 @@ export interface OrgSettings {
   gst_rate_percent: number;
   week_starts_on: string;
   default_gp_target_percent: number;
-  menu_sections: any[];
+  menu_sections: MenuSection[];
   price_endings: string;
   rounding_mode: string;
   primary_suppliers: string[];
-  delivery_windows: any[];
-  order_cutoffs: any[];
+  delivery_windows: DeliveryWindow[];
+  order_cutoffs: OrderCutoff[];
   payroll_cycle: string;
   award_region: string;
   roster_budget_percent: number;
   pos_provider: string;
-  printer_map: any[];
+  printer_map: PrinterMapping[];
   tax_code_default: string;
   use_au_public_holidays: boolean;
   state: string;
@@ -54,7 +79,7 @@ export interface OrgSettings {
   price_change_max_percent_no_approval: number;
   po_amount_over_requires_owner: number;
   below_gp_threshold_alert_percent: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -64,7 +89,7 @@ export function getEffectiveVenueSetting(
   venueSettings: VenueSettings | null,
   orgSettings: OrgSettings,
   fieldName: string
-): any {
+): unknown {
   // If no venue settings or inherit flag is true, return org default
   if (!venueSettings || venueSettings.inherit?.[fieldName] === true) {
     return orgSettings[fieldName];
@@ -93,7 +118,7 @@ export function getAllEffectiveSettings(
     'below_gp_threshold_alert_percent'
   ];
   
-  const effective: any = { venue_id: venueId };
+  const effective: Record<string, unknown> = { venue_id: venueId };
   fields.forEach(field => {
     effective[field] = getEffectiveVenueSetting(venueSettings, orgSettings, field);
   });

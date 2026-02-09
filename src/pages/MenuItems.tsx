@@ -26,6 +26,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { useDataStore } from '@/lib/store/dataStore'
 import { COMMON_MENU_TAGS, MenuItem, MenuSection } from '@/types'
 import { toast } from 'sonner'
+import { PageShell, PageToolbar } from '@/components/shared'
 
 export default function MenuItems() {
   const {
@@ -266,7 +267,7 @@ export default function MenuItems() {
     }
     
     if (editingItem) {
-      updateMenuItem(editingItem.id, itemData as any)
+      updateMenuItem(editingItem.id, itemData as Partial<MenuItem>)
       toast.success('Menu item updated')
     } else {
       const newItem = {
@@ -277,7 +278,7 @@ export default function MenuItems() {
         created_at: new Date(),
         updated_at: new Date(),
       }
-      addMenuItem(newItem as any)
+      addMenuItem(newItem as MenuItem)
       toast.success('Menu item added')
     }
     
@@ -365,8 +366,27 @@ export default function MenuItems() {
     return 'text-green-600'
   }
   
+  const toolbar = (
+    <PageToolbar
+      title="Menu Items"
+      filters={
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search menu..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-8 w-[200px] pl-8 text-sm"
+          />
+        </div>
+      }
+      primaryAction={{ label: "Export", icon: Download, onClick: () => setExportDialogOpen(true), variant: "teal" }}
+    />
+  )
+
   return (
-    <div className="flex h-[calc(100vh-4rem)] gap-6 p-6">
+    <PageShell toolbar={toolbar}>
+    <div className="flex flex-1 gap-4 p-4 overflow-hidden">
       {/* LEFT SIDEBAR - Sections */}
       <div className="w-64 flex-shrink-0">
         <Card className="h-full flex flex-col">
@@ -531,19 +551,6 @@ export default function MenuItems() {
                   </div>
                 </div>
               )}
-            </Card>
-            
-            {/* Search */}
-            <Card className="p-4 mb-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search items..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
             </Card>
             
             {/* Items Table */}
@@ -811,7 +818,7 @@ export default function MenuItems() {
               <Label htmlFor="tax_mode">Tax Mode</Label>
               <Select
                 value={sectionForm.tax_mode}
-                onValueChange={(value: any) => setSectionForm({ ...sectionForm, tax_mode: value })}
+                onValueChange={(value: MenuSection['tax_mode']) => setSectionForm({ ...sectionForm, tax_mode: value })}
               >
                 <SelectTrigger id="tax_mode">
                   <SelectValue />
@@ -888,7 +895,7 @@ export default function MenuItems() {
                 <Label htmlFor="price_mode">Price Mode</Label>
                 <Select
                   value={itemForm.price_mode}
-                  onValueChange={(value: any) => setItemForm({ ...itemForm, price_mode: value })}
+                  onValueChange={(value: MenuItem['price_mode']) => setItemForm({ ...itemForm, price_mode: value })}
                 >
                   <SelectTrigger id="price_mode">
                     <SelectValue />
@@ -920,7 +927,7 @@ export default function MenuItems() {
                 <Label htmlFor="gst_mode">GST Mode</Label>
                 <Select
                   value={itemForm.gst_mode}
-                  onValueChange={(value: any) => setItemForm({ ...itemForm, gst_mode: value })}
+                  onValueChange={(value: MenuItem['gst_mode']) => setItemForm({ ...itemForm, gst_mode: value })}
                 >
                   <SelectTrigger id="gst_mode">
                     <SelectValue />
@@ -1063,5 +1070,6 @@ export default function MenuItems() {
         </DialogContent>
       </Dialog>
     </div>
+    </PageShell>
   )
 }

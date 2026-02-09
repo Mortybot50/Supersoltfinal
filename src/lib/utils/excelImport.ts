@@ -15,19 +15,19 @@ export interface ImportResult<T> {
 export interface ImportError {
   row: number
   field: string
-  value: any
+  value: unknown
   message: string
 }
 
 export interface ImportWarning {
   row: number
   field: string
-  value: any
+  value: unknown
   message: string
 }
 
 // Parse Excel file
-export async function parseExcelFile(file: File): Promise<any[]> {
+export async function parseExcelFile(file: File): Promise<Record<string, unknown>[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     
@@ -49,7 +49,7 @@ export async function parseExcelFile(file: File): Promise<any[]> {
 }
 
 // Parse CSV file
-export async function parseCSVFile(file: File): Promise<any[]> {
+export async function parseCSVFile(file: File): Promise<Record<string, unknown>[]> {
   return new Promise((resolve, reject) => {
     Papa.parse(file, {
       header: true,
@@ -61,7 +61,7 @@ export async function parseCSVFile(file: File): Promise<any[]> {
 }
 
 // Detect file type and parse
-export async function parseFile(file: File): Promise<any[]> {
+export async function parseFile(file: File): Promise<Record<string, unknown>[]> {
   const extension = file.name.split('.').pop()?.toLowerCase()
   
   if (extension === 'csv') {
@@ -90,7 +90,7 @@ export function downloadTemplate(
 
 // Export data to Excel
 export function exportToExcel(
-  data: any[],
+  data: Record<string, unknown>[],
   filename: string,
   sheetName: string = 'Export'
 ) {
@@ -102,18 +102,18 @@ export function exportToExcel(
 }
 
 // Helper functions for data cleaning
-export function cleanString(value: any): string {
+export function cleanString(value: unknown): string {
   if (!value) return ''
   return String(value).trim()
 }
 
-export function cleanNumber(value: any): number | null {
+export function cleanNumber(value: unknown): number | null {
   if (!value) return null
   const num = Number(String(value).replace(/[$,]/g, ''))
   return isNaN(num) ? null : num
 }
 
-export function cleanDate(value: any): Date | null {
+export function cleanDate(value: unknown): Date | null {
   if (!value) return null
   
   // Try parsing as ISO string
@@ -129,22 +129,22 @@ export function cleanDate(value: any): Date | null {
   return null
 }
 
-export function cleanBoolean(value: any): boolean {
+export function cleanBoolean(value: unknown): boolean {
   if (typeof value === 'boolean') return value
   const str = String(value).toLowerCase().trim()
   return ['true', 'yes', '1', 'y'].includes(str)
 }
 
-export function cleanEmail(value: any): string | null {
+export function cleanEmail(value: unknown): string | null {
   const email = cleanString(value)
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   return emailRegex.test(email) ? email : null
 }
 
-export function cleanPhone(value: any): string {
+export function cleanPhone(value: unknown): string {
   return cleanString(value).replace(/[^\d+]/g, '')
 }
 
-export function cleanABN(value: any): string {
+export function cleanABN(value: unknown): string {
   return cleanString(value).replace(/\s/g, '')
 }

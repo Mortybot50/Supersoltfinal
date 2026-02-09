@@ -74,8 +74,9 @@ export default function DataImports() {
     input.type = 'file'
     input.accept = '.json'
     
-    input.onchange = (e: any) => {
-      const file = e.target.files[0]
+    input.onchange = (e: Event) => {
+      const target = e.target as HTMLInputElement
+      const file = target.files?.[0]
       if (!file) return
       
       const reader = new FileReader()
@@ -112,10 +113,10 @@ export default function DataImports() {
           variant: 'destructive'
         })
       }
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Failed to parse file',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive'
       })
       setParseResult(null)
@@ -149,11 +150,11 @@ export default function DataImports() {
       setSelectedFile(null)
       setParseResult(null)
       
-    } catch (error: any) {
+    } catch (error) {
       console.error('❌ Import error:', error)
       toast({
         title: 'Import failed',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive'
       })
     } finally {
@@ -185,10 +186,10 @@ export default function DataImports() {
           variant: 'destructive'
         })
       }
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Failed to parse file',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive'
       })
       setMenuItemsResult(null)
@@ -212,11 +213,11 @@ export default function DataImports() {
       setMenuItemsFile(null)
       setMenuItemsResult(null)
       
-    } catch (error: any) {
+    } catch (error) {
       console.error('Import error:', error)
       toast({
         title: 'Import failed',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive'
       })
     } finally {
@@ -248,10 +249,10 @@ export default function DataImports() {
           variant: 'destructive'
         })
       }
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Failed to parse file',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive'
       })
       setStaffResult(null)
@@ -275,11 +276,11 @@ export default function DataImports() {
       setStaffFile(null)
       setStaffResult(null)
       
-    } catch (error: any) {
+    } catch (error) {
       console.error('Import error:', error)
       toast({
         title: 'Import failed',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive'
       })
     } finally {

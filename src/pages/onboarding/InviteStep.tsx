@@ -25,7 +25,7 @@ export default function InviteStep() {
     return <div>Invalid invite</div>
   }
 
-  const handleStepComplete = (data: any) => {
+  const handleStepComplete = (data: Record<string, unknown>) => {
     // Update staff data
     updateStaffOnboarding(member.id, data)
     

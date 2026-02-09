@@ -44,7 +44,7 @@ export function StaffForm({ onSubmit, onCancel, initialData }: StaffFormProps) {
       hourly_rate: Math.round(data.hourly_rate * 100),
       start_date: new Date(data.start_date),
     }
-    onSubmit(staffData as any)
+    onSubmit(staffData as Partial<Types.Staff>)
   }
   
   return (

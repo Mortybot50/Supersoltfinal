@@ -51,7 +51,7 @@ export function OrderForm({ onSubmit, onCancel, initialData }: OrderFormProps) {
       discount_amount: Math.round(data.discount_amount * 100),
       net_amount: Math.round(data.net_amount * 100),
     }
-    onSubmit(orderData as any)
+    onSubmit(orderData as Partial<Types.Order>)
   }
   
   return (

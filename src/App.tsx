@@ -1,18 +1,18 @@
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom"
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { Toaster } from "@/components/ui/toaster"
 import { Toaster as Sonner } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { AuthProvider } from "@/contexts/AuthContext"
+import ProtectedRoute from "@/components/ProtectedRoute"
 import Layout from "./components/Layout"
 import Dashboard from "./pages/Dashboard"
 import NotFound from "./pages/NotFound"
 
-// Insights
-import Sales from "./pages/insights/Sales"
-import COGS from "./pages/insights/COGS"
-import Labour from "./pages/insights/Labour"
-import InsightsReports from "./pages/insights/InsightsReports"
+// Auth
+import Login from "./pages/auth/Login"
+import Signup from "./pages/auth/Signup"
 
 // Inventory
 import OrderGuide from "./pages/inventory/OrderGuide"
@@ -33,6 +33,7 @@ import RecipeEditor from "./pages/menu/RecipeEditor"
 // Workforce
 import Roster from "./pages/labour/Roster"
 import Timesheets from "./pages/labour/Timesheets"
+import LabourReports from "./pages/labour/Reports"
 import People from "./pages/People"
 import PayrollExport from "./pages/Payroll"
 
@@ -46,16 +47,11 @@ import Daybook from "./pages/operations/Daybook"
 import Imports from "./pages/operations/Imports"
 import Compliance from "./pages/operations/Compliance"
 
-// Automation
-import Suggestions from "./pages/Automation"
-import DemandOverrides from "./pages/automation/DemandOverrides"
+// Automation & Integrations
 import Integrations from "./pages/automation/Integrations"
 
 // Admin
 import DataImports from "./pages/admin/DataImports"
-import DataManagement from "./pages/admin/DataManagement"
-import SystemVerification from "./pages/admin/SystemVerification"
-import DiagnosticsPage from "./pages/admin/DiagnosticsPage"
 import OrgSettings from "./pages/admin/OrgSettings"
 import VenueSettings from "./pages/admin/VenueSettings"
 import Locations from "./pages/admin/Locations"
@@ -67,66 +63,71 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            
-            {/* Insights */}
-            <Route path="insights/sales" element={<Sales />} />
-            <Route path="insights/cogs" element={<COGS />} />
-            <Route path="insights/labour" element={<Labour />} />
-            <Route path="insights/reports" element={<InsightsReports />} />
-            
-            {/* Inventory */}
-            <Route path="inventory/order-guide" element={<OrderGuide />} />
-            <Route path="suppliers" element={<Suppliers />} />
-            <Route path="suppliers/:supplierId" element={<SupplierDetail />} />
-            <Route path="inventory/purchase-orders" element={<PurchaseOrders />} />
-            <Route path="inventory/purchase-orders/:poId" element={<PurchaseOrderDetail />} />
-            <Route path="inventory/stock-counts" element={<StockCounts />} />
-            <Route path="inventory/stock-counts/new" element={<NewStockCount />} />
-            <Route path="inventory/waste" element={<Waste />} />
-            
-            {/* Menu & Costing */}
-            <Route path="menu/items" element={<MenuItems />} />
-            <Route path="menu/recipes" element={<Recipes />} />
-            <Route path="menu/recipes/:recipeId" element={<RecipeEditor />} />
-            
-            {/* Workforce */}
-            <Route path="workforce/roster" element={<Roster />} />
-            <Route path="workforce/timesheets" element={<Timesheets />} />
-            <Route path="workforce/people" element={<People />} />
-            <Route path="workforce/people/:id" element={<StaffDetail />} />
-            <Route path="workforce/payroll-export" element={<PayrollExport />} />
-            
-            {/* Operations */}
-            <Route path="operations/daybook" element={<Daybook />} />
-            <Route path="operations/imports" element={<Imports />} />
-            <Route path="operations/compliance" element={<Compliance />} />
-            
-            {/* Automation */}
-            <Route path="automation/suggestions" element={<Suggestions />} />
-            <Route path="automation/demand-overrides" element={<DemandOverrides />} />
-            <Route path="automation/integrations" element={<Integrations />} />
-            
-            {/* Admin */}
-            <Route path="admin/data-imports" element={<DataImports />} />
-            <Route path="admin/data-management" element={<DataManagement />} />
-            <Route path="admin/system-verification" element={<SystemVerification />} />
-            <Route path="admin/diagnostics" element={<DiagnosticsPage />} />
-            <Route path="admin/org-settings" element={<OrgSettings />} />
-            <Route path="admin/venue-settings" element={<VenueSettings />} />
-            <Route path="admin/locations" element={<Locations />} />
-            <Route path="admin/access-roles" element={<AccessRoles />} />
-            
-            <Route path="*" element={<NotFound />} />
-          </Route>
-          
-          {/* Public Onboarding Portal (outside Layout) */}
-          <Route path="onboarding/portal/:token" element={<InvitePortal />} />
-          <Route path="onboarding/portal/:token/step:stepNumber" element={<InviteStep />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            {/* Public Auth Routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+
+            {/* Protected Routes */}
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Dashboard />} />
+              <Route path="dashboard" element={<Dashboard />} />
+
+              {/* Inventory */}
+              <Route path="inventory/order-guide" element={<OrderGuide />} />
+              <Route path="inventory/ingredients" element={<Ingredients />} />
+              <Route path="suppliers" element={<Suppliers />} />
+              <Route path="suppliers/:supplierId" element={<SupplierDetail />} />
+              <Route path="inventory/purchase-orders" element={<PurchaseOrders />} />
+              <Route path="inventory/purchase-orders/:poId" element={<PurchaseOrderDetail />} />
+              <Route path="inventory/stock-counts" element={<StockCounts />} />
+              <Route path="inventory/stock-counts/new" element={<NewStockCount />} />
+              <Route path="inventory/waste" element={<Waste />} />
+
+              {/* Menu & Costing */}
+              <Route path="menu/items" element={<MenuItems />} />
+              <Route path="menu/recipes" element={<Recipes />} />
+              <Route path="menu/recipes/:recipeId" element={<RecipeEditor />} />
+
+              {/* Workforce */}
+              <Route path="workforce/roster" element={<Roster />} />
+              <Route path="workforce/timesheets" element={<Timesheets />} />
+              <Route path="workforce/reports" element={<LabourReports />} />
+              <Route path="workforce/people" element={<People />} />
+              <Route path="workforce/people/:id" element={<StaffDetail />} />
+              <Route path="workforce/payroll-export" element={<PayrollExport />} />
+
+              {/* Operations */}
+              <Route path="operations/daybook" element={<Daybook />} />
+              <Route path="operations/imports" element={<Imports />} />
+              <Route path="operations/compliance" element={<Compliance />} />
+
+              {/* Integrations */}
+              <Route path="integrations" element={<Integrations />} />
+
+              {/* Admin */}
+              <Route path="admin/data-imports" element={<DataImports />} />
+              <Route path="admin/org-settings" element={<OrgSettings />} />
+              <Route path="admin/venue-settings" element={<VenueSettings />} />
+              <Route path="admin/locations" element={<Locations />} />
+              <Route path="admin/access-roles" element={<AccessRoles />} />
+
+              <Route path="*" element={<NotFound />} />
+            </Route>
+
+            {/* Public Onboarding Portal (outside Layout) */}
+            <Route path="onboarding/portal/:token" element={<InvitePortal />} />
+            <Route path="onboarding/portal/:token/step:stepNumber" element={<InviteStep />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
       <Toaster />
       <Sonner />

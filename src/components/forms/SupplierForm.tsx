@@ -43,7 +43,7 @@ export function SupplierForm({ onSubmit, onCancel, initialData }: SupplierFormPr
   
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit as any)} className="space-y-4">
+      <form onSubmit={form.handleSubmit((data) => onSubmit(data as Partial<Types.Supplier>))} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}

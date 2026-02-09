@@ -16,8 +16,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { useDataStore } from '@/lib/store/dataStore'
+import { WasteEntry } from '@/types'
 import { toast } from 'sonner'
 import { format, startOfMonth, subDays } from 'date-fns'
+import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
 
 const WASTE_REASONS = [
   { value: 'spoilage', label: 'Spoilage' },
@@ -143,7 +145,7 @@ export default function Waste() {
     })
     const sequence = todayWaste.length + 1
     
-    const wasteEntry: any = {
+    const wasteEntry: WasteEntry = {
       id: crypto.randomUUID(),
       venue_id: 'VENUE-001',
       waste_date: new Date(),
@@ -181,78 +183,35 @@ export default function Waste() {
     }
   }
   
-  return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Waste Tracking</h1>
-          <p className="text-muted-foreground">
-            Log and analyze ingredient waste
-          </p>
-        </div>
-        <Button onClick={handleOpenDialog} size="lg">
-          <Plus className="h-4 w-4 mr-2" />
-          Log Waste
-        </Button>
-      </div>
-      
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Trash2 className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Total Waste Cost</p>
-          </div>
-          <p className="text-2xl font-bold text-red-600">
-            ${(stats.totalCost / 100).toFixed(2)}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            {dateFilter === 'today' ? 'Today' : dateFilter === 'week' ? 'Last 7 days' : 'This month'}
-          </p>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <AlertTriangle className="h-4 w-4 text-orange-600" />
-            <p className="text-sm text-muted-foreground">Total Items</p>
-          </div>
-          <p className="text-2xl font-bold">{stats.totalItems}</p>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Top Reason</p>
-          </div>
-          {stats.topReason ? (
-            <>
-              <p className="text-lg font-semibold">{stats.topReason.reason}</p>
-              <p className="text-sm text-red-600">
-                ${(stats.topReason.cost / 100).toFixed(2)}
-              </p>
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">No data</p>
-          )}
-        </Card>
-      </div>
-      
-      {/* Filters */}
-      <Card className="p-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+  const sidebar = (
+    <PageSidebar
+      title="Waste"
+      metrics={[
+        { label: "Total Cost", value: `$${(stats.totalCost / 100).toFixed(2)}`, color: stats.totalCost > 0 ? "red" : "default" },
+        { label: "Items", value: stats.totalItems },
+      ]}
+      extendedMetrics={stats.topReason ? [
+        { label: "Top Reason", value: stats.topReason.reason },
+      ] : undefined}
+    />
+  )
+
+  const toolbar = (
+    <PageToolbar
+      title="Waste Tracking"
+      filters={
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search items..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="h-8 w-[180px] pl-8 text-sm"
             />
           </div>
-          
           <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="w-full md:w-48">
+            <SelectTrigger className="h-8 w-[130px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -263,9 +222,14 @@ export default function Waste() {
             </SelectContent>
           </Select>
         </div>
-      </Card>
-      
-      {/* Waste Table */}
+      }
+      primaryAction={{ label: "Log Waste", icon: Plus, onClick: handleOpenDialog, variant: "teal" }}
+    />
+  )
+
+  return (
+    <PageShell sidebar={sidebar} toolbar={toolbar}>
+      <div className="p-4">
       {filteredWaste.length === 0 ? (
         <Card className="p-12 text-center">
           <Trash2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -382,7 +346,7 @@ export default function Waste() {
               <Label htmlFor="reason">Reason</Label>
               <Select
                 value={wasteForm.reason}
-                onValueChange={(value: any) => setWasteForm({ ...wasteForm, reason: value })}
+                onValueChange={(value: WasteEntry['reason']) => setWasteForm({ ...wasteForm, reason: value })}
               >
                 <SelectTrigger id="reason">
                   <SelectValue />
@@ -431,6 +395,7 @@ export default function Waste() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </PageShell>
   )
 }

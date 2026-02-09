@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useDataStore } from '@/lib/store/dataStore'
+import { StockCount, StockCountItem } from '@/types'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 
@@ -65,7 +66,7 @@ export default function NewStockCount() {
     const countNumber = `SC-${today}-${sequence.toString().padStart(3, '0')}`
     
     // Build count items
-    const items: any[] = ingredientsToCount.map((ingredient) => {
+    const items: StockCountItem[] = ingredientsToCount.map((ingredient) => {
       const countedQty = countedQuantities[ingredient.id] || 0
       const expectedQty = ingredient.current_stock
       const variance = countedQty - expectedQty
@@ -84,8 +85,8 @@ export default function NewStockCount() {
     })
     
     const totalVarianceValue = items.reduce((sum, item) => sum + item.variance_value, 0)
-    
-    const stockCount: any = {
+
+    const stockCount: StockCount = {
       id: crypto.randomUUID(),
       venue_id: 'VENUE-001',
       count_number: countNumber,

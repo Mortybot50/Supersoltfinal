@@ -8,12 +8,13 @@ import { downloadTemplate } from '@/lib/utils/excelImport'
 import { importMappings } from '@/lib/config/importMappings'
 import { z } from 'zod'
 import { useToast } from '@/hooks/use-toast'
+import { ImportResult, ImportError, ImportWarning } from '@/lib/utils/excelImport'
 
 interface ImportWizardProps {
   entityType: string
   entityLabel: string
-  validationSchema: z.ZodSchema<any>
-  onImportComplete: (data: any[]) => void
+  validationSchema: z.ZodSchema<unknown>
+  onImportComplete: (data: unknown[]) => void
 }
 
 export function ImportWizard({ 
@@ -24,7 +25,7 @@ export function ImportWizard({
 }: ImportWizardProps) {
   const [file, setFile] = useState<File | null>(null)
   const [importing, setImporting] = useState(false)
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<ImportResult<unknown> | null>(null)
   const [step, setStep] = useState<'upload' | 'preview' | 'complete'>('upload')
   const { toast } = useToast()
   
@@ -51,10 +52,10 @@ export function ImportWizard({
           description: `${importResult.validRows} records ready to import`,
         })
       }
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Import failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive"
       })
     } finally {
@@ -183,7 +184,7 @@ export function ImportWizard({
                 Errors ({result.errors.length})
               </h4>
               <div className="space-y-2 max-h-48 overflow-y-auto">
-                {result.errors.slice(0, 10).map((error: any, idx: number) => (
+                {result.errors.slice(0, 10).map((error: ImportError, idx: number) => (
                   <Alert key={idx} variant="destructive">
                     <AlertDescription>
                       <strong>Row {error.row}:</strong> {error.field} - {error.message}
@@ -207,7 +208,7 @@ export function ImportWizard({
                 Warnings ({result.warnings.length})
               </h4>
               <div className="space-y-2 max-h-48 overflow-y-auto">
-                {result.warnings.map((warning: any, idx: number) => (
+                {result.warnings.map((warning: ImportWarning, idx: number) => (
                   <Alert key={idx}>
                     <AlertDescription>
                       <strong>Row {warning.row}:</strong> {warning.field} - {warning.message}

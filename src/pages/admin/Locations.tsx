@@ -216,7 +216,7 @@ export default function Locations() {
         .eq('location_id', locationId)
 
       if (error) throw error
-      const mapped = (data || []).map((a: any) => ({
+      const mapped = (data || []).map((a: Assignment & { ingredients?: { name: string } }) => ({
         ...a,
         ingredient_name: a.ingredients?.name || 'Unknown',
       }))
@@ -294,7 +294,7 @@ export default function Locations() {
         return
       }
 
-      const payload: any = {
+      const payload: Partial<Location> & { venue_id: string } = {
         ...locationForm,
         venue_id: currentVenueId,
         name: locationForm.name || '',
@@ -320,11 +320,11 @@ export default function Locations() {
 
       setLocationDialogOpen(false)
       loadLocations()
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving location:', error)
       toast({
         title: 'Error',
-        description: error.message || 'Failed to save location',
+        description: error instanceof Error ? error.message : 'Failed to save location',
         variant: 'destructive',
       })
     }
@@ -367,11 +367,11 @@ export default function Locations() {
 
       toast({ title: 'Success', description: 'Location duplicated' })
       loadLocations()
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error duplicating location:', error)
       toast({
         title: 'Error',
-        description: error.message || 'Failed to duplicate location',
+        description: error instanceof Error ? error.message : 'Failed to duplicate location',
         variant: 'destructive',
       })
     }
@@ -390,11 +390,11 @@ export default function Locations() {
         description: location.is_active ? 'Location deactivated' : 'Location activated',
       })
       loadLocations()
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error toggling location:', error)
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update location',
+        description: error instanceof Error ? error.message : 'Failed to update location',
         variant: 'destructive',
       })
     }
@@ -432,11 +432,11 @@ export default function Locations() {
       if (error) throw error
       toast({ title: 'Success', description: 'Location deleted' })
       loadLocations()
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting location:', error)
       toast({
         title: 'Error',
-        description: error.message || 'Failed to delete location',
+        description: error instanceof Error ? error.message : 'Failed to delete location',
         variant: 'destructive',
       })
     }
@@ -464,11 +464,11 @@ export default function Locations() {
       setNewBinBarcode('')
       setShowBinForm(false)
       loadBins(editingLocation.id)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error adding bin:', error)
       toast({
         title: 'Error',
-        description: error.message || 'Failed to add bin',
+        description: error instanceof Error ? error.message : 'Failed to add bin',
         variant: 'destructive',
       })
     }
@@ -486,11 +486,11 @@ export default function Locations() {
       if (error) throw error
       toast({ title: 'Success', description: 'Bin deleted' })
       if (editingLocation) loadBins(editingLocation.id)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting bin:', error)
       toast({
         title: 'Error',
-        description: error.message || 'Failed to delete bin',
+        description: error instanceof Error ? error.message : 'Failed to delete bin',
         variant: 'destructive',
       })
     }
@@ -508,11 +508,11 @@ export default function Locations() {
       if (error) throw error
       toast({ title: 'Success', description: 'Assignment removed' })
       if (editingLocation) loadAssignments(editingLocation.id)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting assignment:', error)
       toast({
         title: 'Error',
-        description: error.message || 'Failed to remove assignment',
+        description: error instanceof Error ? error.message : 'Failed to remove assignment',
         variant: 'destructive',
       })
     }
@@ -530,11 +530,11 @@ export default function Locations() {
       if (error) throw error
       toast({ title: 'Success', description: 'Device removed' })
       if (editingLocation) loadDevices(editingLocation.id)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting device:', error)
       toast({
         title: 'Error',
-        description: error.message || 'Failed to remove device',
+        description: error instanceof Error ? error.message : 'Failed to remove device',
         variant: 'destructive',
       })
     }
@@ -557,7 +557,7 @@ export default function Locations() {
         return
       }
 
-      const payload: any = {
+      const payload: Partial<Schedule> & { venue_id: string } = {
         ...scheduleForm,
         venue_id: currentVenueId,
         schedule_name: scheduleForm.schedule_name || '',
@@ -583,11 +583,11 @@ export default function Locations() {
 
       setScheduleDialogOpen(false)
       loadSchedules()
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving schedule:', error)
       toast({
         title: 'Error',
-        description: error.message || 'Failed to save schedule',
+        description: error instanceof Error ? error.message : 'Failed to save schedule',
         variant: 'destructive',
       })
     }
@@ -605,11 +605,11 @@ export default function Locations() {
       if (error) throw error
       toast({ title: 'Success', description: 'Schedule deleted' })
       loadSchedules()
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting schedule:', error)
       toast({
         title: 'Error',
-        description: error.message || 'Failed to delete schedule',
+        description: error instanceof Error ? error.message : 'Failed to delete schedule',
         variant: 'destructive',
       })
     }

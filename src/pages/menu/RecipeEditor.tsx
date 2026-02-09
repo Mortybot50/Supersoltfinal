@@ -135,17 +135,17 @@ export default function RecipeEditor() {
   const handleIngredientChange = (
     index: number,
     field: keyof RecipeIngredient,
-    value: any
+    value: RecipeIngredient[keyof RecipeIngredient]
   ) => {
     const updated = [...ingredients]
     updated[index] = { ...updated[index], [field]: value }
-    
+
     // If product changed, update related fields
     if (field === 'product_id') {
       const product = products.find((p) => p.id === value)
       if (product) {
         updated[index].product_name = product.name
-        updated[index].unit = product.unit as any
+        updated[index].unit = product.unit as RecipeIngredient['unit']
         updated[index].product_unit = product.unit
         updated[index].product_cost = product.cost_per_unit
         
@@ -370,7 +370,7 @@ export default function RecipeEditor() {
             <Label htmlFor="category">Category *</Label>
             <Select
               value={recipeForm.category}
-              onValueChange={(value: any) => setRecipeForm({ ...recipeForm, category: value })}
+              onValueChange={(value: Recipe['category']) => setRecipeForm({ ...recipeForm, category: value })}
             >
               <SelectTrigger id="category">
                 <SelectValue />
@@ -504,7 +504,7 @@ export default function RecipeEditor() {
                       <TableCell>
                         <Select
                           value={ingredient.unit}
-                          onValueChange={(value: any) =>
+                          onValueChange={(value: RecipeIngredient['unit']) =>
                             handleIngredientChange(index, 'unit', value)
                           }
                           disabled={!ingredient.product_id}

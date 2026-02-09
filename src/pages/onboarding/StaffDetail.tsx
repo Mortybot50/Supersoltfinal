@@ -115,7 +115,7 @@ export default function StaffDetail() {
     return <Circle className="w-5 h-5 text-gray-400" />
   }
 
-  const handleStepComplete = (stepNumber: number, data: any) => {
+  const handleStepComplete = (stepNumber: number, data: Record<string, unknown>) => {
     // Update staff data
     updateStaffOnboarding(member.id, data)
     
@@ -134,7 +134,7 @@ export default function StaffDetail() {
     const commonProps = {
       staffId: member.id,
       initialData: member,
-      onComplete: (data: any) => handleStepComplete(stepNumber, data),
+      onComplete: (data: Record<string, unknown>) => handleStepComplete(stepNumber, data),
       onBack: () => setEditingStep(null)
     }
 

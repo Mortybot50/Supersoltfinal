@@ -9,16 +9,18 @@ import { useToast } from '@/hooks/use-toast'
 import { validateBSB, lookupBank, formatBSB } from '@/lib/utils/bsbLookup'
 import { CheckCircle, AlertCircle } from 'lucide-react'
 
+interface BankDetailsData {
+  bank_account_name: string
+  bank_bsb: string
+  bank_account_number: string
+  bank_account_type?: string
+  bank_institution_name?: string
+}
+
 interface BankDetailsStepProps {
   staffId: string
-  initialData?: {
-    bank_account_name?: string
-    bank_bsb?: string
-    bank_account_number?: string
-    bank_account_type?: string
-    bank_institution_name?: string
-  }
-  onComplete: (data: any) => void
+  initialData?: Partial<BankDetailsData>
+  onComplete: (data: BankDetailsData) => void
   onBack?: () => void
 }
 

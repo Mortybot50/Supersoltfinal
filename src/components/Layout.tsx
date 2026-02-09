@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom"
 import { useState, useEffect } from "react"
+import { useAuth } from "@/contexts/AuthContext"
 import {
   LayoutGrid,
   TrendingUp,
@@ -17,6 +18,7 @@ import {
   FileText,
   ClipboardCheck,
   Activity,
+  LogOut,
 } from "lucide-react"
 import {
   Sidebar,
@@ -43,34 +45,24 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import DataInitializer from "./DataInitializer"
+import { LucideIcon } from "lucide-react"
 
 type NavItem = {
   title: string
   url?: string
-  icon: any
+  icon: LucideIcon
   items?: { title: string; url?: string; soon?: boolean }[]
 }
 
 const navigationItems: NavItem[] = [
   { title: "DASHBOARD", url: "/dashboard", icon: LayoutGrid },
   {
-    title: "INSIGHTS",
-    icon: TrendingUp,
-    items: [
-      { title: "Sales", url: "/insights/sales" },
-      { title: "COGS", url: "/insights/cogs" },
-      { title: "Labour", url: "/insights/labour" },
-      { title: "Flash P&L", soon: true },
-      { title: "Cash management", soon: true },
-      { title: "Reports", url: "/insights/reports" },
-    ],
-  },
-  {
     title: "INVENTORY",
     icon: Package,
     items: [
-      { title: "Order Guide", url: "/inventory/order-guide" },
+      { title: "Ingredients", url: "/inventory/ingredients" },
       { title: "Suppliers", url: "/suppliers" },
+      { title: "Order Guide", url: "/inventory/order-guide" },
       { title: "Purchase Orders", url: "/inventory/purchase-orders" },
       { title: "Stock Counts", url: "/inventory/stock-counts" },
       { title: "Waste", url: "/inventory/waste" },
@@ -83,7 +75,6 @@ const navigationItems: NavItem[] = [
     items: [
       { title: "Menu Items", url: "/menu/items" },
       { title: "Recipes", url: "/menu/recipes" },
-      { title: "Pricing (Smart)", soon: true },
     ],
   },
   {
@@ -93,6 +84,7 @@ const navigationItems: NavItem[] = [
       { title: "People", url: "/workforce/people" },
       { title: "Roster", url: "/workforce/roster" },
       { title: "Timesheets", url: "/workforce/timesheets" },
+      { title: "Reports", url: "/workforce/reports" },
       { title: "Payroll Export", url: "/workforce/payroll-export" },
     ],
   },
@@ -103,32 +95,25 @@ const navigationItems: NavItem[] = [
       { title: "Daybook", url: "/operations/daybook" },
       { title: "Imports", url: "/operations/imports" },
       { title: "Compliance", url: "/operations/compliance" },
-      { title: "Checklists", soon: true },
     ],
   },
   {
-    title: "AUTOMATION",
+    title: "INTEGRATIONS",
     icon: Zap,
     items: [
-      { title: "Suggestions", url: "/automation/suggestions" },
-      { title: "Demand Overrides", url: "/automation/demand-overrides" },
-      { title: "Integrations", url: "/automation/integrations" },
-      { title: "IoT Sensors", soon: true },
+      { title: "POS (Square)", url: "/integrations" },
+      { title: "Accounting (Xero)", soon: true },
     ],
   },
   {
     title: "ADMIN",
     icon: Settings,
     items: [
-      { title: "Data Imports", url: "/admin/data-imports" },
-      { title: "Data Management", url: "/admin/data-management" },
-      { title: "System Verification", url: "/admin/system-verification" },
-      { title: "Diagnostics", url: "/admin/diagnostics" },
       { title: "Org Settings", url: "/admin/org-settings" },
       { title: "Venue Settings", url: "/admin/venue-settings" },
       { title: "Locations", url: "/admin/locations" },
       { title: "Access & Roles", url: "/admin/access-roles" },
-      { title: "Billing", soon: true },
+      { title: "Data Imports", url: "/admin/data-imports" },
     ],
   },
 ]
@@ -265,6 +250,37 @@ function AppSidebar() {
 
 export default function Layout() {
   const navigate = useNavigate()
+  const { profile, currentVenue, venues, setCurrentVenue, orgMember, signOut } = useAuth()
+
+  // Get user initials for avatar
+  const getInitials = () => {
+    if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name[0]}${profile.last_name[0]}`.toUpperCase()
+    }
+    if (profile?.email) {
+      return profile.email[0].toUpperCase()
+    }
+    return "?"
+  }
+
+  // Get display name
+  const getDisplayName = () => {
+    if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name} ${profile.last_name}`
+    }
+    return profile?.email || "User"
+  }
+
+  // Get role display
+  const getRoleDisplay = () => {
+    if (!orgMember?.role) return ""
+    return orgMember.role.charAt(0).toUpperCase() + orgMember.role.slice(1)
+  }
+
+  const handleSignOut = async () => {
+    await signOut()
+    navigate("/login")
+  }
 
   return (
     <SidebarProvider>
@@ -273,38 +289,47 @@ export default function Layout() {
         <div className="flex-1 flex flex-col">
           <header className="h-14 border-b bg-background flex items-center px-4 gap-4">
             <SidebarTrigger />
-            
+
             {/* Venue Selector */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2">
-                  <span className="font-semibold">Rowville Café</span>
+                  <span className="font-semibold">{currentVenue?.name || "Select Venue"}</span>
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="bg-popover">
                 <DropdownMenuLabel>Switch Venue</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Rowville Café</DropdownMenuItem>
-                <DropdownMenuItem>Melbourne CBD</DropdownMenuItem>
-                <DropdownMenuItem>Brighton Store</DropdownMenuItem>
+                {venues.map((venue) => (
+                  <DropdownMenuItem
+                    key={venue.id}
+                    onClick={() => setCurrentVenue(venue)}
+                    className={currentVenue?.id === venue.id ? "bg-accent" : ""}
+                  >
+                    {venue.name}
+                  </DropdownMenuItem>
+                ))}
+                {venues.length === 0 && (
+                  <DropdownMenuItem disabled>No venues available</DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
 
             <div className="flex-1" />
-            
+
             {/* User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2">
                   <Avatar className="h-8 w-8">
                     <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                      JS
+                      {getInitials()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="text-left hidden sm:block">
-                    <div className="text-sm font-medium">J Smith</div>
-                    <div className="text-xs text-muted-foreground">Manager</div>
+                    <div className="text-sm font-medium">{getDisplayName()}</div>
+                    <div className="text-xs text-muted-foreground">{getRoleDisplay()}</div>
                   </div>
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 </Button>
@@ -312,14 +337,14 @@ export default function Layout() {
               <DropdownMenuContent align="end" className="bg-popover">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate('/settings?tab=profile')}>
-                  Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/settings')}>
+                <DropdownMenuItem onClick={() => navigate('/admin/org-settings')}>
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Log out</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Log out
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </header>

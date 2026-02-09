@@ -16,7 +16,9 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useDataStore } from '@/lib/store/dataStore'
+import { StockCountItem } from '@/types'
 import { format } from 'date-fns'
+import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
 
 export default function StockCounts() {
   const navigate = useNavigate()
@@ -51,7 +53,7 @@ export default function StockCounts() {
     if (supplierFilter !== 'all') {
       filtered = filtered.filter((sc) => {
         // Check if any items in the count are from this supplier
-        return sc.items?.some((item: any) => {
+        return sc.items?.some((item: StockCountItem) => {
           const ingredient = useDataStore.getState().ingredients.find(i => i.id === item.ingredient_id)
           return ingredient?.supplier_id === supplierFilter
         })
@@ -78,83 +80,40 @@ export default function StockCounts() {
     return { total, inProgress, completed, totalVariance }
   }, [stockCounts])
   
-  return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Stock Counts</h1>
-          <p className="text-muted-foreground">
-            Track inventory levels and variances
-          </p>
-        </div>
-        <Button onClick={() => navigate('/inventory/stock-counts/new')} size="lg">
-          <Plus className="h-4 w-4 mr-2" />
-          New Stock Count
-        </Button>
-      </div>
-      
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Total Counts</p>
-          </div>
-          <p className="text-2xl font-bold">{stats.total}</p>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Calendar className="h-4 w-4 text-blue-600" />
-            <p className="text-sm text-muted-foreground">In Progress</p>
-          </div>
-          <p className="text-2xl font-bold">{stats.inProgress}</p>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <ClipboardCheck className="h-4 w-4 text-green-600" />
-            <p className="text-sm text-muted-foreground">Completed</p>
-          </div>
-          <p className="text-2xl font-bold">{stats.completed}</p>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            {stats.totalVariance >= 0 ? (
-              <TrendingUp className="h-4 w-4 text-green-600" />
-            ) : (
-              <TrendingDown className="h-4 w-4 text-red-600" />
-            )}
-            <p className="text-sm text-muted-foreground">Total Variance</p>
-          </div>
-          <p
-            className={`text-2xl font-bold ${
-              stats.totalVariance >= 0 ? 'text-green-600' : 'text-red-600'
-            }`}
-          >
-            {stats.totalVariance >= 0 ? '+' : ''}$
-            {(Math.abs(stats.totalVariance) / 100).toFixed(2)}
-          </p>
-        </Card>
-      </div>
-      
-      {/* Filters */}
-      <Card className="p-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+  const sidebar = (
+    <PageSidebar
+      title="Stock Counts"
+      metrics={[
+        { label: "Total", value: stats.total },
+        { label: "In Progress", value: stats.inProgress },
+        { label: "Completed", value: stats.completed },
+      ]}
+      extendedMetrics={[
+        {
+          label: "Variance",
+          value: `${stats.totalVariance >= 0 ? '+' : ''}$${(Math.abs(stats.totalVariance) / 100).toFixed(2)}`,
+          color: stats.totalVariance >= 0 ? "green" : "red",
+        },
+      ]}
+    />
+  )
+
+  const toolbar = (
+    <PageToolbar
+      title="Stock Counts"
+      filters={
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search counts..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="h-8 w-[180px] pl-8 text-sm"
             />
           </div>
-          
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full md:w-48">
+            <SelectTrigger className="h-8 w-[130px]">
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
             <SelectContent>
@@ -164,9 +123,8 @@ export default function StockCounts() {
               <SelectItem value="reviewed">Reviewed</SelectItem>
             </SelectContent>
           </Select>
-          
           <Select value={supplierFilter} onValueChange={setSupplierFilter}>
-            <SelectTrigger className="w-full md:w-48">
+            <SelectTrigger className="h-8 w-[130px]">
               <SelectValue placeholder="All Suppliers" />
             </SelectTrigger>
             <SelectContent>
@@ -179,9 +137,14 @@ export default function StockCounts() {
             </SelectContent>
           </Select>
         </div>
-      </Card>
-      
-      {/* Counts Table */}
+      }
+      primaryAction={{ label: "New Count", icon: Plus, onClick: () => navigate('/inventory/stock-counts/new'), variant: "teal" }}
+    />
+  )
+
+  return (
+    <PageShell sidebar={sidebar} toolbar={toolbar}>
+      <div className="p-4">
       {filteredCounts.length === 0 ? (
         <Card className="p-12 text-center">
           <ClipboardCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -269,6 +232,7 @@ export default function StockCounts() {
           </Table>
         </Card>
       )}
-    </div>
+      </div>
+    </PageShell>
   )
 }

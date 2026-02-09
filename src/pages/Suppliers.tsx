@@ -13,6 +13,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
 import { useDataStore } from '@/lib/store/dataStore'
 import { toast } from 'sonner'
+import * as Types from '@/types'
+import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
 
 const DAYS_OF_WEEK = [
   { value: 0, label: 'Sunday' },
@@ -30,7 +32,7 @@ export default function Suppliers() {
   
   const [searchQuery, setSearchQuery] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingSupplier, setEditingSupplier] = useState<any>(null)
+  const [editingSupplier, setEditingSupplier] = useState<Types.Supplier | null>(null)
   
   // Load suppliers from Supabase on mount
   useEffect(() => {
@@ -72,7 +74,7 @@ export default function Suppliers() {
     return ingredients.filter((i) => i.supplier_id === supplierId && i.active).length
   }
   
-  const handleOpenDialog = (supplier?: any) => {
+  const handleOpenDialog = (supplier?: Types.Supplier) => {
     if (supplier) {
       setEditingSupplier(supplier)
       setFormData({
@@ -137,7 +139,7 @@ export default function Suppliers() {
       suburb: formData.suburb.trim() || undefined,
       state: formData.state.trim() || undefined,
       postcode: formData.postcode.trim() || undefined,
-      payment_terms: formData.payment_terms as any,
+      payment_terms: formData.payment_terms as Types.Supplier['payment_terms'],
       account_number: formData.account_number.trim() || undefined,
       delivery_days: formData.delivery_days,
       cutoff_time: formData.cutoff_time,
@@ -160,7 +162,7 @@ export default function Suppliers() {
           category: 'other' as const,
           ...supplierData,
         }
-        await addSupplier(newSupplier as any)
+        await addSupplier(newSupplier as Types.Supplier)
         toast.success('Supplier added')
       }
       
@@ -199,40 +201,41 @@ export default function Suppliers() {
     }))
   }
   
+  const activeCount = suppliers.filter(s => s.active).length
+  const inactiveCount = suppliers.filter(s => !s.active).length
+
+  const sidebar = (
+    <PageSidebar
+      title="Suppliers"
+      metrics={[
+        { label: "Active", value: activeCount },
+        { label: "Inactive", value: inactiveCount },
+        { label: "Total", value: suppliers.length },
+      ]}
+    />
+  )
+
+  const toolbar = (
+    <PageToolbar
+      title="Suppliers"
+      filters={
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search suppliers..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-8 w-[200px] pl-8 text-sm"
+          />
+        </div>
+      }
+      primaryAction={{ label: "Add Supplier", icon: Plus, onClick: () => handleOpenDialog(), variant: "teal" }}
+    />
+  )
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Suppliers</h1>
-          <p className="text-muted-foreground">
-            Manage suppliers and their product catalogs
-          </p>
-        </div>
-        <Button onClick={() => handleOpenDialog()} size="lg">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Supplier
-        </Button>
-      </div>
-      
-      <Card className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h2 className="text-xl font-semibold">
-              Suppliers ({filteredSuppliers.length})
-            </h2>
-          </div>
-          <div className="relative w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search suppliers..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </div>
-      </Card>
-      
+    <PageShell sidebar={sidebar} toolbar={toolbar}>
+      <div className="p-4">
       {filteredSuppliers.length === 0 && !searchQuery ? (
         <Card className="p-12 text-center">
           <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -506,6 +509,7 @@ export default function Suppliers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </PageShell>
   )
 }

@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useDataStore } from '@/lib/store/dataStore'
-import { AU_STATES, AU_TIMEZONES, FSANZ_ALLERGENS, DEFAULT_CSV_COLUMNS, MenuSection } from '@/types'
+import { AU_STATES, AU_TIMEZONES, FSANZ_ALLERGENS, DEFAULT_CSV_COLUMNS, MenuSection, Organization, OrgBranding, OrgMenuDefaults, OrgApprovals, OrgHolidays, OrgExportMappings, OrgSecurity } from '@/types'
 import { toast } from 'sonner'
 
 export default function OrgSettings() {
@@ -46,13 +46,13 @@ export default function OrgSettings() {
   
   // Local form state (to track unsaved changes)
   const [formData, setFormData] = useState<{
-    organization: Partial<any>
-    branding: Partial<any>
-    menuDefaults: Partial<any>
-    approvals: Partial<any>
-    holidays: Partial<any>
-    exportMappings: Partial<any>
-    security: Partial<any>
+    organization: Partial<Organization>
+    branding: Partial<OrgBranding>
+    menuDefaults: Partial<OrgMenuDefaults>
+    approvals: Partial<OrgApprovals>
+    holidays: Partial<OrgHolidays>
+    exportMappings: Partial<OrgExportMappings>
+    security: Partial<OrgSecurity>
   }>({
     organization: organization || {},
     branding: branding || {},
@@ -458,7 +458,7 @@ export default function OrgSettings() {
                   <Label htmlFor="price-endings">Price Endings</Label>
                   <Select
                     value={formData.menuDefaults.price_endings || '.90'}
-                    onValueChange={(value: any) =>
+                    onValueChange={(value: OrgMenuDefaults['price_endings']) =>
                       setFormData((prev) => ({
                         ...prev,
                         menuDefaults: { ...prev.menuDefaults, price_endings: value },
@@ -482,7 +482,7 @@ export default function OrgSettings() {
                   <Label htmlFor="rounding">Rounding Mode</Label>
                   <Select
                     value={formData.menuDefaults.rounding_mode || 'NEAREST'}
-                    onValueChange={(value: any) =>
+                    onValueChange={(value: OrgMenuDefaults['rounding_mode']) =>
                       setFormData((prev) => ({
                         ...prev,
                         menuDefaults: { ...prev.menuDefaults, rounding_mode: value },
@@ -504,7 +504,7 @@ export default function OrgSettings() {
                   <Label htmlFor="default-gst">Default GST Mode</Label>
                   <Select
                     value={formData.menuDefaults.default_gst_mode_items || 'INC'}
-                    onValueChange={(value: any) =>
+                    onValueChange={(value: OrgMenuDefaults['default_gst_mode_items']) =>
                       setFormData((prev) => ({
                         ...prev,
                         menuDefaults: { ...prev.menuDefaults, default_gst_mode_items: value },
@@ -669,7 +669,7 @@ export default function OrgSettings() {
                 <Label htmlFor="state">State/Territory</Label>
                 <Select
                   value={formData.holidays.state || 'VIC'}
-                  onValueChange={(value: any) =>
+                  onValueChange={(value: OrgHolidays['state']) =>
                     setFormData((prev) => ({
                       ...prev,
                       holidays: { ...prev.holidays, state: value },
@@ -767,7 +767,7 @@ export default function OrgSettings() {
                   <Label htmlFor="pos_provider">POS Provider</Label>
                   <Select
                     value={formData.exportMappings.pos_provider || 'Square'}
-                    onValueChange={(value: any) =>
+                    onValueChange={(value: OrgExportMappings['pos_provider']) =>
                       setFormData({
                         ...formData,
                         exportMappings: { ...formData.exportMappings, pos_provider: value },
