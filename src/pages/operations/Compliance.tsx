@@ -11,7 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   CheckCircle, AlertTriangle, XCircle, Clock, Users, FileText, Shield, Send, UserPlus,
 } from 'lucide-react'
-import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
+import { PageShell, PageToolbar } from '@/components/shared'
+import { StatCards } from '@/components/ui/StatCards'
+import { SecondaryStats } from '@/components/ui/SecondaryStats'
 import { useDataStore } from '@/lib/store/dataStore'
 import { ONBOARDING_STEPS, DOCUMENT_TYPES } from '@/lib/constants/onboarding'
 import { format, differenceInDays } from 'date-fns'
@@ -116,27 +118,6 @@ export default function Compliance() {
       })
   }, [allStaff, onboardingDocuments])
 
-  const sidebar = (
-    <PageSidebar
-      title="Compliance"
-      metrics={[
-        { label: 'Active Staff', value: onboardingMetrics.totalActive },
-        { label: 'Completion Rate', value: `${onboardingMetrics.completionRate}%` },
-      ]}
-      extendedMetrics={[
-        { label: 'Roster Ready', value: onboardingMetrics.byStatus.roster_ready, color: 'green' },
-        { label: 'Pending Review', value: onboardingMetrics.byStatus.pending_review, color: onboardingMetrics.byStatus.pending_review > 0 ? 'orange' : 'default' },
-        { label: 'In Progress', value: onboardingMetrics.byStatus.in_progress },
-        { label: 'Invited', value: onboardingMetrics.byStatus.invited },
-        { label: 'Not Started', value: onboardingMetrics.byStatus.not_started, color: onboardingMetrics.byStatus.not_started > 0 ? 'red' : 'default' },
-      ]}
-      quickActions={[
-        { label: 'People', icon: Users, onClick: () => navigate('/workforce/people') },
-      ]}
-      warnings={documentCompliance.issues.length > 0 ? [`${documentCompliance.issues.length} document issues`] : []}
-    />
-  )
-
   const toolbar = (
     <PageToolbar
       title="Compliance"
@@ -150,7 +131,20 @@ export default function Compliance() {
   )
 
   return (
-    <PageShell sidebar={sidebar} toolbar={toolbar}>
+    <PageShell toolbar={toolbar}>
+      <div className="px-4 pt-4 space-y-3">
+        <StatCards stats={[
+          { label: 'Active Staff', value: onboardingMetrics.totalActive },
+          { label: 'Completion Rate', value: `${onboardingMetrics.completionRate}%` },
+        ]} columns={2} />
+        <SecondaryStats stats={[
+          { label: 'Roster Ready', value: onboardingMetrics.byStatus.roster_ready },
+          { label: 'Pending Review', value: onboardingMetrics.byStatus.pending_review },
+          { label: 'In Progress', value: onboardingMetrics.byStatus.in_progress },
+          { label: 'Invited', value: onboardingMetrics.byStatus.invited },
+          { label: 'Not Started', value: onboardingMetrics.byStatus.not_started },
+        ]} />
+      </div>
       <div className="p-4 space-y-6">
         {/* Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

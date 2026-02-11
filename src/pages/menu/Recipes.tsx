@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useDataStore } from '@/lib/store/dataStore'
-import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
+import { PageShell, PageToolbar } from '@/components/shared'
+import { StatCards } from '@/components/ui/StatCards'
 
 const CATEGORIES = [
   { value: 'mains', label: 'Mains' },
@@ -54,17 +55,6 @@ export default function Recipes() {
     )
   }, [recipes, searchQuery, categoryFilter, statusFilter])
   
-  const sidebar = (
-    <PageSidebar
-      title="Recipes"
-      metrics={[
-        { label: 'Total Recipes', value: recipes.length },
-        { label: 'Published', value: recipes.filter(r => r.status === 'published').length },
-        { label: 'Draft', value: recipes.filter(r => r.status === 'draft').length },
-      ]}
-    />
-  )
-
   const toolbar = (
     <PageToolbar
       title="Recipes"
@@ -113,9 +103,16 @@ export default function Recipes() {
   )
 
   return (
-    <PageShell sidebar={sidebar} toolbar={toolbar}>
+    <PageShell toolbar={toolbar}>
+      <div className="px-4 pt-4 space-y-3">
+        <StatCards stats={[
+          { label: 'Total Recipes', value: recipes.length },
+          { label: 'Published', value: recipes.filter(r => r.status === 'published').length },
+          { label: 'Draft', value: recipes.filter(r => r.status === 'draft').length },
+        ]} columns={3} />
+      </div>
       <div className="p-6 space-y-6">
-      
+
       {/* Recipes Table */}
       {loading ? (
         <Card className="p-12 text-center">

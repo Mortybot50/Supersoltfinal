@@ -13,7 +13,9 @@ import { formatCurrency } from "@/lib/utils/formatters"
 import { formatBaseUnitCost, calculateCostPerBaseUnit, calculatePackToBaseFactor } from "@/lib/utils/unitConversions"
 import { logPriceChange, runCostCascade, applyCascadeToState } from "@/lib/services/costCascade"
 import { toast } from "sonner"
-import { PageShell, PageToolbar, PageSidebar } from "@/components/shared"
+import { PageShell, PageToolbar } from "@/components/shared"
+import { StatCards } from "@/components/ui/StatCards"
+import { SecondaryStats } from "@/components/ui/SecondaryStats"
 import { COMMON_ALLERGENS } from "@/types"
 import { getDefaultOrgSettings } from "@/lib/venueSettings"
 import type { Ingredient } from "@/types"
@@ -219,20 +221,6 @@ export default function Ingredients() {
   }
 
   // ─── Layout ──────────────────────────────────────
-  const sidebar = (
-    <PageSidebar
-      title="Ingredients"
-      metrics={[
-        { label: "Total Items", value: ingredients.filter((i) => i.active).length },
-        { label: "Low Stock", value: lowStockCount, color: lowStockCount > 0 ? "orange" : "default" },
-        { label: "Stock Value", value: formatCurrency(totalStockValue) },
-      ]}
-      extendedMetrics={[
-        { label: "Categories", value: new Set(ingredients.map((i) => i.category)).size },
-      ]}
-    />
-  )
-
   const toolbar = (
     <PageToolbar
       title="Ingredients"
@@ -260,7 +248,17 @@ export default function Ingredients() {
   )
 
   return (
-    <PageShell sidebar={sidebar} toolbar={toolbar}>
+    <PageShell toolbar={toolbar}>
+      <div className="px-4 pt-4 space-y-3">
+        <StatCards stats={[
+          { label: "Total Items", value: ingredients.filter((i) => i.active).length },
+          { label: "Low Stock", value: lowStockCount, trend: lowStockCount > 0 ? 'down' as const : undefined },
+          { label: "Stock Value", value: formatCurrency(totalStockValue) },
+        ]} columns={3} />
+        <SecondaryStats stats={[
+          { label: "Categories", value: new Set(ingredients.map((i) => i.category)).size },
+        ]} />
+      </div>
       <div className="flex-1 overflow-auto">
         <Table>
           <TableHeader>

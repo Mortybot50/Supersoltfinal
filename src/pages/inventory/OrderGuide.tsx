@@ -21,7 +21,9 @@ import {
 import { format, differenceInDays, subDays } from 'date-fns'
 import { toast } from 'sonner'
 import type { OrderRecommendation, PurchaseOrder, PurchaseOrderItem, Supplier } from '@/types'
-import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
+import { PageShell, PageToolbar } from '@/components/shared'
+import { StatCards } from '@/components/ui/StatCards'
+import { SecondaryStats } from '@/components/ui/SecondaryStats'
 
 function getDaysOfStock(currentStock: number, dailyUsage: number): number {
   if (dailyUsage <= 0) return 999
@@ -384,14 +386,6 @@ export default function OrderGuide() {
     ...(salesForecast > 0 ? [{ label: "Forecast (7d)", value: `$${salesForecast.toFixed(0)}` }] : []),
   ] : undefined
 
-  const sidebar = (
-    <PageSidebar
-      title="Order Guide"
-      metrics={sidebarMetrics}
-      extendedMetrics={sidebarExtended}
-    />
-  )
-
   const toolbar = (
     <PageToolbar
       title="Order Guide"
@@ -434,7 +428,13 @@ export default function OrderGuide() {
   )
 
   return (
-    <PageShell sidebar={sidebar} toolbar={toolbar}>
+    <PageShell toolbar={toolbar}>
+      <div className="px-4 pt-4 space-y-3">
+        <StatCards stats={sidebarMetrics} columns={3} />
+        {sidebarExtended && sidebarExtended.length > 0 && (
+          <SecondaryStats stats={sidebarExtended} />
+        )}
+      </div>
       <div className="p-4 space-y-4">
 
       {/* Products Table */}

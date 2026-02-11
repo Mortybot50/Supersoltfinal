@@ -25,7 +25,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useDataStore } from '@/lib/store/dataStore'
 import { Ingredient } from '@/types'
 import { toast } from 'sonner'
-import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
+import { PageShell, PageToolbar } from '@/components/shared'
+import { StatCards } from '@/components/ui/StatCards'
+import { SecondaryStats } from '@/components/ui/SecondaryStats'
 import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths } from 'date-fns'
 
 const CATEGORIES = [
@@ -302,27 +304,6 @@ export default function SupplierDetail() {
     return null
   }
   
-  const sidebar = (
-    <PageSidebar
-      title={supplier.name}
-      metrics={[
-        { label: "Products", value: supplierProducts.length },
-        { label: "Orders", value: spendMetrics.orderCount },
-        { label: "This Month", value: formatCurrency(spendMetrics.thisMonth) },
-      ]}
-      extendedMetrics={[
-        { label: "Last Month", value: formatCurrency(spendMetrics.lastMonth) },
-        { label: "All Time", value: formatCurrency(spendMetrics.allTime) },
-        { label: "Lead Time", value: `${supplier.delivery_lead_days}d` },
-        { label: "Payment", value: supplier.payment_terms?.toUpperCase() || '—' },
-      ]}
-      quickActions={[
-        { label: "Add Product", icon: Plus, onClick: () => handleOpenProductDialog() },
-        { label: "Create PO", icon: ShoppingCart, onClick: () => navigate(`/inventory/purchase-orders/new?supplier=${supplierId}`) },
-      ]}
-    />
-  )
-
   const toolbar = (
     <PageToolbar
       title={supplier.name}
@@ -346,7 +327,20 @@ export default function SupplierDetail() {
   )
 
   return (
-    <PageShell sidebar={sidebar} toolbar={toolbar}>
+    <PageShell toolbar={toolbar}>
+      <div className="px-4 pt-4 space-y-3">
+        <StatCards stats={[
+          { label: 'Products', value: supplierProducts.length },
+          { label: 'Orders', value: spendMetrics.orderCount },
+          { label: 'This Month', value: formatCurrency(spendMetrics.thisMonth) },
+        ]} columns={3} />
+        <SecondaryStats stats={[
+          { label: 'Last Month', value: formatCurrency(spendMetrics.lastMonth) },
+          { label: 'All Time', value: formatCurrency(spendMetrics.allTime) },
+          { label: 'Lead Time', value: `${supplier.delivery_lead_days}d` },
+          { label: 'Payment', value: supplier.payment_terms?.toUpperCase() || '—' },
+        ]} />
+      </div>
       <div className="p-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>

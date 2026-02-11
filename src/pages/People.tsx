@@ -23,7 +23,9 @@ import { useRosterMetrics } from "@/lib/hooks/useRosterMetrics"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { PageShell, PageToolbar, PageSidebar, StatusBadge } from "@/components/shared"
+import { PageShell, PageToolbar, StatusBadge } from "@/components/shared"
+import { StatCards } from "@/components/ui/StatCards"
+import { SecondaryStats } from "@/components/ui/SecondaryStats"
 import { format } from "date-fns"
 import { Users } from "lucide-react"
 import { updateStaffInDB, toggleStaffActiveInDB } from "@/lib/services/labourService"
@@ -328,23 +330,7 @@ export default function People() {
     </Table>
   )
 
-  const sidebar = (
-    <PageSidebar
-      title="People"
-      metrics={[
-        { label: "Active Staff", value: activeStaff.length },
-        { label: "Onboarding", value: invitedStaff.length },
-        { label: "Inactive", value: inactiveStaff.length },
-      ]}
-      extendedMetrics={[
-        { label: "Pending Review", value: invitedStaff.filter(s => s.staff.onboarding_status === "pending_review").length, color: invitedStaff.some(s => s.staff.onboarding_status === "pending_review") ? "orange" : "default" },
-      ]}
-      quickActions={[
-        { label: "View Roster", icon: Calendar, onClick: () => navigate("/workforce/roster") },
-        { label: "Invite Staff", icon: UserPlus, onClick: () => { setCopiedUrl(""); setInviteDialogOpen(true) }, badge: invitedStaff.filter(s => s.staff.onboarding_status === "pending_review").length || undefined },
-      ]}
-    />
-  )
+  const pendingReviewCount = invitedStaff.filter(s => s.staff.onboarding_status === "pending_review").length
 
   const toolbar = (
     <PageToolbar
@@ -373,7 +359,17 @@ export default function People() {
   )
 
   return (
-    <PageShell sidebar={sidebar} toolbar={toolbar}>
+    <PageShell toolbar={toolbar}>
+      <div className="px-4 pt-4 space-y-3">
+        <StatCards stats={[
+          { label: "Active Staff", value: activeStaff.length },
+          { label: "Onboarding", value: invitedStaff.length },
+          { label: "Inactive", value: inactiveStaff.length },
+        ]} columns={3} />
+        <SecondaryStats stats={[
+          { label: "Pending Review", value: pendingReviewCount },
+        ]} />
+      </div>
       <div className="p-4">
         <Tabs defaultValue="active">
           <TabsList className="mb-4">

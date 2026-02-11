@@ -11,7 +11,9 @@ import { Separator } from '@/components/ui/separator'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useDataStore } from '@/lib/store/dataStore'
 import { toast } from 'sonner'
-import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
+import { PageShell, PageToolbar } from '@/components/shared'
+import { StatCards } from '@/components/ui/StatCards'
+import { SecondaryStats } from '@/components/ui/SecondaryStats'
 import {
   ChevronLeft,
   ChevronRight,
@@ -150,21 +152,6 @@ export default function Daybook() {
 
   const getCategoryMeta = (cat: string) => ENTRY_CATEGORIES.find((c) => c.value === cat)!
 
-  const sidebar = (
-    <PageSidebar
-      title="Daybook"
-      metrics={[
-        { label: 'Entries Today', value: daySummary.total },
-        ...(daySummary.totalAmount > 0
-          ? [{ label: 'Total Value', value: `$${(daySummary.totalAmount / 100).toFixed(2)}` }]
-          : []),
-      ]}
-      extendedMetrics={daySummary.byCat
-        .filter((c) => c.count > 0)
-        .map((cat) => ({ label: cat.label, value: cat.count }))}
-    />
-  )
-
   const toolbar = (
     <PageToolbar
       title="Daybook"
@@ -207,7 +194,20 @@ export default function Daybook() {
   )
 
   return (
-    <PageShell sidebar={sidebar} toolbar={toolbar}>
+    <PageShell toolbar={toolbar}>
+      <div className="px-4 pt-4 space-y-3">
+        <StatCards stats={[
+          { label: 'Entries Today', value: daySummary.total },
+          ...(daySummary.totalAmount > 0
+            ? [{ label: 'Total Value', value: `$${(daySummary.totalAmount / 100).toFixed(2)}` }]
+            : []),
+        ]} columns={daySummary.totalAmount > 0 ? 2 : 1} />
+        {daySummary.byCat.filter(c => c.count > 0).length > 0 && (
+          <SecondaryStats stats={daySummary.byCat
+            .filter(c => c.count > 0)
+            .map(cat => ({ label: cat.label, value: cat.count }))} />
+        )}
+      </div>
       <div className="p-6 space-y-6">
 
       {/* Entries List */}

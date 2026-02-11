@@ -45,7 +45,9 @@ import {
 } from "@/lib/utils/rosterCalculations"
 import { format, addDays, subWeeks, startOfMonth, endOfMonth, eachWeekOfInterval, isSameWeek } from "date-fns"
 import { useNavigate } from "react-router-dom"
-import { PageShell, PageToolbar, PageSidebar } from "@/components/shared"
+import { PageShell, PageToolbar } from "@/components/shared"
+import { StatCards } from "@/components/ui/StatCards"
+import { SecondaryStats } from "@/components/ui/SecondaryStats"
 
 type ReportPeriod = "week" | "month" | "quarter"
 
@@ -268,26 +270,6 @@ export default function LabourReports() {
     a.click()
   }
 
-  const sidebar = (
-    <PageSidebar
-      title="Reports"
-      metrics={[
-        { label: "Total Hours", value: formatHours(metrics.totalHours) },
-        { label: "Total Cost", value: formatLabourCost(metrics.totalCost) },
-        { label: "Staff", value: metrics.staffCount },
-      ]}
-      extendedMetrics={[
-        { label: "Penalty Cost", value: formatLabourCost(metrics.penaltyCost), color: metrics.penaltyCost > 0 ? "orange" : "default" },
-        { label: "Avg Rate", value: `$${metrics.avgHourlyRate.toFixed(2)}/hr` },
-      ]}
-      quickActions={[
-        { label: "View Roster", icon: Calendar, onClick: () => navigate("/workforce/roster") },
-        { label: "Timesheets", icon: Clock, onClick: () => navigate("/workforce/timesheets") },
-        { label: "People", icon: Users, onClick: () => navigate("/workforce/people") },
-      ]}
-    />
-  )
-
   const toolbar = (
     <PageToolbar
       title="Labour Reports"
@@ -318,7 +300,18 @@ export default function LabourReports() {
   )
 
   return (
-    <PageShell sidebar={sidebar} toolbar={toolbar}>
+    <PageShell toolbar={toolbar}>
+      <div className="px-4 pt-4 space-y-3">
+        <StatCards stats={[
+          { label: "Total Hours", value: formatHours(metrics.totalHours) },
+          { label: "Total Cost", value: formatLabourCost(metrics.totalCost) },
+          { label: "Staff", value: metrics.staffCount },
+        ]} columns={3} />
+        <SecondaryStats stats={[
+          { label: "Penalty Cost", value: formatLabourCost(metrics.penaltyCost) },
+          { label: "Avg Rate", value: `$${metrics.avgHourlyRate.toFixed(2)}/hr` },
+        ]} />
+      </div>
       <div className="p-4 space-y-4">
 
       {/* Summary Cards */}

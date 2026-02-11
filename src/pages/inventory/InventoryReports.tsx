@@ -8,7 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useDataStore } from '@/lib/store/dataStore'
 import { format, subDays, startOfMonth, isAfter } from 'date-fns'
 import { toast } from 'sonner'
-import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
+import { PageShell, PageToolbar } from '@/components/shared'
+import { StatCards } from '@/components/ui/StatCards'
+import { SecondaryStats } from '@/components/ui/SecondaryStats'
 
 type ReportView = 'stock-on-hand' | 'stock-movement' | 'category-summary'
 type SortField = 'name' | 'stock' | 'value' | 'category'
@@ -254,28 +256,6 @@ export default function InventoryReports() {
     return Array.from(cats).sort()
   }, [ingredients])
 
-  const sidebar = (
-    <PageSidebar
-      title="Inventory Reports"
-      metrics={[
-        { label: "Items", value: activeIngredients.length },
-        { label: "Below Par", value: summaryStats.belowPar },
-        { label: "Critical", value: summaryStats.belowReorder },
-      ]}
-      extendedMetrics={[
-        {
-          label: "Stock Value",
-          value: `$${(summaryStats.totalStockValue / 100).toFixed(0)}`,
-        },
-        {
-          label: "Waste (period)",
-          value: `$${(summaryStats.totalWasteValue / 100).toFixed(0)}`,
-          color: summaryStats.totalWasteValue > 0 ? "red" as const : undefined,
-        },
-      ]}
-    />
-  )
-
   const toolbar = (
     <PageToolbar
       title="Inventory Reports"
@@ -327,7 +307,18 @@ export default function InventoryReports() {
   )
 
   return (
-    <PageShell sidebar={sidebar} toolbar={toolbar}>
+    <PageShell toolbar={toolbar}>
+      <div className="px-4 pt-4 space-y-3">
+        <StatCards stats={[
+          { label: 'Items', value: activeIngredients.length },
+          { label: 'Below Par', value: summaryStats.belowPar },
+          { label: 'Critical', value: summaryStats.belowReorder },
+        ]} columns={3} />
+        <SecondaryStats stats={[
+          { label: 'Stock Value', value: `$${(summaryStats.totalStockValue / 100).toFixed(0)}` },
+          { label: 'Waste (period)', value: `$${(summaryStats.totalWasteValue / 100).toFixed(0)}` },
+        ]} />
+      </div>
       <div className="p-4 space-y-4">
         {/* Stock on Hand */}
         {reportView === 'stock-on-hand' && (

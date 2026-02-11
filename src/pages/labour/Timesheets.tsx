@@ -32,7 +32,9 @@ import { format, startOfWeek, endOfWeek, addDays, isWithinInterval, eachDayOfInt
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils/formatters"
 import { useNavigate } from "react-router-dom"
-import { PageShell, PageToolbar, PageSidebar, StatusBadge } from "@/components/shared"
+import { PageShell, PageToolbar, StatusBadge } from "@/components/shared"
+import { StatCards } from "@/components/ui/StatCards"
+import { SecondaryStats } from "@/components/ui/SecondaryStats"
 import { calculateShiftHoursAndCost } from "@/lib/utils/rosterCalculations"
 
 type StatusFilter = "all" | "pending" | "approved" | "rejected"
@@ -216,27 +218,6 @@ export default function Timesheets() {
     }).length
   }, [rosterShifts, timesheets, weekStart, weekEnd])
 
-  const sidebar = (
-    <PageSidebar
-      title="Timesheets"
-      metrics={[
-        { label: "Total Hours", value: `${metrics.totalHours.toFixed(1)}h` },
-        { label: "Total Pay", value: formatCurrency(metrics.totalPay) },
-        { label: "Entries", value: metrics.totalCount },
-      ]}
-      extendedMetrics={[
-        { label: "Pending", value: metrics.pendingCount, color: metrics.pendingCount > 0 ? "orange" : "default" },
-        { label: "Approved", value: metrics.approvedCount, color: "green" },
-      ]}
-      quickActions={[
-        ...(generatableCount > 0
-          ? [{ label: `Generate from Roster (${generatableCount})`, icon: ListPlus, onClick: handleGenerateFromRoster }]
-          : []),
-        { label: "View Roster", icon: Calendar, onClick: () => navigate("/workforce/roster") },
-      ]}
-    />
-  )
-
   const toolbar = (
     <PageToolbar
       title="Timesheets"
@@ -272,7 +253,20 @@ export default function Timesheets() {
   )
 
   return (
-    <PageShell sidebar={sidebar} toolbar={toolbar}>
+    <PageShell toolbar={toolbar}>
+      <div className="px-4 pt-4 space-y-3">
+        <StatCards stats={[
+          { label: "Total Hours", value: `${metrics.totalHours.toFixed(1)}h` },
+          { label: "Total Pay", value: formatCurrency(metrics.totalPay) },
+          { label: "Entries", value: metrics.totalCount },
+        ]} columns={3} />
+        <SecondaryStats stats={[
+          { label: "Pending", value: metrics.pendingCount },
+          { label: "Approved", value: metrics.approvedCount },
+          ...(generatableCount > 0 ? [{ label: "Can Generate", value: generatableCount }] : []),
+        ]} />
+      </div>
+
       {/* Roster Published Banner */}
       {rosterMetrics.confirmedShiftCount > 0 && (
         <div className="bg-blue-50 dark:bg-blue-950 border-b px-4 py-2 flex items-center gap-3">

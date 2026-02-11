@@ -22,7 +22,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useDataStore } from '@/lib/store/dataStore'
 import { PurchaseOrder } from '@/types'
 import { format, differenceInDays, subDays, startOfMonth, isAfter, isBefore } from 'date-fns'
-import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
+import { PageShell, PageToolbar } from '@/components/shared'
+import { StatCards } from '@/components/ui/StatCards'
+import { SecondaryStats } from '@/components/ui/SecondaryStats'
 import { formatCurrency } from '@/lib/utils/formatters'
 
 const STATUS_CONFIG = {
@@ -146,33 +148,6 @@ export default function PurchaseOrders() {
     return STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.draft
   }
 
-  const sidebar = (
-    <PageSidebar
-      title="Orders"
-      metrics={[
-        { label: "Total", value: stats.total },
-        { label: "Draft", value: stats.draft },
-        { label: "Pending", value: stats.pending },
-        { label: "Delivered", value: stats.delivered },
-      ]}
-      extendedMetrics={[
-        ...(stats.overdue > 0 ? [{
-          label: "Overdue",
-          value: stats.overdue,
-          color: "red" as const,
-        }] : []),
-        {
-          label: "Pending Value",
-          value: `$${(stats.pendingValue / 100).toFixed(0)}`,
-        },
-        {
-          label: "Total Value",
-          value: `$${(stats.totalValue / 100).toFixed(0)}`,
-        },
-      ]}
-    />
-  )
-
   const toolbar = (
     <PageToolbar
       title="Purchase Orders"
@@ -234,7 +209,20 @@ export default function PurchaseOrders() {
   )
 
   return (
-    <PageShell sidebar={sidebar} toolbar={toolbar}>
+    <PageShell toolbar={toolbar}>
+      <div className="px-4 pt-4 space-y-3">
+        <StatCards stats={[
+          { label: "Total", value: stats.total },
+          { label: "Draft", value: stats.draft },
+          { label: "Pending", value: stats.pending },
+          { label: "Delivered", value: stats.delivered },
+        ]} columns={4} />
+        <SecondaryStats stats={[
+          ...(stats.overdue > 0 ? [{ label: "Overdue", value: stats.overdue }] : []),
+          { label: "Pending Value", value: `$${(stats.pendingValue / 100).toFixed(0)}` },
+          { label: "Total Value", value: `$${(stats.totalValue / 100).toFixed(0)}` },
+        ]} />
+      </div>
       <div className="p-4">
       {/* Overdue alert banner */}
       {stats.overdue > 0 && statusFilter !== 'overdue' && (

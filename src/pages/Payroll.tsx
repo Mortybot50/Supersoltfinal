@@ -14,7 +14,9 @@ import { useRosterMetrics } from "@/lib/hooks/useRosterMetrics"
 import { format, startOfWeek, endOfWeek, addDays, subWeeks, startOfMonth, endOfMonth, isWithinInterval } from "date-fns"
 import { toast } from "sonner"
 import { useNavigate } from "react-router-dom"
-import { PageShell, PageToolbar, PageSidebar, StatusBadge } from "@/components/shared"
+import { PageShell, PageToolbar, StatusBadge } from "@/components/shared"
+import { StatCards } from "@/components/ui/StatCards"
+import { SecondaryStats } from "@/components/ui/SecondaryStats"
 import { formatLabourCost } from "@/lib/utils/rosterCalculations"
 import { formatCurrency } from "@/lib/utils/formatters"
 import { Badge } from "@/components/ui/badge"
@@ -236,27 +238,6 @@ export default function Payroll() {
     toast.success(`Exported ${staffBreakdown.length} staff to ${exportFormat.toUpperCase()} format`)
   }
 
-  const sidebar = (
-    <PageSidebar
-      title="Payroll"
-      metrics={[
-        { label: "Total Hours", value: `${totals.actualHours.toFixed(1)}h` },
-        { label: "Gross Pay", value: formatLabourCost(totals.grossPay) },
-        { label: "Staff", value: totals.staffCount },
-      ]}
-      extendedMetrics={[
-        ...(totalPenaltyCost > 0 ? [{ label: "Penalty Loading", value: formatLabourCost(totalPenaltyCost), color: "orange" as const }] : []),
-        { label: "Super (11.5%)", value: formatLabourCost(totals.superAmount) },
-        { label: "Total Cost", value: formatLabourCost(totals.total) },
-      ]}
-      quickActions={[
-        { label: "Timesheets", icon: Clock, onClick: () => navigate("/workforce/timesheets"), badge: pendingCount || undefined },
-        { label: "View Roster", icon: Calendar, onClick: () => navigate("/workforce/roster") },
-        { label: "People", icon: Users, onClick: () => navigate("/workforce/people") },
-      ]}
-    />
-  )
-
   const toolbar = (
     <PageToolbar
       title="Payroll"
@@ -288,7 +269,20 @@ export default function Payroll() {
   )
 
   return (
-    <PageShell sidebar={sidebar} toolbar={toolbar}>
+    <PageShell toolbar={toolbar}>
+      <div className="px-4 pt-4 space-y-3">
+        <StatCards stats={[
+          { label: "Total Hours", value: `${totals.actualHours.toFixed(1)}h` },
+          { label: "Gross Pay", value: formatLabourCost(totals.grossPay) },
+          { label: "Staff", value: totals.staffCount },
+        ]} columns={3} />
+        <SecondaryStats stats={[
+          ...(totalPenaltyCost > 0 ? [{ label: "Penalty Loading", value: formatLabourCost(totalPenaltyCost) }] : []),
+          { label: "Super (11.5%)", value: formatLabourCost(totals.superAmount) },
+          { label: "Total Cost", value: formatLabourCost(totals.total) },
+        ]} />
+      </div>
+
       {pendingCount > 0 && (
         <div className="bg-yellow-50 dark:bg-yellow-950 border-b px-4 py-2 flex items-center gap-3">
           <Clock className="h-4 w-4 text-yellow-600" />

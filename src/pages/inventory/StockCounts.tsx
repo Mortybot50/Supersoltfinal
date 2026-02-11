@@ -17,7 +17,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useDataStore } from '@/lib/store/dataStore'
 import { StockCountItem } from '@/types'
 import { format, subDays, startOfMonth, isAfter } from 'date-fns'
-import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
+import { PageShell, PageToolbar } from '@/components/shared'
+import { StatCards } from '@/components/ui/StatCards'
+import { SecondaryStats } from '@/components/ui/SecondaryStats'
 import { formatCurrency } from '@/lib/utils/formatters'
 
 export default function StockCounts() {
@@ -93,28 +95,6 @@ export default function StockCounts() {
     return { total, inProgress, completed, totalVariance, totalValue }
   }, [stockCounts])
 
-  const sidebar = (
-    <PageSidebar
-      title="Stock Counts"
-      metrics={[
-        { label: "Total", value: stats.total },
-        { label: "In Progress", value: stats.inProgress },
-        { label: "Completed", value: stats.completed },
-      ]}
-      extendedMetrics={[
-        {
-          label: "Total Value",
-          value: `$${(stats.totalValue / 100).toFixed(0)}`,
-        },
-        {
-          label: "Variance",
-          value: `${stats.totalVariance >= 0 ? '+' : ''}${formatCurrency(stats.totalVariance)}`,
-          color: stats.totalVariance >= 0 ? "green" : "red",
-        },
-      ]}
-    />
-  )
-
   const toolbar = (
     <PageToolbar
       title="Stock Counts"
@@ -158,7 +138,18 @@ export default function StockCounts() {
   )
 
   return (
-    <PageShell sidebar={sidebar} toolbar={toolbar}>
+    <PageShell toolbar={toolbar}>
+      <div className="px-4 pt-4 space-y-3">
+        <StatCards stats={[
+          { label: "Total", value: stats.total },
+          { label: "In Progress", value: stats.inProgress },
+          { label: "Completed", value: stats.completed },
+        ]} columns={3} />
+        <SecondaryStats stats={[
+          { label: "Total Value", value: `$${(stats.totalValue / 100).toFixed(0)}` },
+          { label: "Variance", value: `${stats.totalVariance >= 0 ? '+' : ''}${formatCurrency(stats.totalVariance)}` },
+        ]} />
+      </div>
       <div className="p-4">
       {isLoading && stockCounts.length === 0 ? (
         <Card className="p-12 text-center">

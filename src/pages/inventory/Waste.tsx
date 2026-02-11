@@ -22,7 +22,9 @@ import { useDataStore } from '@/lib/store/dataStore'
 import { WasteEntry } from '@/types'
 import { toast } from 'sonner'
 import { format, startOfMonth, startOfWeek, subDays, eachDayOfInterval } from 'date-fns'
-import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
+import { PageShell, PageToolbar } from '@/components/shared'
+import { StatCards } from '@/components/ui/StatCards'
+import { SecondaryStats } from '@/components/ui/SecondaryStats'
 import { formatCurrency } from '@/lib/utils/formatters'
 import {
   BarChart,
@@ -259,21 +261,6 @@ export default function Waste() {
     }
   }, [filteredWaste])
 
-  const sidebar = (
-    <PageSidebar
-      title="Waste"
-      metrics={[
-        { label: "Total Cost", value: formatCurrency(stats.totalCost), color: stats.totalCost > 0 ? "red" : "default" },
-        { label: "Entries", value: stats.totalItems },
-      ]}
-      extendedMetrics={[
-        ...(stats.topReason ? [{ label: "Top Reason", value: stats.topReason.reason }] : []),
-        { label: "This Week", value: formatCurrency(dashboardData.weekTotal) },
-        { label: "This Month", value: formatCurrency(dashboardData.monthTotal) },
-      ]}
-    />
-  )
-
   const toolbar = (
     <PageToolbar
       title="Waste Tracking"
@@ -314,7 +301,18 @@ export default function Waste() {
   )
 
   return (
-    <PageShell sidebar={sidebar} toolbar={toolbar}>
+    <PageShell toolbar={toolbar}>
+      <div className="px-4 pt-4 space-y-3">
+        <StatCards stats={[
+          { label: "Total Cost", value: formatCurrency(stats.totalCost), trend: stats.totalCost > 0 ? 'down' as const : undefined },
+          { label: "Entries", value: stats.totalItems },
+          { label: "This Week", value: formatCurrency(dashboardData.weekTotal) },
+        ]} columns={3} />
+        <SecondaryStats stats={[
+          ...(stats.topReason ? [{ label: "Top Reason", value: stats.topReason.reason }] : []),
+          { label: "This Month", value: formatCurrency(dashboardData.monthTotal) },
+        ]} />
+      </div>
       <div className="p-4 space-y-4">
 
       {/* Waste Dashboard */}

@@ -14,7 +14,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { useDataStore } from '@/lib/store/dataStore'
 import { toast } from 'sonner'
 import * as Types from '@/types'
-import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
+import { PageShell, PageToolbar } from '@/components/shared'
+import { StatCards } from '@/components/ui/StatCards'
+import { SecondaryStats } from '@/components/ui/SecondaryStats'
 import { formatCurrency } from '@/lib/utils/formatters'
 import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns'
 
@@ -290,25 +292,6 @@ export default function Suppliers() {
     return counts
   }, [suppliers])
 
-  const sidebar = (
-    <PageSidebar
-      title="Suppliers"
-      metrics={[
-        { label: "Active", value: activeCount },
-        { label: "Inactive", value: inactiveCount },
-        { label: "This Month", value: formatCurrency(totalMonthlySpend) },
-      ]}
-      extendedMetrics={
-        Object.keys(categoryCounts).length > 0
-          ? Object.entries(categoryCounts).map(([cat, count]) => ({
-              label: CATEGORY_LABELS[cat] || cat,
-              value: count,
-            }))
-          : undefined
-      }
-    />
-  )
-
   const toolbar = (
     <PageToolbar
       title="Suppliers"
@@ -350,7 +333,20 @@ export default function Suppliers() {
   )
 
   return (
-    <PageShell sidebar={sidebar} toolbar={toolbar}>
+    <PageShell toolbar={toolbar}>
+      <div className="px-4 pt-4 space-y-3">
+        <StatCards stats={[
+          { label: "Active", value: activeCount },
+          { label: "Inactive", value: inactiveCount },
+          { label: "This Month", value: formatCurrency(totalMonthlySpend) },
+        ]} columns={3} />
+        {Object.keys(categoryCounts).length > 0 && (
+          <SecondaryStats stats={Object.entries(categoryCounts).map(([cat, count]) => ({
+            label: CATEGORY_LABELS[cat] || cat,
+            value: count,
+          }))} />
+        )}
+      </div>
       <div className="p-4">
       {isLoading && suppliers.length === 0 ? (
         <Card className="p-12 text-center">

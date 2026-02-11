@@ -38,7 +38,9 @@ import {
   X,
 } from "lucide-react"
 import { toast } from "sonner"
-import { PageShell, PageToolbar, PageSidebar, StatusBadge } from "@/components/shared"
+import { PageShell, PageToolbar, StatusBadge } from "@/components/shared"
+import { StatCards } from "@/components/ui/StatCards"
+import { SecondaryStats } from "@/components/ui/SecondaryStats"
 
 // ─── Types ──────────────────────────────────────────
 type DatePreset = "today" | "yesterday" | "this-week" | "last-week" | "this-month" | "last-30"
@@ -272,23 +274,6 @@ export default function Sales() {
     setSearchQuery("")
   }
 
-  // ─── Sidebar ────────────────────────────────────
-  const sidebar = (
-    <PageSidebar
-      title="Sales"
-      metrics={[
-        { label: "Orders", value: stats.totalOrders },
-        { label: "Revenue", value: fmtDollars(stats.totalRevenue) },
-        { label: "Avg Check", value: fmtDollars(stats.avgCheck) },
-      ]}
-      extendedMetrics={[
-        { label: "Tax Collected", value: fmtDollars(stats.totalTax) },
-        { label: "Refunds", value: `${stats.refundCount} (${fmtDollars(stats.totalRefunds)})` },
-        { label: "Voids", value: stats.voidCount },
-      ]}
-    />
-  )
-
   // ─── Toolbar ────────────────────────────────────
   const toolbar = (
     <PageToolbar
@@ -323,7 +308,21 @@ export default function Sales() {
   )
 
   return (
-    <PageShell sidebar={sidebar} toolbar={toolbar}>
+    <PageShell toolbar={toolbar}>
+      {/* Stat cards */}
+      <div className="px-4 pt-4 space-y-3">
+        <StatCards stats={[
+          { label: "Orders", value: stats.totalOrders },
+          { label: "Revenue", value: fmtDollars(stats.totalRevenue) },
+          { label: "Avg Check", value: fmtDollars(stats.avgCheck) },
+        ]} columns={3} />
+        <SecondaryStats stats={[
+          { label: "Tax Collected", value: fmtDollars(stats.totalTax) },
+          { label: "Refunds", value: `${stats.refundCount} (${fmtDollars(stats.totalRefunds)})` },
+          { label: "Voids", value: stats.voidCount },
+        ]} />
+      </div>
+
       {/* Filter bar */}
       <div className="border-b bg-white dark:bg-gray-800 px-4 py-2 flex items-center gap-3 flex-wrap">
         <div className="relative">
