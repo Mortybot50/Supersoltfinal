@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client'
+import { toast } from 'sonner'
 import type { Tables } from '@/integrations/supabase/types'
 import type {
   Staff,
@@ -14,6 +15,18 @@ import type {
   ShiftSwapRequest,
   LaborBudget,
 } from '@/types'
+
+/** Extract readable error message from Supabase/Postgres errors */
+function dbError(err: unknown): string {
+  if (!err) return 'Unknown error'
+  if (typeof err === 'string') return err
+  if (err instanceof Error) return err.message
+  if (typeof err === 'object' && err !== null) {
+    const e = err as Record<string, unknown>
+    return (e.message as string) || (e.details as string) || (e.hint as string) || JSON.stringify(err)
+  }
+  return String(err)
+}
 
 // ============================================
 // STAFF OPERATIONS
@@ -80,7 +93,8 @@ export async function loadStaffFromDB(): Promise<Staff[]> {
       super_use_employer_default: true,
     }))
   } catch (error) {
-    console.error('Failed to load staff from DB:', error)
+    console.error('Failed to load staff from DB:', dbError(error))
+    toast.error('Failed to load staff. Please refresh.')
     return []
   }
 }
@@ -142,7 +156,8 @@ export async function updateStaffInDB(staffId: string, updates: Partial<Staff>):
 
     return true
   } catch (error) {
-    console.error('Failed to update staff in DB:', error)
+    console.error('Failed to update staff in DB:', dbError(error))
+    toast.error('Failed to update staff member.')
     return false
   }
 }
@@ -169,7 +184,8 @@ export async function toggleStaffActiveInDB(staffId: string, active: boolean): P
 
     return true
   } catch (error) {
-    console.error('Failed to toggle staff active status in DB:', error)
+    console.error('Failed to toggle staff active status in DB:', dbError(error))
+    toast.error('Failed to update staff status.')
     return false
   }
 }
@@ -230,7 +246,8 @@ export async function loadRosterShiftsFromDB(venueId?: string): Promise<RosterSh
       template_id: s.template_id,
     }))
   } catch (error) {
-    console.error('Failed to load roster shifts from DB:', error)
+    console.error('Failed to load roster shifts from DB:', dbError(error))
+    toast.error('Failed to load roster shifts. Please refresh.')
     return []
   }
 }
@@ -269,7 +286,8 @@ export async function addRosterShiftToDB(shift: RosterShift, orgId: string): Pro
 
     return shift
   } catch (error) {
-    console.error('Failed to add roster shift to DB:', error)
+    console.error('Failed to add roster shift to DB:', dbError(error))
+    toast.error('Failed to save roster shift.')
     return null
   }
 }
@@ -306,7 +324,8 @@ export async function updateRosterShiftInDB(id: string, updates: Partial<RosterS
 
     return true
   } catch (error) {
-    console.error('Failed to update roster shift in DB:', error)
+    console.error('Failed to update roster shift in DB:', dbError(error))
+    toast.error('Failed to update roster shift.')
     return false
   }
 }
@@ -322,7 +341,8 @@ export async function deleteRosterShiftFromDB(id: string): Promise<boolean> {
 
     return true
   } catch (error) {
-    console.error('Failed to delete roster shift from DB:', error)
+    console.error('Failed to delete roster shift from DB:', dbError(error))
+    toast.error('Failed to delete roster shift.')
     return false
   }
 }
@@ -341,7 +361,8 @@ export async function publishRosterShifts(shiftIds: string[]): Promise<boolean> 
 
     return true
   } catch (error) {
-    console.error('Failed to publish roster shifts:', error)
+    console.error('Failed to publish roster shifts:', dbError(error))
+    toast.error('Failed to publish roster shifts.')
     return false
   }
 }
@@ -401,7 +422,8 @@ export async function loadTimesheetsFromDB(venueId?: string, dateRange?: { start
       notes: t.notes,
     }))
   } catch (error) {
-    console.error('Failed to load timesheets from DB:', error)
+    console.error('Failed to load timesheets from DB:', dbError(error))
+    toast.error('Failed to load timesheets. Please refresh.')
     return []
   }
 }
@@ -441,7 +463,8 @@ export async function addTimesheetToDB(timesheet: Timesheet, orgId: string): Pro
 
     return timesheet
   } catch (error) {
-    console.error('Failed to add timesheet to DB:', error)
+    console.error('Failed to add timesheet to DB:', dbError(error))
+    toast.error('Failed to save timesheet.')
     return null
   }
 }
@@ -470,7 +493,8 @@ export async function updateTimesheetInDB(id: string, updates: Partial<Timesheet
 
     return true
   } catch (error) {
-    console.error('Failed to update timesheet in DB:', error)
+    console.error('Failed to update timesheet in DB:', dbError(error))
+    toast.error('Failed to update timesheet.')
     return false
   }
 }
@@ -490,7 +514,8 @@ export async function approveTimesheetInDB(id: string, approvedBy: string): Prom
 
     return true
   } catch (error) {
-    console.error('Failed to approve timesheet in DB:', error)
+    console.error('Failed to approve timesheet in DB:', dbError(error))
+    toast.error('Failed to approve timesheet.')
     return false
   }
 }
@@ -509,7 +534,8 @@ export async function rejectTimesheetInDB(id: string, reason?: string): Promise<
 
     return true
   } catch (error) {
-    console.error('Failed to reject timesheet in DB:', error)
+    console.error('Failed to reject timesheet in DB:', dbError(error))
+    toast.error('Failed to reject timesheet.')
     return false
   }
 }
@@ -555,7 +581,8 @@ export async function loadShiftTemplatesFromDB(venueId?: string): Promise<ShiftT
       updated_at: new Date(t.updated_at),
     }))
   } catch (error) {
-    console.error('Failed to load shift templates from DB:', error)
+    console.error('Failed to load shift templates from DB:', dbError(error))
+    toast.error('Failed to load shift templates. Please refresh.')
     return []
   }
 }
@@ -587,7 +614,8 @@ export async function addShiftTemplateToDB(template: ShiftTemplate): Promise<Shi
 
     return template
   } catch (error) {
-    console.error('Failed to add shift template to DB:', error)
+    console.error('Failed to add shift template to DB:', dbError(error))
+    toast.error('Failed to save shift template.')
     return null
   }
 }
@@ -613,7 +641,8 @@ export async function updateShiftTemplateInDB(id: string, updates: Partial<Shift
 
     return true
   } catch (error) {
-    console.error('Failed to update shift template in DB:', error)
+    console.error('Failed to update shift template in DB:', dbError(error))
+    toast.error('Failed to update shift template.')
     return false
   }
 }
@@ -629,7 +658,8 @@ export async function deleteShiftTemplateFromDB(id: string): Promise<boolean> {
 
     return true
   } catch (error) {
-    console.error('Failed to delete shift template from DB:', error)
+    console.error('Failed to delete shift template from DB:', dbError(error))
+    toast.error('Failed to delete shift template.')
     return false
   }
 }
@@ -668,7 +698,8 @@ export async function loadStaffAvailabilityFromDB(staffId?: string): Promise<Sta
       updated_at: new Date(a.updated_at),
     }))
   } catch (error) {
-    console.error('Failed to load staff availability from DB:', error)
+    console.error('Failed to load staff availability from DB:', dbError(error))
+    toast.error('Failed to load staff availability. Please refresh.')
     return []
   }
 }
@@ -732,7 +763,8 @@ export async function loadShiftSwapRequestsFromDB(venueId?: string): Promise<Shi
       notes: r.notes,
     }))
   } catch (error) {
-    console.error('Failed to load shift swap requests from DB:', error)
+    console.error('Failed to load shift swap requests from DB:', dbError(error))
+    toast.error('Failed to load shift swap requests. Please refresh.')
     return []
   }
 }
@@ -764,7 +796,8 @@ export async function createShiftSwapRequestInDB(
 
     return request
   } catch (error) {
-    console.error('Failed to create shift swap request in DB:', error)
+    console.error('Failed to create shift swap request in DB:', dbError(error))
+    toast.error('Failed to create shift swap request.')
     return null
   }
 }
@@ -791,7 +824,8 @@ export async function updateShiftSwapRequestInDB(id: string, updates: Partial<Sh
 
     return true
   } catch (error) {
-    console.error('Failed to update shift swap request in DB:', error)
+    console.error('Failed to update shift swap request in DB:', dbError(error))
+    toast.error('Failed to update shift swap request.')
     return false
   }
 }
@@ -833,7 +867,8 @@ export async function loadLaborBudgetsFromDB(venueId?: string): Promise<LaborBud
       updated_at: new Date(b.updated_at),
     }))
   } catch (error) {
-    console.error('Failed to load labor budgets from DB:', error)
+    console.error('Failed to load labor budgets from DB:', dbError(error))
+    toast.error('Failed to load labor budgets. Please refresh.')
     return []
   }
 }
@@ -869,7 +904,8 @@ export async function addLaborBudgetToDB(budget: LaborBudget, orgId: string): Pr
 
     return budget
   } catch (error) {
-    console.error('Failed to add labor budget to DB:', error)
+    console.error('Failed to add labor budget to DB:', dbError(error))
+    toast.error('Failed to save labor budget.')
     return null
   }
 }
@@ -894,7 +930,8 @@ export async function updateLaborBudgetInDB(id: string, updates: Partial<LaborBu
 
     return true
   } catch (error) {
-    console.error('Failed to update labor budget in DB:', error)
+    console.error('Failed to update labor budget in DB:', dbError(error))
+    toast.error('Failed to update labor budget.')
     return false
   }
 }
@@ -910,7 +947,8 @@ export async function deleteLaborBudgetFromDB(id: string): Promise<boolean> {
 
     return true
   } catch (error) {
-    console.error('Failed to delete labor budget from DB:', error)
+    console.error('Failed to delete labor budget from DB:', dbError(error))
+    toast.error('Failed to delete labor budget.')
     return false
   }
 }

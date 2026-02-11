@@ -115,6 +115,7 @@ const App = () => (
               <Route path="workforce/roster" element={<Roster />} />
               <Route path="workforce/timesheets" element={<Timesheets />} />
               <Route path="workforce/reports" element={<LabourReports />} />
+              <Route path="labour-reports" element={<Navigate to="/workforce/reports" replace />} />
               <Route path="workforce/people" element={<People />} />
               <Route path="workforce/people/:id" element={<StaffDetail />} />
               <Route path="workforce/payroll-export" element={<PayrollExport />} />

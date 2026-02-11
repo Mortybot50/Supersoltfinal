@@ -1,6 +1,19 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
+import { toast } from 'sonner'
 import * as Types from '@/types'
+
+/** Extract readable error message from Supabase/Postgres errors */
+function dbError(err: unknown): string {
+  if (!err) return 'Unknown error'
+  if (typeof err === 'string') return err
+  if (err instanceof Error) return err.message
+  if (typeof err === 'object' && err !== null) {
+    const e = err as Record<string, unknown>
+    return (e.message as string) || (e.details as string) || (e.hint as string) || JSON.stringify(err)
+  }
+  return String(err)
+}
 import { Organization, Venue, Staff, Order, Ingredient, Supplier, OnboardingInvite, OnboardingStep, OnboardingDocument, StockCountItem, PurchaseOrderItem } from '@/types'
 
 // Type for parsed orders from import
@@ -443,7 +456,8 @@ export const useDataStore = create<DataState>()(
         set({ orders: formattedOrders as Types.Order[] })
       }
     } catch (error) {
-      console.error('Failed to load orders:', error)
+      console.error('Failed to load orders:', dbError(error))
+      toast.error('Failed to load orders. Please refresh.')
     }
   },
   setOrderItems: (orderItems) => set({ orderItems }),
@@ -473,7 +487,8 @@ export const useDataStore = create<DataState>()(
         set((state) => ({ ingredients: [...state.ingredients, data as Types.Ingredient] }))
       }
     } catch (error) {
-      console.error('Failed to add ingredient:', error)
+      console.error('Failed to add ingredient:', dbError(error))
+      toast.error('Failed to save ingredient.')
       throw error
     }
   },
@@ -504,7 +519,8 @@ export const useDataStore = create<DataState>()(
         }))
       }
     } catch (error) {
-      console.error('Failed to update ingredient:', error)
+      console.error('Failed to update ingredient:', dbError(error))
+      toast.error('Failed to update ingredient.')
       throw error
     }
   },
@@ -522,7 +538,8 @@ export const useDataStore = create<DataState>()(
         ingredients: state.ingredients.filter((i) => i.id !== id),
       }))
     } catch (error) {
-      console.error('Failed to delete ingredient:', error)
+      console.error('Failed to delete ingredient:', dbError(error))
+      toast.error('Failed to delete ingredient.')
       throw error
     }
   },
@@ -543,7 +560,8 @@ export const useDataStore = create<DataState>()(
         set((state) => ({ suppliers: [...state.suppliers, data as Types.Supplier] }))
       }
     } catch (error) {
-      console.error('Failed to add supplier:', error)
+      console.error('Failed to add supplier:', dbError(error))
+      toast.error('Failed to save supplier.')
       throw error
     }
   },
@@ -567,7 +585,8 @@ export const useDataStore = create<DataState>()(
         }))
       }
     } catch (error) {
-      console.error('Failed to update supplier:', error)
+      console.error('Failed to update supplier:', dbError(error))
+      toast.error('Failed to update supplier.')
       throw error
     }
   },
@@ -585,7 +604,8 @@ export const useDataStore = create<DataState>()(
         suppliers: state.suppliers.filter((s) => s.id !== id),
       }))
     } catch (error) {
-      console.error('Failed to delete supplier:', error)
+      console.error('Failed to delete supplier:', dbError(error))
+      toast.error('Failed to delete supplier.')
       throw error
     }
   },
@@ -615,7 +635,8 @@ export const useDataStore = create<DataState>()(
       
       set({ purchaseOrders: pos })
     } catch (error) {
-      console.error('Failed to save purchase order:', error)
+      console.error('Failed to save purchase order:', dbError(error))
+      toast.error('Failed to save purchase order.')
       throw error
     }
   },
@@ -653,7 +674,8 @@ export const useDataStore = create<DataState>()(
         set({ stockCounts: countsWithItems as Types.StockCount[] })
       }
     } catch (error) {
-      console.error('Failed to load stock counts:', error)
+      console.error('Failed to load stock counts:', dbError(error))
+      toast.error('Failed to load stock counts. Please refresh.')
     }
   },
   addStockCount: async (count: Types.StockCount) => {
@@ -699,7 +721,8 @@ export const useDataStore = create<DataState>()(
       
       set((state) => ({ stockCounts: [...state.stockCounts, count] }))
     } catch (error) {
-      console.error('Failed to add stock count:', error)
+      console.error('Failed to add stock count:', dbError(error))
+      toast.error('Failed to save stock count.')
       throw error
     }
   },
@@ -727,7 +750,8 @@ export const useDataStore = create<DataState>()(
         ),
       }))
     } catch (error) {
-      console.error('Failed to update stock count:', error)
+      console.error('Failed to update stock count:', dbError(error))
+      toast.error('Failed to update stock count.')
       throw error
     }
   },
@@ -777,7 +801,8 @@ export const useDataStore = create<DataState>()(
         }
       })
     } catch (error) {
-      console.error('Failed to complete stock count:', error)
+      console.error('Failed to complete stock count:', dbError(error))
+      toast.error('Failed to complete stock count.')
       throw error
     }
   },
@@ -795,7 +820,8 @@ export const useDataStore = create<DataState>()(
         stockCounts: state.stockCounts.filter((sc) => sc.id !== id),
       }))
     } catch (error) {
-      console.error('Failed to delete stock count:', error)
+      console.error('Failed to delete stock count:', dbError(error))
+      toast.error('Failed to delete stock count.')
       throw error
     }
   },
@@ -818,7 +844,8 @@ export const useDataStore = create<DataState>()(
         set({ wasteLogs: formattedWaste as Types.WasteEntry[] })
       }
     } catch (error) {
-      console.error('Failed to load waste logs:', error)
+      console.error('Failed to load waste logs:', dbError(error))
+      toast.error('Failed to load waste logs. Please refresh.')
     }
   },
   addWasteEntry: async (waste: Types.WasteEntry) => {
@@ -872,7 +899,8 @@ export const useDataStore = create<DataState>()(
         }
       })
     } catch (error) {
-      console.error('Failed to add waste entry:', error)
+      console.error('Failed to add waste entry:', dbError(error))
+      toast.error('Failed to save waste entry.')
       throw error
     }
   },
@@ -900,7 +928,8 @@ export const useDataStore = create<DataState>()(
         ),
       }))
     } catch (error) {
-      console.error('Failed to update waste entry:', error)
+      console.error('Failed to update waste entry:', dbError(error))
+      toast.error('Failed to update waste entry.')
       throw error
     }
   },
@@ -918,7 +947,8 @@ export const useDataStore = create<DataState>()(
         wasteLogs: state.wasteLogs.filter((we) => we.id !== id),
       }))
     } catch (error) {
-      console.error('Failed to delete waste entry:', error)
+      console.error('Failed to delete waste entry:', dbError(error))
+      toast.error('Failed to delete waste entry.')
       throw error
     }
   },
@@ -943,7 +973,8 @@ export const useDataStore = create<DataState>()(
         set({ menuItems: formattedItems as Types.MenuItem[] })
       }
     } catch (error) {
-      console.error('Failed to load menu items:', error)
+      console.error('Failed to load menu items:', dbError(error))
+      toast.error('Failed to load menu items. Please refresh.')
     }
   },
   addMenuItem: async (item: Types.MenuItem) => {
@@ -972,7 +1003,8 @@ export const useDataStore = create<DataState>()(
       
       set((state) => ({ menuItems: [...state.menuItems, item] }))
     } catch (error) {
-      console.error('Failed to add menu item:', error)
+      console.error('Failed to add menu item:', dbError(error))
+      toast.error('Failed to save menu item.')
       throw error
     }
   },
@@ -998,7 +1030,8 @@ export const useDataStore = create<DataState>()(
         ),
       }))
     } catch (error) {
-      console.error('Failed to update menu item:', error)
+      console.error('Failed to update menu item:', dbError(error))
+      toast.error('Failed to update menu item.')
       throw error
     }
   },
@@ -1016,7 +1049,8 @@ export const useDataStore = create<DataState>()(
         menuItems: state.menuItems.filter((mi) => mi.id !== id),
       }))
     } catch (error) {
-      console.error('Failed to delete menu item:', error)
+      console.error('Failed to delete menu item:', dbError(error))
+      toast.error('Failed to delete menu item.')
       throw error
     }
   },
@@ -1194,7 +1228,8 @@ export const useDataStore = create<DataState>()(
       const { recipes, recipeIngredients } = await loadRecipesFromDB()
       set({ recipes, recipeIngredients })
     } catch (error) {
-      console.error('Failed to load recipes:', error)
+      console.error('Failed to load recipes:', dbError(error))
+      toast.error('Failed to load recipes. Please refresh.')
     }
   },
 
@@ -1221,7 +1256,8 @@ export const useDataStore = create<DataState>()(
         }))
       }
     } catch (error) {
-      console.error('Failed to save recipe:', error)
+      console.error('Failed to save recipe:', dbError(error))
+      toast.error('Failed to save recipe.')
       throw error
     }
   },
@@ -1235,7 +1271,8 @@ export const useDataStore = create<DataState>()(
         recipeIngredients: state.recipeIngredients.filter((ri) => ri.recipe_id !== id),
       }))
     } catch (error) {
-      console.error('Failed to delete recipe:', error)
+      console.error('Failed to delete recipe:', dbError(error))
+      toast.error('Failed to delete recipe.')
       throw error
     }
   },
@@ -1368,10 +1405,11 @@ export const useDataStore = create<DataState>()(
         set({ suppliers: data as Types.Supplier[] })
       }
     } catch (error) {
-      console.error('Failed to load suppliers:', error)
+      console.error('Failed to load suppliers:', dbError(error))
+      toast.error('Failed to load suppliers. Please refresh.')
     }
   },
-  
+
   loadIngredientsFromDB: async () => {
     try {
       const { supabase } = await import('@/integrations/supabase/client')
@@ -1386,10 +1424,11 @@ export const useDataStore = create<DataState>()(
         set({ ingredients: data as Types.Ingredient[] })
       }
     } catch (error) {
-      console.error('Failed to load ingredients:', error)
+      console.error('Failed to load ingredients:', dbError(error))
+      toast.error('Failed to load ingredients. Please refresh.')
     }
   },
-  
+
   loadPurchaseOrdersFromDB: async () => {
     try {
       const { supabase } = await import('@/integrations/supabase/client')
@@ -1434,10 +1473,11 @@ export const useDataStore = create<DataState>()(
         set({ purchaseOrders: posWithItems as Types.PurchaseOrder[] })
       }
     } catch (error) {
-      console.error('Failed to load purchase orders:', error)
+      console.error('Failed to load purchase orders:', dbError(error))
+      toast.error('Failed to load purchase orders. Please refresh.')
     }
   },
-  
+
   addPurchaseOrder: async (po, items) => {
     try {
       const { supabase } = await import('@/integrations/supabase/client')
@@ -1493,7 +1533,8 @@ export const useDataStore = create<DataState>()(
         purchaseOrders: [...state.purchaseOrders, poWithItems] 
       }))
     } catch (error) {
-      console.error('Failed to add purchase order:', error)
+      console.error('Failed to add purchase order:', dbError(error))
+      toast.error('Failed to save purchase order.')
       throw error
     }
   },
@@ -1563,7 +1604,8 @@ export const useDataStore = create<DataState>()(
         ),
       }))
     } catch (error) {
-      console.error('Failed to update purchase order:', error)
+      console.error('Failed to update purchase order:', dbError(error))
+      toast.error('Failed to update purchase order.')
       throw error
     }
   },
@@ -1590,7 +1632,8 @@ export const useDataStore = create<DataState>()(
         purchaseOrders: state.purchaseOrders.filter((po) => po.id !== id),
       }))
     } catch (error) {
-      console.error('Failed to delete purchase order:', error)
+      console.error('Failed to delete purchase order:', dbError(error))
+      toast.error('Failed to delete purchase order.')
       throw error
     }
   },
@@ -1613,7 +1656,7 @@ export const useDataStore = create<DataState>()(
           .from('orders')
           .upsert(ordersData, { onConflict: 'id' })
 
-        if (error) console.error('Failed to save orders:', error)
+        if (error) console.error('Failed to save orders:', dbError(error))
       }
 
       set({ orders, orderItems, tenders })
@@ -1629,7 +1672,8 @@ export const useDataStore = create<DataState>()(
         }
       }
     } catch (error) {
-      console.error('Failed to import orders:', error)
+      console.error('Failed to import orders:', dbError(error))
+      toast.error('Failed to import orders.')
       set({ orders, orderItems, tenders })
     }
   },
@@ -1717,7 +1761,8 @@ export const useDataStore = create<DataState>()(
         toast.success(`Imported ${newOrders.length} orders`)
       })
     } catch (error) {
-      console.error('Failed to import parsed orders:', error)
+      console.error('Failed to import parsed orders:', dbError(error))
+      toast.error('Failed to import orders.')
       throw error
     }
   },
@@ -1729,7 +1774,8 @@ export const useDataStore = create<DataState>()(
       // For now, just set in state - you may need to create a staff table
       set({ staff })
     } catch (error) {
-      console.error('Failed to import staff:', error)
+      console.error('Failed to import staff:', dbError(error))
+      toast.error('Failed to import staff.')
       set({ staff })
     }
   },
@@ -1751,14 +1797,15 @@ export const useDataStore = create<DataState>()(
           .upsert(ingredientsData, { onConflict: 'id' })
         
         if (error) {
-          console.error('Failed to save ingredients:', error)
+          console.error('Failed to save ingredients:', dbError(error))
         } else {
         }
       }
       
       set({ ingredients })
     } catch (error) {
-      console.error('Failed to import ingredients:', error)
+      console.error('Failed to import ingredients:', dbError(error))
+      toast.error('Failed to import ingredients.')
       set({ ingredients })
     }
   },
@@ -1773,14 +1820,15 @@ export const useDataStore = create<DataState>()(
           .upsert(suppliers, { onConflict: 'id' })
         
         if (error) {
-          console.error('Failed to save suppliers:', error)
+          console.error('Failed to save suppliers:', dbError(error))
         } else {
         }
       }
       
       set({ suppliers })
     } catch (error) {
-      console.error('Failed to import suppliers:', error)
+      console.error('Failed to import suppliers:', dbError(error))
+      toast.error('Failed to import suppliers.')
       set({ suppliers })
     }
   },
@@ -1792,7 +1840,8 @@ export const useDataStore = create<DataState>()(
       // For now, just set in state - you may need to create a timesheets table
       set({ timesheets })
     } catch (error) {
-      console.error('Failed to import timesheets:', error)
+      console.error('Failed to import timesheets:', dbError(error))
+      toast.error('Failed to import timesheets.')
       set({ timesheets })
     }
   },
@@ -1862,7 +1911,8 @@ export const useDataStore = create<DataState>()(
       ])
 
     } catch (error) {
-      console.error('Failed to initialize data:', error)
+      console.error('Failed to initialize data:', dbError(error))
+      toast.error('Failed to load data. Please refresh the page.')
     } finally {
       set({ isLoading: false })
     }
