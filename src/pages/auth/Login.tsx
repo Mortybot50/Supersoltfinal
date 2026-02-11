@@ -14,27 +14,6 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [resetSent, setResetSent] = useState(false);
-
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setError("Enter your email address first, then click Forgot password");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/login`,
-      });
-      if (error) throw error;
-      setResetSent(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send reset email");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,11 +51,6 @@ export default function Login() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            {resetSent && (
-              <Alert>
-                <AlertDescription>Password reset email sent! Check your inbox.</AlertDescription>
-              </Alert>
-            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -92,14 +66,12 @@ export default function Login() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                <button
-                  type="button"
-                  onClick={handleForgotPassword}
+                <Link
+                  to="/forgot-password"
                   className="text-xs text-primary hover:underline"
-                  disabled={loading}
                 >
                   Forgot password?
-                </button>
+                </Link>
               </div>
               <Input
                 id="password"

@@ -14,6 +14,8 @@ import NotFound from "./pages/NotFound"
 // Auth
 import Login from "./pages/auth/Login"
 import Signup from "./pages/auth/Signup"
+import ForgotPassword from "./pages/auth/ForgotPassword"
+import ResetPassword from "./pages/auth/ResetPassword"
 
 // Inventory
 import OrderGuide from "./pages/inventory/OrderGuide"
@@ -74,6 +76,8 @@ const App = () => (
             {/* Public Auth Routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Protected Routes */}
             <Route
