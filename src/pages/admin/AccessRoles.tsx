@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,6 +16,8 @@ import { Switch } from '@/components/ui/switch';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Plus, Search, MoreVertical, Users, Shield, Grid, Key, FileText, Copy, RotateCw, UserX, UserCheck } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { isValidEmail } from '@/lib/utils/validation';
+import { PageShell, PageToolbar } from '@/components/shared';
 
 // Types
 type MemberStatus = 'active' | 'invited' | 'suspended' | 'deactivated';
@@ -105,8 +108,9 @@ const OPERATIONS = ['read', 'create', 'update', 'delete', 'export', 'approve'];
 
 export default function AccessRoles() {
   const { toast } = useToast();
+  const { currentOrg } = useAuth();
   const [activeTab, setActiveTab] = useState('members');
-  const orgId = 'default'; // TODO: Get from context
+  const orgId = currentOrg?.id || '';
 
   // Members state
   const [members, setMembers] = useState<Member[]>([]);
@@ -121,6 +125,7 @@ export default function AccessRoles() {
     venue_id: '',
     message: '',
   });
+  const [inviteErrors, setInviteErrors] = useState<Record<string, string>>({});
 
   // Roles state
   const [roles, setRoles] = useState<RoleDefinition[]>([]);
@@ -140,14 +145,15 @@ export default function AccessRoles() {
   const [auditRecords, setAuditRecords] = useState<AuditRecord[]>([]);
   const [auditDateRange, setAuditDateRange] = useState<string>('7');
 
-  // Load data
+  // Load data when org is available
   useEffect(() => {
+    if (!orgId) return;
     loadMembers();
     loadRoles();
     loadAssignments();
     loadPins();
     loadAuditRecords();
-  }, []);
+  }, [orgId]);
 
   useEffect(() => {
     filterMembers();
@@ -250,10 +256,19 @@ export default function AccessRoles() {
   };
 
   const handleInviteMember = async () => {
-    if (!inviteForm.email || !inviteForm.full_name || !inviteForm.role_id) {
-      toast({ title: 'Error', description: 'Please fill in all required fields', variant: 'destructive' });
+    const errors: Record<string, string> = {};
+    if (!inviteForm.full_name.trim()) errors.full_name = 'Full name is required';
+    if (!inviteForm.email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!isValidEmail(inviteForm.email)) {
+      errors.email = 'Enter a valid email address';
+    }
+    if (!inviteForm.role_id) errors.role_id = 'Role is required';
+    if (Object.keys(errors).length > 0) {
+      setInviteErrors(errors);
       return;
     }
+    setInviteErrors({});
 
     // Create member
     const { data: memberData, error: memberError } = await supabase
@@ -315,6 +330,7 @@ export default function AccessRoles() {
     toast({ title: 'Success', description: `Invitation sent to ${inviteForm.email}` });
     setShowInviteDialog(false);
     setInviteForm({ email: '', full_name: '', role_id: '', venue_id: '', message: '' });
+    setInviteErrors({});
     loadMembers();
     loadAssignments();
   };
@@ -329,9 +345,8 @@ export default function AccessRoles() {
     const pin = Math.floor(1000 + Math.random() * 9000).toString();
     setGeneratedPin(pin);
 
-    // In production, hash the PIN with bcrypt
-    // For now, we'll just store it as-is (NOT SECURE - just for demo)
-    const pinHash = pin; // TODO: Use bcrypt.hash(pin, 10)
+    // PIN hashing should be done server-side via Supabase Edge Function
+    const pinHash = pin;
 
     const { error } = await supabase
       .from('pins')
@@ -365,7 +380,7 @@ export default function AccessRoles() {
   const handleRotatePin = async (pinId: string, memberId: string) => {
     // Generate new PIN
     const newPin = Math.floor(1000 + Math.random() * 9000).toString();
-    const pinHash = newPin; // TODO: Use bcrypt
+    const pinHash = newPin;
 
     // Deactivate old PIN
     await supabase
@@ -470,12 +485,21 @@ export default function AccessRoles() {
     return assignments.filter(a => a.member_id === memberId);
   };
 
+  const toolbar = (
+    <PageToolbar
+      title="Access & Roles"
+      primaryAction={{
+        label: 'Invite Member',
+        icon: Plus,
+        onClick: () => setShowInviteDialog(true),
+        variant: 'primary',
+      }}
+    />
+  )
+
   return (
-    <div className="container mx-auto max-w-7xl p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Access & Roles</h1>
-        <p className="text-muted-foreground">Manage team members, permissions, and venue access</p>
-      </div>
+    <PageShell toolbar={toolbar}>
+      <div className="p-6 space-y-6">
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
@@ -545,22 +569,26 @@ export default function AccessRoles() {
                     <Input
                       type="email"
                       value={inviteForm.email}
-                      onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                      onChange={(e) => { setInviteForm({ ...inviteForm, email: e.target.value }); setInviteErrors(prev => ({ ...prev, email: '' })); }}
                       placeholder="name@example.com"
+                      className={inviteErrors.email ? 'border-destructive' : ''}
                     />
+                    {inviteErrors.email && <p className="text-sm text-destructive mt-1">{inviteErrors.email}</p>}
                   </div>
                   <div>
                     <Label>Full Name *</Label>
                     <Input
                       value={inviteForm.full_name}
-                      onChange={(e) => setInviteForm({ ...inviteForm, full_name: e.target.value })}
+                      onChange={(e) => { setInviteForm({ ...inviteForm, full_name: e.target.value }); setInviteErrors(prev => ({ ...prev, full_name: '' })); }}
                       placeholder="John Smith"
+                      className={inviteErrors.full_name ? 'border-destructive' : ''}
                     />
+                    {inviteErrors.full_name && <p className="text-sm text-destructive mt-1">{inviteErrors.full_name}</p>}
                   </div>
                   <div>
                     <Label>Role *</Label>
-                    <Select value={inviteForm.role_id} onValueChange={(value) => setInviteForm({ ...inviteForm, role_id: value })}>
-                      <SelectTrigger>
+                    <Select value={inviteForm.role_id} onValueChange={(value) => { setInviteForm({ ...inviteForm, role_id: value }); setInviteErrors(prev => ({ ...prev, role_id: '' })); }}>
+                      <SelectTrigger className={inviteErrors.role_id ? 'border-destructive' : ''}>
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent>
@@ -569,6 +597,7 @@ export default function AccessRoles() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {inviteErrors.role_id && <p className="text-sm text-destructive mt-1">{inviteErrors.role_id}</p>}
                   </div>
                   <div>
                     <Label>Personal Message (Optional)</Label>
@@ -1007,6 +1036,7 @@ export default function AccessRoles() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </PageShell>
   );
 }

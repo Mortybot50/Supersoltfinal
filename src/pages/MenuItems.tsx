@@ -27,6 +27,7 @@ import { useDataStore } from '@/lib/store/dataStore'
 import { COMMON_MENU_TAGS, MenuItem, MenuSection } from '@/types'
 import { toast } from 'sonner'
 import { PageShell, PageToolbar } from '@/components/shared'
+import { getDefaultOrgSettings } from '@/lib/venueSettings'
 
 export default function MenuItems() {
   const {
@@ -360,11 +361,20 @@ export default function MenuItems() {
     setExportDialogOpen(false)
   }
   
-  const getGPColor = (gpPercent: number, target: number) => {
-    if (gpPercent < target - 5) return 'text-red-600'
-    if (gpPercent < target) return 'text-orange-600'
+  // GP% color thresholds: green ≥65%, amber 50-65%, red <50%
+  const getGPColor = (gpPercent: number) => {
+    if (gpPercent < 50) return 'text-red-600'
+    if (gpPercent < 65) return 'text-amber-600'
     return 'text-green-600'
   }
+
+  // GP alerts: count items below the org-level threshold
+  const gpThreshold = getDefaultOrgSettings().below_gp_threshold_alert_percent ?? 60
+  const belowGPItems = useMemo(() => {
+    return menuItems.filter(
+      (item) => item.gp_percent !== undefined && item.gp_percent < gpThreshold
+    )
+  }, [menuItems, gpThreshold])
   
   const toolbar = (
     <PageToolbar
@@ -380,7 +390,7 @@ export default function MenuItems() {
           />
         </div>
       }
-      primaryAction={{ label: "Export", icon: Download, onClick: () => setExportDialogOpen(true), variant: "teal" }}
+      primaryAction={{ label: "Export", icon: Download, onClick: () => setExportDialogOpen(true), variant: "export" }}
     />
   )
 
@@ -541,10 +551,10 @@ export default function MenuItems() {
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-green-600" />
+                    <TrendingUp className={`h-4 w-4 ${getGPColor(sectionTotals.section_gp_percent || 0)}`} />
                     <div>
                       <p className="text-xs text-muted-foreground">GP %</p>
-                      <p className="font-semibold text-green-600 text-lg">
+                      <p className={`font-semibold text-lg ${getGPColor(sectionTotals.section_gp_percent || 0)}`}>
                         {sectionTotals.section_gp_percent?.toFixed(1)}%
                       </p>
                     </div>
@@ -553,6 +563,28 @@ export default function MenuItems() {
               )}
             </Card>
             
+            {/* GP Alerts Banner */}
+            {belowGPItems.length > 0 && (
+              <div className="flex items-center gap-3 px-4 py-3 mb-4 rounded-lg bg-red-50 border border-red-200 dark:bg-red-950/30 dark:border-red-800">
+                <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                <p className="text-sm font-medium text-red-800 dark:text-red-300">
+                  {belowGPItems.length} item{belowGPItems.length !== 1 ? 's' : ''} below target GP ({gpThreshold}%) — review pricing
+                </p>
+                <button
+                  className="ml-auto text-xs text-red-600 hover:text-red-800 underline"
+                  onClick={() => {
+                    // Scroll to first affected item — find its section and select it
+                    const firstItem = belowGPItems[0]
+                    if (firstItem) {
+                      setSelectedSectionId(firstItem.section_id)
+                    }
+                  }}
+                >
+                  View items
+                </button>
+              </div>
+            )}
+
             {/* Items Table */}
             <Card className="flex-1 overflow-auto">
               {filteredItems.length === 0 ? (
@@ -591,8 +623,13 @@ export default function MenuItems() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredItems.map((item) => (
-                      <TableRow key={item.id} className={!item.show_on_menu ? 'opacity-50' : ''}>
+                    {filteredItems.map((item) => {
+                      const isBelowGP = item.gp_percent !== undefined && item.gp_percent < gpThreshold
+                      return (
+                      <TableRow
+                        key={item.id}
+                        className={`${!item.show_on_menu ? 'opacity-50' : ''} ${isBelowGP ? 'bg-red-50/50 dark:bg-red-950/20' : ''}`}
+                      >
                         <TableCell>
                           <Button
                             variant="ghost"
@@ -638,17 +675,13 @@ export default function MenuItems() {
                         <TableCell>${(item.cost_per_serve / 100).toFixed(2)}</TableCell>
                         <TableCell>
                           <span
-                            className={`font-semibold ${getGPColor(
-                              item.gp_percent || 0,
-                              item.gp_target_percent
-                            )}`}
+                            className={`font-semibold ${getGPColor(item.gp_percent || 0)}`}
                           >
                             {item.gp_percent?.toFixed(1)}%
                           </span>
-                          {item.gp_percent !== undefined &&
-                            item.gp_percent < item.gp_target_percent - 5 && (
-                              <AlertTriangle className="h-3 w-3 inline ml-1 text-orange-600" />
-                            )}
+                          {isBelowGP && (
+                            <AlertTriangle className="h-3 w-3 inline ml-1 text-red-500" />
+                          )}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {item.plu_code || '—'}
@@ -672,7 +705,8 @@ export default function MenuItems() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                      )
+                    })}
                   </TableBody>
                   {sectionTotals && sectionTotals.items_count! > 0 && (
                     <TableFooter className="sticky bottom-0 bg-background">
@@ -683,7 +717,7 @@ export default function MenuItems() {
                         <TableCell className="font-bold">
                           ${((sectionTotals.section_cogs || 0) / 100).toFixed(2)}
                         </TableCell>
-                        <TableCell className="font-bold text-green-600 text-lg">
+                        <TableCell className={`font-bold text-lg ${getGPColor(sectionTotals.section_gp_percent || 0)}`}>
                           {sectionTotals.section_gp_percent?.toFixed(1)}%
                         </TableCell>
                         <TableCell colSpan={2}></TableCell>
@@ -733,11 +767,18 @@ export default function MenuItems() {
               </span>
             </div>
             
+            {belowGPItems.length > 0 && (
+              <div className="flex justify-between">
+                <span className="text-sm text-red-600 font-medium">Below Target GP:</span>
+                <span className="font-semibold text-red-600">{belowGPItems.length}</span>
+              </div>
+            )}
+
             <Separator />
-            
+
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Menu GP %:</span>
-              <span className="text-2xl font-bold text-green-600">
+              <span className={`text-2xl font-bold ${getGPColor(analytics.menu_gp_percent)}`}>
                 {analytics.menu_gp_percent.toFixed(1)}%
               </span>
             </div>

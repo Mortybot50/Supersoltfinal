@@ -4,10 +4,9 @@ import {
   ClipboardCheck,
   Plus,
   Search,
-  Calendar,
-  TrendingUp,
-  TrendingDown,
   Eye,
+  Calendar,
+  Loader2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -17,26 +16,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useDataStore } from '@/lib/store/dataStore'
 import { StockCountItem } from '@/types'
-import { format } from 'date-fns'
+import { format, subDays, startOfMonth, isAfter } from 'date-fns'
 import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
+import { formatCurrency } from '@/lib/utils/formatters'
 
 export default function StockCounts() {
   const navigate = useNavigate()
-  const { stockCounts, suppliers, loadStockCountsFromDB } = useDataStore()
-  
+  const { stockCounts, suppliers, isLoading, loadStockCountsFromDB } = useDataStore()
+
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [supplierFilter, setSupplierFilter] = useState<string>('all')
-  
-  // Load data on mount
+  const [dateFilter, setDateFilter] = useState<string>('all')
+
   useEffect(() => {
     loadStockCountsFromDB()
   }, [])
-  
+
   // Filter counts
   const filteredCounts = useMemo(() => {
     let filtered = stockCounts
-    
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(
@@ -45,41 +44,55 @@ export default function StockCounts() {
           sc.counted_by_name?.toLowerCase().includes(query)
       )
     }
-    
+
     if (statusFilter !== 'all') {
       filtered = filtered.filter((sc) => sc.status === statusFilter)
     }
-    
-    if (supplierFilter !== 'all') {
-      filtered = filtered.filter((sc) => {
-        // Check if any items in the count are from this supplier
-        return sc.items?.some((item: StockCountItem) => {
-          const ingredient = useDataStore.getState().ingredients.find(i => i.id === item.ingredient_id)
-          return ingredient?.supplier_id === supplierFilter
-        })
-      })
+
+    // Date range filter
+    if (dateFilter !== 'all') {
+      const now = new Date()
+      let startDate: Date
+      switch (dateFilter) {
+        case 'week':
+          startDate = subDays(now, 7)
+          break
+        case 'month':
+          startDate = startOfMonth(now)
+          break
+        case '3months':
+          startDate = subDays(now, 90)
+          break
+        default:
+          startDate = new Date(0)
+      }
+      filtered = filtered.filter((sc) => isAfter(new Date(sc.count_date), startDate))
     }
-    
+
     return filtered.sort(
       (a, b) => new Date(b.count_date).getTime() - new Date(a.count_date).getTime()
     )
-  }, [stockCounts, searchQuery, statusFilter, supplierFilter])
-  
+  }, [stockCounts, searchQuery, statusFilter, dateFilter])
+
   // Stats
   const stats = useMemo(() => {
     const total = stockCounts.length
     const inProgress = stockCounts.filter((sc) => sc.status === 'in-progress').length
     const completed = stockCounts.filter((sc) => sc.status === 'completed' || sc.status === 'reviewed').length
-    
+
     const completedCounts = stockCounts.filter((sc) => sc.status === 'completed' || sc.status === 'reviewed')
     const totalVariance = completedCounts.reduce(
       (sum, sc) => sum + sc.total_variance_value,
       0
     )
-    
-    return { total, inProgress, completed, totalVariance }
+    const totalValue = completedCounts.reduce(
+      (sum, sc) => sum + (sc.total_count_value || 0),
+      0
+    )
+
+    return { total, inProgress, completed, totalVariance, totalValue }
   }, [stockCounts])
-  
+
   const sidebar = (
     <PageSidebar
       title="Stock Counts"
@@ -90,8 +103,12 @@ export default function StockCounts() {
       ]}
       extendedMetrics={[
         {
+          label: "Total Value",
+          value: `$${(stats.totalValue / 100).toFixed(0)}`,
+        },
+        {
           label: "Variance",
-          value: `${stats.totalVariance >= 0 ? '+' : ''}$${(Math.abs(stats.totalVariance) / 100).toFixed(2)}`,
+          value: `${stats.totalVariance >= 0 ? '+' : ''}${formatCurrency(stats.totalVariance)}`,
           color: stats.totalVariance >= 0 ? "green" : "red",
         },
       ]}
@@ -123,29 +140,32 @@ export default function StockCounts() {
               <SelectItem value="reviewed">Reviewed</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={supplierFilter} onValueChange={setSupplierFilter}>
+          <Select value={dateFilter} onValueChange={setDateFilter}>
             <SelectTrigger className="h-8 w-[130px]">
-              <SelectValue placeholder="All Suppliers" />
+              <SelectValue placeholder="All Time" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Suppliers</SelectItem>
-              {suppliers.map((supplier) => (
-                <SelectItem key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </SelectItem>
-              ))}
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="week">Last 7 Days</SelectItem>
+              <SelectItem value="month">This Month</SelectItem>
+              <SelectItem value="3months">Last 3 Months</SelectItem>
             </SelectContent>
           </Select>
         </div>
       }
-      primaryAction={{ label: "New Count", icon: Plus, onClick: () => navigate('/inventory/stock-counts/new'), variant: "teal" }}
+      primaryAction={{ label: "New Count", icon: Plus, onClick: () => navigate('/inventory/stock-counts/new'), variant: "primary" }}
     />
   )
 
   return (
     <PageShell sidebar={sidebar} toolbar={toolbar}>
       <div className="p-4">
-      {filteredCounts.length === 0 ? (
+      {isLoading && stockCounts.length === 0 ? (
+        <Card className="p-12 text-center">
+          <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin opacity-50" />
+          <p className="text-muted-foreground">Loading stock counts...</p>
+        </Card>
+      ) : filteredCounts.length === 0 ? (
         <Card className="p-12 text-center">
           <ClipboardCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">
@@ -170,8 +190,10 @@ export default function StockCounts() {
               <TableRow>
                 <TableHead>Count Number</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Items</TableHead>
-                <TableHead>Variance</TableHead>
+                <TableHead>Total Value</TableHead>
+                <TableHead>Variance $</TableHead>
                 <TableHead>Counted By</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-12"></TableHead>
@@ -182,6 +204,7 @@ export default function StockCounts() {
                 <TableRow
                   key={count.id}
                   className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => navigate(`/inventory/stock-counts/${count.id}`)}
                 >
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -191,7 +214,17 @@ export default function StockCounts() {
                   </TableCell>
                   <TableCell>{format(new Date(count.count_date), 'dd MMM yyyy')}</TableCell>
                   <TableCell>
+                    <Badge variant="outline" className="capitalize">
+                      {count.count_type || 'full'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
                     <Badge variant="outline">{count.items?.length || 0} items</Badge>
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {count.total_count_value
+                      ? formatCurrency(count.total_count_value)
+                      : '—'}
                   </TableCell>
                   <TableCell>
                     {count.status === 'completed' || count.status === 'reviewed' ? (
@@ -203,7 +236,7 @@ export default function StockCounts() {
                         }`}
                       >
                         {count.total_variance_value >= 0 ? '+' : ''}$
-                        {(count.total_variance_value / 100).toFixed(2)}
+                        {(Math.abs(count.total_variance_value) / 100).toFixed(2)}
                       </span>
                     ) : (
                       <span className="text-muted-foreground">—</span>
@@ -222,7 +255,7 @@ export default function StockCounts() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation() }}>
                       <Eye className="h-4 w-4" />
                     </Button>
                   </TableCell>

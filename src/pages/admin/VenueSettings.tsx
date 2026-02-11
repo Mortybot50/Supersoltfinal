@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,11 +12,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { Save, UploadCloud, RotateCcw } from "lucide-react";
+import { PageShell, PageToolbar } from '@/components/shared';
 import type { VenueSettings as VenueSettingsType } from "@/lib/venueSettings";
 import { getDefaultOrgSettings } from "@/lib/venueSettings";
 
 export default function VenueSettings() {
-  const [selectedVenue, setSelectedVenue] = useState("venue-1");
+  const { user, currentVenue, venues } = useAuth();
+  const [selectedVenue, setSelectedVenue] = useState(currentVenue?.id || '');
   const [settings, setSettings] = useState<Partial<VenueSettingsType>>({
     venue_id: selectedVenue,
     timezone: 'Australia/Melbourne',
@@ -34,7 +37,15 @@ export default function VenueSettings() {
 
   const orgSettings = getDefaultOrgSettings();
 
+  // Sync selectedVenue when auth context loads
   useEffect(() => {
+    if (currentVenue?.id && !selectedVenue) {
+      setSelectedVenue(currentVenue.id);
+    }
+  }, [currentVenue]);
+
+  useEffect(() => {
+    if (!selectedVenue) return;
     loadVenueSettings();
   }, [selectedVenue]);
 
@@ -147,7 +158,7 @@ export default function VenueSettings() {
       // Create audit record
       await supabase.from('venue_settings_audit').insert({
         venue_id: selectedVenue,
-        actor_user_id: 'current-user', // TODO: Get from auth
+        actor_user_id: user?.id || 'unknown',
         action: 'published',
         before_snapshot: originalSettings.last_published_snapshot,
         after_snapshot: settings,
@@ -193,65 +204,54 @@ export default function VenueSettings() {
     });
   };
 
-  return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Venue Settings</h1>
-          <p className="text-muted-foreground mt-1">
-            Configure venue-specific settings or inherit from organization defaults
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+  const toolbar = (
+    <PageToolbar
+      title="Venue Settings"
+      actions={
+        <>
           {hasUnsavedChanges && (
             <Badge variant="outline" className="text-warning">
-              Unsaved Changes
+              Unsaved
             </Badge>
           )}
           <Button
             variant="ghost"
+            size="sm"
             onClick={handleReset}
             disabled={!hasUnsavedChanges || isLoading}
           >
             <RotateCcw className="h-4 w-4 mr-2" />
             Reset
           </Button>
-          <Button
-            variant="secondary"
-            onClick={handleSave}
-            disabled={!hasUnsavedChanges || isLoading}
-          >
-            <Save className="h-4 w-4 mr-2" />
-            Save
-          </Button>
-          <Button
-            onClick={handlePublish}
-            disabled={isLoading}
-          >
-            <UploadCloud className="h-4 w-4 mr-2" />
-            Publish to Venue
-          </Button>
-        </div>
-      </div>
+        </>
+      }
+      primaryAction={{
+        label: 'Save Settings',
+        icon: Save,
+        onClick: handleSave,
+        disabled: isLoading,
+        variant: 'primary',
+      }}
+    />
+  )
 
+  return (
+    <PageShell toolbar={toolbar}>
+      <div className="p-6 space-y-6">
       {/* Venue Selector */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Select Venue</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select value={selectedVenue} onValueChange={setSelectedVenue}>
-            <SelectTrigger className="w-64">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="venue-1">Venue 1</SelectItem>
-              <SelectItem value="venue-2">Venue 2</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
+      <div className="flex items-center gap-4">
+        <Label className="text-sm font-medium">Venue:</Label>
+        <Select value={selectedVenue} onValueChange={setSelectedVenue}>
+          <SelectTrigger className="w-64">
+            <SelectValue placeholder="Select venue" />
+          </SelectTrigger>
+          <SelectContent>
+            {venues.map((v) => (
+              <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* Tabs */}
       <Tabs defaultValue="locale" className="space-y-6">
@@ -501,60 +501,299 @@ export default function VenueSettings() {
         </TabsContent>
 
         {/* Other tabs - Coming Soon placeholders */}
+        {/* SUPPLIERS & ORDERING TAB */}
         <TabsContent value="suppliers">
           <Card>
-            <CardHeader>
-              <CardTitle>Suppliers & Ordering</CardTitle>
-              <CardDescription>Coming soon</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Suppliers & Ordering</CardTitle>
+                <CardDescription>Delivery windows and order cutoff times</CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="inherit-suppliers">Inherit from Organization</Label>
+                <Switch
+                  id="inherit-suppliers"
+                  checked={isFieldInherited('primary_suppliers')}
+                  onCheckedChange={(checked) => {
+                    handleInheritToggle('primary_suppliers', checked);
+                    handleInheritToggle('delivery_windows', checked);
+                    handleInheritToggle('order_cutoffs', checked);
+                  }}
+                />
+              </div>
             </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Default Order Lead Time (hours)</Label>
+                {isFieldInherited('primary_suppliers') ? (
+                  <div className="flex items-center gap-2">
+                    <Input value="24" disabled />
+                    <Badge>Inherited from Org</Badge>
+                  </div>
+                ) : (
+                  <Input
+                    type="number"
+                    min="0"
+                    max="168"
+                    value={settings.order_lead_time_hours || 24}
+                    onChange={(e) => handleFieldChange('order_lead_time_hours', parseInt(e.target.value))}
+                  />
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Minimum hours before delivery for new purchase orders
+                </p>
+              </div>
+            </CardContent>
           </Card>
         </TabsContent>
 
+        {/* WORKFORCE TAB */}
         <TabsContent value="workforce">
           <Card>
-            <CardHeader>
-              <CardTitle>Workforce Defaults</CardTitle>
-              <CardDescription>Coming soon</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Workforce Defaults</CardTitle>
+                <CardDescription>Trading hours, labour targets, and staff defaults</CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="inherit-workforce">Inherit from Organization</Label>
+                <Switch
+                  id="inherit-workforce"
+                  checked={isFieldInherited('labour_budget_percent')}
+                  onCheckedChange={(checked) => {
+                    handleInheritToggle('labour_budget_percent', checked);
+                    handleInheritToggle('trading_hours', checked);
+                  }}
+                />
+              </div>
             </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="labour-budget">Labour Budget Target (%)</Label>
+                  {isFieldInherited('labour_budget_percent') ? (
+                    <div className="flex items-center gap-2">
+                      <Input value="30" disabled />
+                      <Badge>Inherited from Org</Badge>
+                    </div>
+                  ) : (
+                    <Input
+                      id="labour-budget"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      value={settings.labour_budget_percent || 30}
+                      onChange={(e) => handleFieldChange('labour_budget_percent', parseFloat(e.target.value))}
+                    />
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Target labour cost as percentage of revenue
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="max-weekly-hours">Max Weekly Hours per Staff</Label>
+                  <Input
+                    id="max-weekly-hours"
+                    type="number"
+                    min="0"
+                    max="60"
+                    value={settings.max_weekly_hours || 38}
+                    onChange={(e) => handleFieldChange('max_weekly_hours', parseInt(e.target.value))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Award compliance: 38h ordinary + overtime
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="trading-open">Trading Hours — Open</Label>
+                  <Input
+                    id="trading-open"
+                    type="time"
+                    value={settings.trading_hours_open || '07:00'}
+                    onChange={(e) => handleFieldChange('trading_hours_open', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="trading-close">Trading Hours — Close</Label>
+                  <Input
+                    id="trading-close"
+                    type="time"
+                    value={settings.trading_hours_close || '22:00'}
+                    onChange={(e) => handleFieldChange('trading_hours_close', e.target.value)}
+                  />
+                </div>
+              </div>
+            </CardContent>
           </Card>
         </TabsContent>
 
+        {/* POS & PRINTERS TAB */}
         <TabsContent value="pos">
           <Card>
             <CardHeader>
               <CardTitle>POS & Printers</CardTitle>
-              <CardDescription>Coming soon</CardDescription>
+              <CardDescription>Point of sale system and printer configuration</CardDescription>
             </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="pos-type">POS System</Label>
+                <Select
+                  value={String(settings.pos_type || 'square')}
+                  onValueChange={(value) => handleFieldChange('pos_type', value)}
+                >
+                  <SelectTrigger id="pos-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="square">Square</SelectItem>
+                    <SelectItem value="lightspeed">Lightspeed</SelectItem>
+                    <SelectItem value="kounta">Kounta</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pos-location-id">POS Location ID</Label>
+                <Input
+                  id="pos-location-id"
+                  placeholder="e.g. LXXXXXXXXXXXXXXX"
+                  value={settings.pos_location_id || ''}
+                  onChange={(e) => handleFieldChange('pos_location_id', e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Used for API sync when integration is connected
+                </p>
+              </div>
+            </CardContent>
           </Card>
         </TabsContent>
 
+        {/* CALENDAR TAB */}
         <TabsContent value="calendar">
           <Card>
-            <CardHeader>
-              <CardTitle>Holidays & Trading Calendar</CardTitle>
-              <CardDescription>Coming soon</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Holidays & Trading Calendar</CardTitle>
+                <CardDescription>Venue-specific closed dates and trading exceptions</CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="inherit-calendar">Inherit from Organization</Label>
+                <Switch
+                  id="inherit-calendar"
+                  checked={isFieldInherited('custom_closed_dates')}
+                  onCheckedChange={(checked) => {
+                    handleInheritToggle('custom_closed_dates', checked);
+                  }}
+                />
+              </div>
             </CardHeader>
+            <CardContent className="space-y-4">
+              {isFieldInherited('custom_closed_dates') ? (
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground">Using organization holiday calendar</p>
+                  <Badge>Inherited from Org</Badge>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>Additional Closed Dates</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Add venue-specific closed dates in addition to organization holidays
+                  </p>
+                  {(settings.custom_closed_dates || []).map((date, index) => (
+                    <div key={index} className="flex items-center gap-2 text-sm">
+                      <span>{String(date)}</span>
+                    </div>
+                  ))}
+                  <p className="text-sm text-muted-foreground italic">
+                    No additional closed dates configured
+                  </p>
+                </div>
+              )}
+            </CardContent>
           </Card>
         </TabsContent>
 
+        {/* GUARDRAILS TAB */}
         <TabsContent value="guardrails">
           <Card>
-            <CardHeader>
-              <CardTitle>Guardrails & Approvals</CardTitle>
-              <CardDescription>Coming soon</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Guardrails & Approvals</CardTitle>
+                <CardDescription>Venue-specific approval thresholds</CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="inherit-guardrails">Inherit from Organization</Label>
+                <Switch
+                  id="inherit-guardrails"
+                  checked={isFieldInherited('guardrails')}
+                  onCheckedChange={(checked) => {
+                    handleInheritToggle('guardrails', checked);
+                  }}
+                />
+              </div>
             </CardHeader>
+            <CardContent className="space-y-4">
+              {isFieldInherited('guardrails') ? (
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground">Using organization approval thresholds</p>
+                  <Badge>Inherited from Org</Badge>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="max-po">Max PO Amount Without Approval ($)</Label>
+                    <Input
+                      id="max-po"
+                      type="number"
+                      min="0"
+                      value={settings.max_po_without_approval || 500}
+                      onChange={(e) => handleFieldChange('max_po_without_approval', parseInt(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="max-waste">Max Waste Value Alert ($)</Label>
+                    <Input
+                      id="max-waste"
+                      type="number"
+                      min="0"
+                      value={settings.max_waste_alert || 100}
+                      onChange={(e) => handleFieldChange('max_waste_alert', parseInt(e.target.value))}
+                    />
+                  </div>
+                </div>
+              )}
+            </CardContent>
           </Card>
         </TabsContent>
 
+        {/* AUDIT TAB */}
         <TabsContent value="audit">
           <Card>
             <CardHeader>
               <CardTitle>Audit Trail</CardTitle>
-              <CardDescription>Coming soon</CardDescription>
+              <CardDescription>History of venue settings changes</CardDescription>
             </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                All changes to venue settings are recorded with timestamps and actor information.
+                Settings are versioned — each save creates a snapshot that can be compared or rolled back.
+              </p>
+              <div className="mt-4 p-4 rounded-lg bg-muted/30 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Audit entries appear here after saving or publishing settings
+                </p>
+              </div>
+            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </PageShell>
   );
 }

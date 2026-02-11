@@ -29,7 +29,6 @@ import { Switch } from "@/components/ui/switch"
 import { Staff } from "@/types"
 import { parseCurrency } from "@/lib/currency"
 import { useEffect } from "react"
-import { toast } from "@/hooks/use-toast"
 
 const staffSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -110,12 +109,6 @@ export function StaffDialog({ open, onOpenChange, staff, onSave }: StaffDialogPr
     }
 
     onSave(staffData)
-    
-    toast({
-      title: staff ? "Staff updated" : "Staff added",
-      description: `${staffData.name} has been ${staff ? "updated" : "added"} successfully.`,
-    })
-
     form.reset()
   }
 

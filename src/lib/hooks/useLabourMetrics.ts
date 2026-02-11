@@ -1,61 +1,93 @@
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/integrations/supabase/client'
 import { useMemo } from 'react'
-import { useDataStore } from '@/lib/store/dataStore'
-import * as calc from '@/lib/utils/calculations'
-import type { LabourMetrics, GeneralFilters } from '@/types'
+import type { LabourMetrics } from '@/types'
 
-export function useLabourMetrics(filters?: GeneralFilters): LabourMetrics | null {
-  const { timesheets, staff, orders, isLoading } = useDataStore()
-  
+interface LabourFilters {
+  venueId?: string
+  startDate?: string // ISO string
+  endDate?: string   // ISO string
+}
+
+interface LabourMetricsResult {
+  metrics: LabourMetrics | null
+  isLoading: boolean
+}
+
+export function useLabourMetrics(filters?: LabourFilters): LabourMetricsResult {
+  const { venueId, startDate, endDate } = filters || {}
+
+  // Fetch approved timesheets for the period
+  const { data: timesheets, isLoading: tsLoading } = useQuery({
+    queryKey: ['labourTimesheets', venueId, startDate, endDate],
+    queryFn: async () => {
+      let query = supabase
+        .from('timesheets')
+        .select('id, staff_id, venue_id, clock_in, total_hours, total_pay, status')
+        .eq('status', 'approved')
+      if (venueId) query = query.eq('venue_id', venueId)
+      if (startDate) query = query.gte('clock_in', startDate)
+      if (endDate) query = query.lte('clock_in', endDate)
+      const { data, error } = await query
+      if (error) throw error
+      return data || []
+    },
+    enabled: !!venueId,
+  })
+
+  // Fetch orders for labour % calculation
+  const { data: orders, isLoading: ordersLoading } = useQuery({
+    queryKey: ['labourOrders', venueId, startDate, endDate],
+    queryFn: async () => {
+      let query = supabase
+        .from('orders')
+        .select('id, net_amount, is_void, is_refund')
+      if (venueId) query = query.eq('venue_id', venueId)
+      if (startDate) query = query.gte('order_datetime', startDate)
+      if (endDate) query = query.lte('order_datetime', endDate)
+      const { data, error } = await query
+      if (error) throw error
+      return data || []
+    },
+    enabled: !!venueId,
+  })
+
+  const isLoading = tsLoading || ordersLoading
+
   return useMemo(() => {
-    if (isLoading || timesheets.length === 0) return null
-    
-    let filteredTimesheets = timesheets.filter(t => t.status === 'approved')
-    
-    if (filters?.dateRange) {
-      filteredTimesheets = filteredTimesheets.filter(t => {
-        const shiftDate = new Date(t.date)
-        return shiftDate >= filters.dateRange!.startDate && 
-               shiftDate <= filters.dateRange!.endDate
-      })
+    if (isLoading || !timesheets || timesheets.length === 0) {
+      return { metrics: null, isLoading }
     }
-    
-    if (filters?.venues && filters.venues.length > 0) {
-      filteredTimesheets = filteredTimesheets.filter(t => 
-        filters.venues!.includes(t.venue_id)
-      )
-    }
-    
-    const totalHours = calc.calculateTotalLabourHours(filteredTimesheets)
-    const totalCost = calc.calculateTotalLabourCost(filteredTimesheets)
+
+    const totalHours = timesheets.reduce((sum, t) => sum + (t.total_hours || 0), 0)
+    const totalCost = timesheets.reduce((sum, t) => sum + (t.total_pay || 0), 0)
     const avgHourlyRate = totalHours > 0 ? totalCost / totalHours / 100 : 0
-    const staffCount = new Set(filteredTimesheets.map(t => t.staff_id)).size
-    
-    // Calculate labour % against sales if available
+    const staffCount = new Set(timesheets.map(t => t.staff_id)).size
+
+    // Labour % against sales
     let labourPercent = 0
     let costVsSales = 0
-    
-    if (orders.length > 0 && filters?.dateRange) {
-      const filteredOrders = orders.filter(o => {
-        const orderDate = new Date(o.order_datetime)
-        return !o.is_void && 
-               orderDate >= filters.dateRange!.startDate && 
-               orderDate <= filters.dateRange!.endDate
-      })
-      
-      const sales = calc.calculateNetSales(filteredOrders)
-      if (sales > 0) {
-        labourPercent = (totalCost / sales) * 100
-        costVsSales = totalCost / sales
+
+    if (orders && orders.length > 0) {
+      const netSales = orders
+        .filter(o => !o.is_void)
+        .reduce((sum, o) => sum + (o.is_refund ? -o.net_amount : o.net_amount), 0)
+      if (netSales > 0) {
+        labourPercent = (totalCost / netSales) * 100
+        costVsSales = totalCost / netSales
       }
     }
-    
+
     return {
-      total_hours: totalHours,
-      total_cost: totalCost,
-      labour_percent: labourPercent,
-      avg_hourly_rate: avgHourlyRate,
-      staff_count: staffCount,
-      cost_vs_sales: costVsSales
+      metrics: {
+        total_hours: totalHours,
+        total_cost: totalCost,
+        labour_percent: labourPercent,
+        avg_hourly_rate: avgHourlyRate,
+        staff_count: staffCount,
+        cost_vs_sales: costVsSales,
+      },
+      isLoading: false,
     }
-  }, [timesheets, staff, orders, isLoading, filters])
+  }, [timesheets, orders, isLoading])
 }

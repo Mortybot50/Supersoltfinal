@@ -1,10 +1,9 @@
-import { useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Plus } from "lucide-react"
 import { RosterShift, Staff, RosterGroupBy } from "@/types"
 import { RosterShiftCard } from "./RosterShiftCard"
-import { isPublicHoliday, getPublicHolidayName } from "@/lib/utils/rosterCalculations"
+import { isPublicHoliday, getPublicHolidayName, getRoleColor, formatLabourCost } from "@/lib/utils/rosterCalculations"
 import { format } from "date-fns"
 
 interface RosterStackedViewProps {
@@ -17,15 +16,6 @@ interface RosterStackedViewProps {
   onEditShift: (shift: RosterShift) => void
   onDeleteShift: (shift: RosterShift) => void
   onRequestSwap: (shift: RosterShift) => void
-}
-
-const ROLE_COLORS: Record<string, string> = {
-  manager: "bg-purple-500",
-  supervisor: "bg-blue-500",
-  crew: "bg-green-500",
-  kitchen: "bg-orange-500",
-  bar: "bg-pink-500",
-  default: "bg-gray-500",
 }
 
 export function RosterStackedView({
@@ -51,10 +41,6 @@ export function RosterStackedView({
 
   const getStaffName = (staffId: string) => {
     return staff.find((s) => s.id === staffId)?.name || "Unknown"
-  }
-
-  const getStaffRole = (staffId: string) => {
-    return staff.find((s) => s.id === staffId)?.role || "crew"
   }
 
   const groupShifts = (dayShifts: RosterShift[]) => {
@@ -109,7 +95,9 @@ export function RosterStackedView({
                   {format(date, "EEE d MMM")}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {dayTotals.hours.toFixed(1)}h · {dayTotals.count} shifts
+                  {dayTotals.count > 0
+                    ? `${dayTotals.hours.toFixed(1)}h · ${dayTotals.count} shifts · ${formatLabourCost(dayTotals.cost)}`
+                    : "No shifts"}
                 </div>
                 {holiday && (
                   <Badge variant="outline" className="mt-1 text-[9px] bg-purple-100 text-purple-700 border-purple-200">
@@ -124,37 +112,23 @@ export function RosterStackedView({
                   <div key={gi}>
                     {group.label && (
                       <div className="flex items-center gap-1 px-1 py-0.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                        <div
-                          className={`w-2 h-2 rounded ${
-                            ROLE_COLORS[group.label.toLowerCase()] || ROLE_COLORS.default
-                          }`}
-                        />
+                        <div className={`w-2 h-2 rounded ${getRoleColor(group.label).bg}`} />
                         {group.label}
                       </div>
                     )}
 
-                    {group.shifts.map((shift) => {
-                      const staffRole = getStaffRole(shift.staff_id)
-                      return (
-                        <div key={shift.id} className="relative">
-                          <div className="absolute top-1 left-1 z-10">
-                            <div
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                ROLE_COLORS[staffRole.toLowerCase()] || ROLE_COLORS.default
-                              }`}
-                            />
-                          </div>
-                          <RosterShiftCard
-                            shift={shift}
-                            staffName={getStaffName(shift.staff_id)}
-                            onEdit={onEditShift}
-                            onDelete={onDeleteShift}
-                            onRequestSwap={onRequestSwap}
-                            showStaffName={true}
-                          />
-                        </div>
-                      )
-                    })}
+                    {group.shifts.map((shift) => (
+                      <RosterShiftCard
+                        key={shift.id}
+                        shift={shift}
+                        staffName={getStaffName(shift.staff_id)}
+                        onEdit={onEditShift}
+                        onDelete={onDeleteShift}
+                        onRequestSwap={onRequestSwap}
+                        showStaffName={true}
+                        showCost={true}
+                      />
+                    ))}
                   </div>
                 ))}
 

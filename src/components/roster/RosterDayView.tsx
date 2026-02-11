@@ -2,7 +2,7 @@ import { useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
 import { RosterShift, Staff, StaffAvailability, HourlyStaffing, DayStats } from "@/types"
 import { DayDemandChart } from "./DayDemandChart"
-import { formatTimeCompact, formatLabourCost } from "@/lib/utils/rosterCalculations"
+import { formatTimeCompact, formatLabourCost, getRoleColor } from "@/lib/utils/rosterCalculations"
 import { format } from "date-fns"
 
 interface RosterDayViewProps {
@@ -20,21 +20,14 @@ interface RosterDayViewProps {
   onRequestSwap: (shift: RosterShift) => void
 }
 
-const ROLE_COLORS: Record<string, string> = {
-  manager: "bg-purple-500",
-  supervisor: "bg-blue-500",
-  crew: "bg-green-500",
-  kitchen: "bg-orange-500",
-  bar: "bg-pink-500",
-  default: "bg-teal-500",
-}
-
 const ROLE_BADGE_LABELS: Record<string, string> = {
-  manager: "M",
-  supervisor: "FC",
-  crew: "L",
-  kitchen: "K",
-  bar: "B",
+  manager: "MGR",
+  management: "MGR",
+  supervisor: "SUP",
+  crew: "CRW",
+  kitchen: "KIT",
+  foh: "FOH",
+  bar: "BAR",
 }
 
 // Timeline runs from 6am to 11pm = 17 hours
@@ -178,8 +171,8 @@ export function RosterDayView({
           {sortedShifts.map((shift) => {
             const pos = getShiftPosition(shift.start_time, shift.end_time)
             const role = getStaffRole(shift.staff_id)
-            const roleBadge = ROLE_BADGE_LABELS[role.toLowerCase()] || "L"
-            const roleColor = ROLE_COLORS[role.toLowerCase()] || ROLE_COLORS.default
+            const roleBadge = ROLE_BADGE_LABELS[role.toLowerCase()] || "CRW"
+            const roleColor = getRoleColor(role)
 
             return (
               <div
@@ -189,7 +182,7 @@ export function RosterDayView({
                 {/* Staff Info */}
                 <div className="w-48 shrink-0 flex items-center gap-2 px-3 border-r">
                   <Badge
-                    className={`${roleColor} text-white text-[9px] px-1.5 py-0 h-5 font-bold`}
+                    className={`${roleColor.bg} text-white text-[9px] px-1.5 py-0 h-5 font-bold`}
                   >
                     {roleBadge}
                   </Badge>
@@ -212,12 +205,12 @@ export function RosterDayView({
 
                   {/* Shift bar */}
                   <div
-                    className={`absolute top-1.5 h-7 rounded cursor-pointer transition-opacity hover:opacity-80 flex items-center px-1 ${roleColor}`}
+                    className={`absolute top-1.5 h-7 rounded cursor-pointer transition-opacity hover:opacity-80 flex items-center px-1.5 gap-1 ${roleColor.bg}`}
                     style={{ left: pos.left, width: pos.width }}
                     onClick={() => onEditShift(shift)}
                   >
                     <span className="text-[9px] text-white font-medium truncate">
-                      {shift.total_hours.toFixed(1)}h + {shift.break_minutes}m
+                      {shift.total_hours.toFixed(1)}h · {formatLabourCost(shift.total_cost)}
                     </span>
                   </div>
                 </div>

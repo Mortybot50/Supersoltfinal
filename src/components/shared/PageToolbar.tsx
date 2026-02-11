@@ -13,7 +13,7 @@ interface PrimaryAction {
   icon?: React.ComponentType<{ className?: string }>
   onClick: () => void
   disabled?: boolean
-  variant?: "teal" | "default"
+  variant?: "primary" | "export" | "teal" | "default"
 }
 
 interface PageToolbarProps {
@@ -36,13 +36,13 @@ export function PageToolbar({
   return (
     <div
       className={cn(
-        "bg-white dark:bg-gray-800 border-b px-4 py-2 flex items-center gap-3 flex-wrap print:hidden shrink-0",
+        "bg-white dark:bg-gray-800 border-b px-4 py-3 flex items-center gap-3 flex-wrap print:hidden shrink-0",
         className
       )}
     >
       {/* Title */}
       {title && (
-        <h1 className="text-sm font-semibold whitespace-nowrap">{title}</h1>
+        <h1 className="text-lg font-semibold whitespace-nowrap">{title}</h1>
       )}
 
       {/* Date Navigation */}
@@ -84,9 +84,11 @@ export function PageToolbar({
           <Button
             className={cn(
               "h-8",
-              primaryAction.variant === "teal"
-                ? "bg-teal-500 hover:bg-teal-600 text-white"
-                : ""
+              primaryAction.variant === "primary" || primaryAction.variant === "teal"
+                ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                : primaryAction.variant === "export"
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                  : ""
             )}
             onClick={primaryAction.onClick}
             disabled={primaryAction.disabled}

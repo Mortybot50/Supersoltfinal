@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { PageShell, PageToolbar } from '@/components/shared'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -110,6 +112,7 @@ interface CountSchedule {
 }
 
 export default function Locations() {
+  const { currentVenue } = useAuth()
   const [locations, setLocations] = useState<Location[]>([])
   const [schedules, setSchedules] = useState<CountSchedule[]>([])
   const [loading, setLoading] = useState(true)
@@ -147,12 +150,13 @@ export default function Locations() {
     location_ids: [],
   })
 
-  const currentVenueId = 'DEMO_VENUE_001' // TODO: Get from context
+  const currentVenueId = currentVenue?.id || ''
 
   useEffect(() => {
+    if (!currentVenueId) return
     loadLocations()
     loadSchedules()
-  }, [])
+  }, [currentVenueId])
 
   const loadLocations = async () => {
     setLoading(true)
@@ -630,19 +634,21 @@ export default function Locations() {
     scheduledCounts: schedules.length,
   }
 
+  const toolbar = (
+    <PageToolbar
+      title="Locations"
+      primaryAction={{
+        label: 'Add Location',
+        icon: Plus,
+        onClick: () => handleOpenLocationDialog(),
+        variant: 'primary',
+      }}
+    />
+  )
+
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Locations</h1>
-          <p className="text-muted-foreground">Manage inventory storage areas, bins, and count schedules</p>
-        </div>
-        <Button onClick={() => handleOpenLocationDialog()}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Location
-        </Button>
-      </div>
+    <PageShell toolbar={toolbar}>
+      <div className="p-6 space-y-6">
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -1360,6 +1366,7 @@ export default function Locations() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </PageShell>
   )
 }

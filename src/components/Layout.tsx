@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom"
 import { useState, useEffect } from "react"
+import { useTheme } from "next-themes"
 import { useAuth } from "@/contexts/AuthContext"
 import {
   LayoutGrid,
@@ -8,30 +9,24 @@ import {
   ChefHat,
   Users,
   Clipboard,
-  Zap,
   Settings,
   ChevronDown,
   ChevronRight,
-  Menu,
-  ShoppingCart,
   Building2,
-  FileText,
   ClipboardCheck,
-  Activity,
   LogOut,
+  Sun,
+  Moon,
 } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarProvider,
   SidebarTrigger,
-  useSidebar,
 } from "@/components/ui/sidebar"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
@@ -56,53 +51,45 @@ type NavItem = {
 
 const navigationItems: NavItem[] = [
   { title: "DASHBOARD", url: "/dashboard", icon: LayoutGrid },
+  { title: "SALES", url: "/sales", icon: TrendingUp },
+  {
+    title: "MENU",
+    icon: ChefHat,
+    items: [
+      { title: "Recipes", url: "/menu/recipes" },
+      { title: "Menu Items", url: "/menu/items" },
+      { title: "Ingredients", url: "/inventory/ingredients" },
+    ],
+  },
   {
     title: "INVENTORY",
     icon: Package,
     items: [
-      { title: "Ingredients", url: "/inventory/ingredients" },
-      { title: "Suppliers", url: "/suppliers" },
       { title: "Order Guide", url: "/inventory/order-guide" },
       { title: "Purchase Orders", url: "/inventory/purchase-orders" },
       { title: "Stock Counts", url: "/inventory/stock-counts" },
       { title: "Waste", url: "/inventory/waste" },
-      { title: "Transfers", soon: true },
-    ],
-  },
-  {
-    title: "MENU & COSTING",
-    icon: ChefHat,
-    items: [
-      { title: "Menu Items", url: "/menu/items" },
-      { title: "Recipes", url: "/menu/recipes" },
+      { title: "Reports", url: "/inventory/reports" },
     ],
   },
   {
     title: "WORKFORCE",
-    icon: Users,
+    icon: ClipboardCheck,
     items: [
-      { title: "People", url: "/workforce/people" },
       { title: "Roster", url: "/workforce/roster" },
       { title: "Timesheets", url: "/workforce/timesheets" },
-      { title: "Reports", url: "/workforce/reports" },
       { title: "Payroll Export", url: "/workforce/payroll-export" },
+      { title: "Reports", url: "/workforce/reports" },
     ],
   },
+  { title: "PEOPLE", url: "/workforce/people", icon: Users },
+  { title: "SUPPLIERS", url: "/suppliers", icon: Building2 },
   {
     title: "OPERATIONS",
     icon: Clipboard,
     items: [
       { title: "Daybook", url: "/operations/daybook" },
-      { title: "Imports", url: "/operations/imports" },
       { title: "Compliance", url: "/operations/compliance" },
-    ],
-  },
-  {
-    title: "INTEGRATIONS",
-    icon: Zap,
-    items: [
-      { title: "POS (Square)", url: "/integrations" },
-      { title: "Accounting (Xero)", soon: true },
     ],
   },
   {
@@ -114,6 +101,7 @@ const navigationItems: NavItem[] = [
       { title: "Locations", url: "/admin/locations" },
       { title: "Access & Roles", url: "/admin/access-roles" },
       { title: "Data Imports", url: "/admin/data-imports" },
+      { title: "Integrations", url: "/integrations" },
     ],
   },
 ]
@@ -250,6 +238,7 @@ function AppSidebar() {
 
 export default function Layout() {
   const navigate = useNavigate()
+  const { theme, setTheme } = useTheme()
   const { profile, currentVenue, venues, setCurrentVenue, orgMember, signOut } = useAuth()
 
   // Get user initials for avatar
@@ -317,6 +306,18 @@ export default function Layout() {
             </DropdownMenu>
 
             <div className="flex-1" />
+
+            {/* Theme Toggle */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            >
+              <Sun className="h-4 w-4 rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100" />
+              <span className="sr-only">Toggle theme</span>
+            </Button>
 
             {/* User Menu */}
             <DropdownMenu>

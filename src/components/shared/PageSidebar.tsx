@@ -52,14 +52,14 @@ export function PageSidebar({
   return (
     <div
       className={cn(
-        "w-48 bg-slate-800 text-white flex flex-col print:hidden shrink-0",
+        "hidden lg:flex w-[280px] bg-slate-900 dark:bg-slate-950 text-white flex-col print:hidden shrink-0",
         className
       )}
     >
       {/* Title */}
       {title && (
         <div className="p-4 border-b border-slate-700">
-          <span className="font-medium text-sm">{title}</span>
+          <span className="text-lg font-semibold">{title}</span>
         </div>
       )}
 

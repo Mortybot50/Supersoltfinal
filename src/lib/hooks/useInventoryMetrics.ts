@@ -1,35 +1,86 @@
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/integrations/supabase/client'
 import { useMemo } from 'react'
-import { useDataStore } from '@/lib/store/dataStore'
-import * as calc from '@/lib/utils/calculations'
-import type { InventoryMetrics, DateRangeFilter } from '@/types'
+import type { InventoryMetrics } from '@/types'
 
-export function useInventoryMetrics(dateRange?: DateRangeFilter): InventoryMetrics | null {
-  const { ingredients, wasteLogs, isLoading } = useDataStore()
-  
+interface InventoryFilters {
+  venueId?: string
+  startDate?: string // ISO string (for waste date filtering)
+  endDate?: string
+}
+
+interface InventoryMetricsResult {
+  metrics: InventoryMetrics | null
+  isLoading: boolean
+}
+
+export function useInventoryMetrics(filters?: InventoryFilters): InventoryMetricsResult {
+  const { venueId, startDate, endDate } = filters || {}
+
+  // Fetch active ingredients for stock value
+  const { data: ingredients, isLoading: ingLoading } = useQuery({
+    queryKey: ['inventoryIngredients', venueId],
+    queryFn: async () => {
+      let query = supabase
+        .from('ingredients')
+        .select('id, current_stock, par_level, reorder_point, cost_per_unit, active')
+        .eq('active', true)
+      if (venueId) query = query.eq('venue_id', venueId)
+      const { data, error } = await query
+      if (error) throw error
+      return data || []
+    },
+    enabled: !!venueId,
+  })
+
+  // Fetch waste logs for the period
+  const { data: wasteLogs, isLoading: wasteLoading } = useQuery({
+    queryKey: ['inventoryWaste', venueId, startDate, endDate],
+    queryFn: async () => {
+      let query = supabase
+        .from('waste_logs')
+        .select('id, value, waste_date')
+      if (venueId) query = query.eq('venue_id', venueId)
+      if (startDate) query = query.gte('waste_date', startDate)
+      if (endDate) query = query.lte('waste_date', endDate)
+      const { data, error } = await query
+      if (error) throw error
+      return data || []
+    },
+    enabled: !!venueId,
+  })
+
+  const isLoading = ingLoading || wasteLoading
+
   return useMemo(() => {
-    if (isLoading || ingredients.length === 0) return null
-    
-    const totalStockValue = calc.calculateTotalStockValue(ingredients)
-    const itemsBelowPar = calc.calculateItemsBelowPar(ingredients)
-    const itemsToOrder = calc.calculateItemsToOrder(ingredients)
-    
-    // Filter waste logs by date range if provided
-    let filteredWasteLogs = wasteLogs
-    if (dateRange) {
-      filteredWasteLogs = wasteLogs.filter(log => {
-        const wasteDate = new Date(log.waste_date)
-        return wasteDate >= dateRange.startDate && wasteDate <= dateRange.endDate
-      })
+    if (isLoading || !ingredients || ingredients.length === 0) {
+      return { metrics: null, isLoading }
     }
-    
-    const totalWasteValue = calc.calculateTotalWasteValue(filteredWasteLogs)
-    
+
+    const totalStockValue = ingredients.reduce(
+      (sum, ing) => sum + ing.current_stock * ing.cost_per_unit,
+      0
+    )
+
+    const itemsBelowPar = ingredients.filter(
+      ing => ing.current_stock < ing.par_level
+    ).length
+
+    const itemsToOrder = ingredients.filter(
+      ing => ing.current_stock < ing.reorder_point
+    ).length
+
+    const totalWasteValue = (wasteLogs || []).reduce((sum, w) => sum + w.value, 0)
+
     return {
-      total_stock_value: totalStockValue,
-      items_below_par: itemsBelowPar,
-      items_to_order: itemsToOrder,
-      total_waste_value: totalWasteValue,
-      stock_turnover_days: 0 // Calculate when we have historical data
+      metrics: {
+        total_stock_value: totalStockValue,
+        items_below_par: itemsBelowPar,
+        items_to_order: itemsToOrder,
+        total_waste_value: totalWasteValue,
+        stock_turnover_days: 0,
+      },
+      isLoading: false,
     }
-  }, [ingredients, wasteLogs, isLoading, dateRange])
+  }, [ingredients, wasteLogs, isLoading])
 }

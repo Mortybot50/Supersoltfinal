@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { InvoiceIntakeJob, InvoiceIntakeReview, SupplierAlias, InvoiceIntakeStatus, GSTMode, MatchType } from '@/types'
+import { logPriceChange, runCostCascade, applyCascadeToState } from '@/lib/services/costCascade'
+import { getDefaultOrgSettings } from '@/lib/venueSettings'
 
 interface InvoiceIntakeState {
   // Data
@@ -363,6 +365,65 @@ export const useInvoiceIntakeStore = create<InvoiceIntakeState>((set, get) => ({
         return
       }
       
+      // Update ingredient costs from mapped invoice lines
+      const { useDataStore } = await import('@/lib/store/dataStore')
+      const store = useDataStore.getState()
+      const gpThreshold = getDefaultOrgSettings().below_gp_threshold_alert_percent ?? 60
+
+      let currentIngredients = [...store.ingredients]
+      let currentRecipes = [...store.recipes]
+      let currentRecipeIngredients = [...store.recipeIngredients]
+      let currentMenuItems = [...store.menuItems]
+      let costUpdates = 0
+
+      for (let i = 0; i < job.mapping_json.length; i++) {
+        const mapping = job.mapping_json[i]
+        if (!mapping.ingredient_id || mapping.match_type === 'new_item') continue
+
+        const line = job.lines_json[i]
+        if (!line) continue
+
+        const ingredient = currentIngredients.find((ing) => ing.id === mapping.ingredient_id)
+        if (!ingredient) continue
+
+        const newCostCents = mapping.unit_cost_computed
+        if (newCostCents === ingredient.cost_per_unit) continue
+
+        // Log price change
+        await logPriceChange(ingredient.id, ingredient.cost_per_unit, newCostCents, 'invoice')
+
+        // Update ingredient in Supabase
+        await store.updateIngredient(ingredient.id, {
+          cost_per_unit: newCostCents,
+          last_cost_update: new Date(),
+        })
+
+        // Run cascade
+        const unitCostExBase = mapping.unit_cost_computed // already in base-unit cents
+        const cascade = runCostCascade(ingredient.id, newCostCents, unitCostExBase, currentIngredients, currentRecipes, currentRecipeIngredients, currentMenuItems, gpThreshold)
+        if (cascade.affectedRecipes.length > 0) {
+          const applied = applyCascadeToState(cascade, currentIngredients, currentRecipes, currentRecipeIngredients, currentMenuItems, newCostCents, unitCostExBase)
+          currentIngredients = applied.ingredients
+          currentRecipes = applied.recipes
+          currentRecipeIngredients = applied.recipeIngredients
+          currentMenuItems = applied.menuItems
+        } else {
+          // Still update the ingredient cost in local state
+          currentIngredients = currentIngredients.map((ing) =>
+            ing.id === ingredient.id ? { ...ing, cost_per_unit: newCostCents, last_cost_update: new Date() } : ing
+          )
+        }
+        costUpdates++
+      }
+
+      // Apply all cascaded state
+      if (costUpdates > 0) {
+        store.setIngredients(currentIngredients)
+        store.setRecipes(currentRecipes)
+        store.setRecipeIngredients(currentRecipeIngredients)
+        store.setMenuItems(currentMenuItems)
+      }
+
       // Update job status
       set((state) => ({
         jobs: state.jobs.map((j) =>
@@ -371,7 +432,7 @@ export const useInvoiceIntakeStore = create<InvoiceIntakeState>((set, get) => ({
             : j
         )
       }))
-      
+
       // Create review record
       const review: InvoiceIntakeReview = {
         id: `review-${Date.now()}`,
@@ -381,12 +442,12 @@ export const useInvoiceIntakeStore = create<InvoiceIntakeState>((set, get) => ({
         notes: notes,
         created_at: new Date()
       }
-      
+
       set((state) => ({
         reviews: [review, ...state.reviews]
       }))
-      
-      alert(`Invoice approved! ${job.lines_json.length} items processed.`)
+
+      alert(`Invoice approved! ${job.lines_json.length} items processed.${costUpdates > 0 ? ` ${costUpdates} ingredient cost(s) updated.` : ''}`)
       get().closeReviewModal()
       
     } catch (error) {

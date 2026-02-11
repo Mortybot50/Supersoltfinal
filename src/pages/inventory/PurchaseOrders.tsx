@@ -10,6 +10,8 @@ import {
   XCircle,
   Clock,
   Package,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -19,8 +21,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useDataStore } from '@/lib/store/dataStore'
 import { PurchaseOrder } from '@/types'
-import { format } from 'date-fns'
-import { PageShell, PageToolbar, PageSidebar, StatusBadge } from '@/components/shared'
+import { format, differenceInDays, subDays, startOfMonth, isAfter, isBefore } from 'date-fns'
+import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
+import { formatCurrency } from '@/lib/utils/formatters'
 
 const STATUS_CONFIG = {
   draft: {
@@ -55,22 +58,28 @@ const STATUS_CONFIG = {
   },
 }
 
+function isOverdue(po: PurchaseOrder): boolean {
+  if (po.status === 'delivered' || po.status === 'cancelled' || po.status === 'draft') return false
+  return isBefore(new Date(po.expected_delivery_date), new Date())
+}
+
 export default function PurchaseOrders() {
   const navigate = useNavigate()
-  const { purchaseOrders, suppliers, loadPurchaseOrdersFromDB, loadSuppliersFromDB } = useDataStore()
-  
+  const { purchaseOrders, suppliers, isLoading, loadPurchaseOrdersFromDB, loadSuppliersFromDB } = useDataStore()
+
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [supplierFilter, setSupplierFilter] = useState<string>('all')
-  
+  const [dateFilter, setDateFilter] = useState<string>('all')
+
   useEffect(() => {
     loadPurchaseOrdersFromDB()
     loadSuppliersFromDB()
   }, [])
-  
+
   const filteredPOs = useMemo(() => {
     let filtered = purchaseOrders
-    
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(
@@ -80,43 +89,86 @@ export default function PurchaseOrders() {
           po.notes?.toLowerCase().includes(query)
       )
     }
-    
-    if (statusFilter !== 'all') {
+
+    if (statusFilter === 'overdue') {
+      filtered = filtered.filter((po) => isOverdue(po))
+    } else if (statusFilter !== 'all') {
       filtered = filtered.filter((po) => po.status === statusFilter)
     }
-    
+
     if (supplierFilter !== 'all') {
       filtered = filtered.filter((po) => po.supplier_id === supplierFilter)
     }
-    
+
+    if (dateFilter !== 'all') {
+      const now = new Date()
+      let startDate: Date
+      switch (dateFilter) {
+        case 'week':
+          startDate = subDays(now, 7)
+          break
+        case 'month':
+          startDate = startOfMonth(now)
+          break
+        case '3months':
+          startDate = subDays(now, 90)
+          break
+        default:
+          startDate = new Date(0)
+      }
+      filtered = filtered.filter((po) => isAfter(new Date(po.order_date), startDate))
+    }
+
     return filtered.sort(
       (a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime()
     )
-  }, [purchaseOrders, searchQuery, statusFilter, supplierFilter])
-  
+  }, [purchaseOrders, searchQuery, statusFilter, supplierFilter, dateFilter])
+
   const stats = useMemo(() => {
-    return {
-      total: purchaseOrders.length,
-      draft: purchaseOrders.filter((po) => po.status === 'draft').length,
-      submitted: purchaseOrders.filter((po) => po.status === 'submitted').length,
-      pending: purchaseOrders.filter((po) => 
-        po.status === 'submitted' || po.status === 'confirmed'
-      ).length,
-    }
+    const total = purchaseOrders.length
+    const draft = purchaseOrders.filter((po) => po.status === 'draft').length
+    const pending = purchaseOrders.filter((po) =>
+      po.status === 'submitted' || po.status === 'confirmed'
+    ).length
+    const overdue = purchaseOrders.filter((po) => isOverdue(po)).length
+    const delivered = purchaseOrders.filter((po) => po.status === 'delivered').length
+    const totalValue = purchaseOrders
+      .filter((po) => po.status !== 'cancelled')
+      .reduce((sum, po) => sum + po.total, 0)
+    const pendingValue = purchaseOrders
+      .filter((po) => po.status === 'submitted' || po.status === 'confirmed')
+      .reduce((sum, po) => sum + po.total, 0)
+
+    return { total, draft, pending, overdue, delivered, totalValue, pendingValue }
   }, [purchaseOrders])
-  
+
   const getStatusConfig = (status: string) => {
     return STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.draft
   }
-  
+
   const sidebar = (
     <PageSidebar
       title="Orders"
       metrics={[
         { label: "Total", value: stats.total },
         { label: "Draft", value: stats.draft },
-        { label: "Submitted", value: stats.submitted },
         { label: "Pending", value: stats.pending },
+        { label: "Delivered", value: stats.delivered },
+      ]}
+      extendedMetrics={[
+        ...(stats.overdue > 0 ? [{
+          label: "Overdue",
+          value: stats.overdue,
+          color: "red" as const,
+        }] : []),
+        {
+          label: "Pending Value",
+          value: `$${(stats.pendingValue / 100).toFixed(0)}`,
+        },
+        {
+          label: "Total Value",
+          value: `$${(stats.totalValue / 100).toFixed(0)}`,
+        },
       ]}
     />
   )
@@ -136,7 +188,7 @@ export default function PurchaseOrders() {
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="h-8 w-[130px]">
+            <SelectTrigger className="h-8 w-[140px]">
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
             <SelectContent>
@@ -146,6 +198,9 @@ export default function PurchaseOrders() {
               <SelectItem value="confirmed">Confirmed</SelectItem>
               <SelectItem value="delivered">Delivered</SelectItem>
               <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="overdue">
+                Overdue {stats.overdue > 0 && `(${stats.overdue})`}
+              </SelectItem>
             </SelectContent>
           </Select>
           <Select value={supplierFilter} onValueChange={setSupplierFilter}>
@@ -161,16 +216,52 @@ export default function PurchaseOrders() {
               ))}
             </SelectContent>
           </Select>
+          <Select value={dateFilter} onValueChange={setDateFilter}>
+            <SelectTrigger className="h-8 w-[130px]">
+              <SelectValue placeholder="All Time" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="week">Last 7 Days</SelectItem>
+              <SelectItem value="month">This Month</SelectItem>
+              <SelectItem value="3months">Last 3 Months</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       }
-      primaryAction={{ label: "Create Order", icon: Plus, onClick: () => navigate('/inventory/order-guide'), variant: "teal" }}
+      primaryAction={{ label: "Create Order", icon: Plus, onClick: () => navigate('/inventory/order-guide'), variant: "primary" }}
     />
   )
 
   return (
     <PageShell sidebar={sidebar} toolbar={toolbar}>
       <div className="p-4">
-      {filteredPOs.length === 0 ? (
+      {/* Overdue alert banner */}
+      {stats.overdue > 0 && statusFilter !== 'overdue' && (
+        <div className="mb-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+            <span className="text-sm font-medium text-red-800 dark:text-red-200">
+              {stats.overdue} purchase order{stats.overdue !== 1 ? 's' : ''} overdue
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-red-600 hover:text-red-700"
+            onClick={() => setStatusFilter('overdue')}
+          >
+            View Overdue
+          </Button>
+        </div>
+      )}
+
+      {isLoading && purchaseOrders.length === 0 ? (
+        <Card className="p-12 text-center">
+          <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin opacity-50" />
+          <p className="text-muted-foreground">Loading purchase orders...</p>
+        </Card>
+      ) : filteredPOs.length === 0 ? (
         <Card className="p-12 text-center">
           <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">
@@ -207,11 +298,15 @@ export default function PurchaseOrders() {
               {filteredPOs.map((po: PurchaseOrder) => {
                 const statusConfig = getStatusConfig(po.status)
                 const StatusIcon = statusConfig.icon
-                
+                const overdue = isOverdue(po)
+                const daysOverdue = overdue
+                  ? differenceInDays(new Date(), new Date(po.expected_delivery_date))
+                  : 0
+
                 return (
                   <TableRow
                     key={po.id}
-                    className="cursor-pointer hover:bg-muted/50"
+                    className={`cursor-pointer hover:bg-muted/50 ${overdue ? 'bg-red-50/50 dark:bg-red-950/30' : ''}`}
                     onClick={() => navigate(`/inventory/purchase-orders/${po.id}`)}
                   >
                     <TableCell>
@@ -225,19 +320,30 @@ export default function PurchaseOrders() {
                       {format(new Date(po.order_date), 'dd MMM yyyy')}
                     </TableCell>
                     <TableCell>
-                      {format(new Date(po.expected_delivery_date), 'dd MMM yyyy')}
+                      <div className="flex items-center gap-1.5">
+                        <span className={overdue ? 'text-red-600 font-semibold' : ''}>
+                          {format(new Date(po.expected_delivery_date), 'dd MMM yyyy')}
+                        </span>
+                        {overdue && (
+                          <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                            {daysOverdue}d late
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{po.items?.length || 0} items</Badge>
                     </TableCell>
                     <TableCell className="font-semibold">
-                      ${((po.total) / 100).toFixed(2)}
+                      {formatCurrency(po.total)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={statusConfig.variant}>
-                        <StatusIcon className="h-3 w-3 mr-1" />
-                        {statusConfig.label}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        <Badge variant={statusConfig.variant}>
+                          <StatusIcon className="h-3 w-3 mr-1" />
+                          {statusConfig.label}
+                        </Badge>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Button

@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, ChefHat } from 'lucide-react'
+import { Plus, Search, ChefHat, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useDataStore } from '@/lib/store/dataStore'
+import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
 
 const CATEGORIES = [
   { value: 'mains', label: 'Mains' },
@@ -20,11 +21,16 @@ const CATEGORIES = [
 
 export default function Recipes() {
   const navigate = useNavigate()
-  const { recipes } = useDataStore()
-  
+  const { recipes, loadRecipesFromDB } = useDataStore()
+  const [loading, setLoading] = useState(true)
+
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+
+  useEffect(() => {
+    loadRecipesFromDB().finally(() => setLoading(false))
+  }, [loadRecipesFromDB])
   
   // Filter recipes
   const filteredRecipes = useMemo(() => {
@@ -48,51 +54,44 @@ export default function Recipes() {
     )
   }, [recipes, searchQuery, categoryFilter, statusFilter])
   
-  return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Recipes</h1>
-          <p className="text-muted-foreground">
-            Manage recipes, costs, and menu pricing
-          </p>
-        </div>
-        <Button onClick={() => navigate('/menu/recipes/new')} size="lg">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Recipe
-        </Button>
-      </div>
-      
-      {/* Filters */}
-      <Card className="p-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
+  const sidebar = (
+    <PageSidebar
+      title="Recipes"
+      metrics={[
+        { label: 'Total Recipes', value: recipes.length },
+        { label: 'Published', value: recipes.filter(r => r.status === 'published').length },
+        { label: 'Draft', value: recipes.filter(r => r.status === 'draft').length },
+      ]}
+    />
+  )
+
+  const toolbar = (
+    <PageToolbar
+      title="Recipes"
+      filters={
+        <>
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search recipes..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-9 h-8 w-48"
             />
           </div>
-          
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-full md:w-48">
+            <SelectTrigger className="h-8 w-40">
               <SelectValue placeholder="All Categories" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
               {CATEGORIES.map((cat) => (
-                <SelectItem key={cat.value} value={cat.value}>
-                  {cat.label}
-                </SelectItem>
+                <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full md:w-48">
+            <SelectTrigger className="h-8 w-36">
               <SelectValue placeholder="All Status" />
             </SelectTrigger>
             <SelectContent>
@@ -102,11 +101,28 @@ export default function Recipes() {
               <SelectItem value="archived">Archived</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-      </Card>
+        </>
+      }
+      primaryAction={{
+        label: 'Add Recipe',
+        icon: Plus,
+        onClick: () => navigate('/menu/recipes/new'),
+        variant: 'primary',
+      }}
+    />
+  )
+
+  return (
+    <PageShell sidebar={sidebar} toolbar={toolbar}>
+      <div className="p-6 space-y-6">
       
       {/* Recipes Table */}
-      {filteredRecipes.length === 0 ? (
+      {loading ? (
+        <Card className="p-12 text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">Loading recipes...</p>
+        </Card>
+      ) : filteredRecipes.length === 0 ? (
         <Card className="p-12 text-center">
           <ChefHat className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">
@@ -114,7 +130,7 @@ export default function Recipes() {
           </h3>
           <p className="text-sm text-muted-foreground mb-6">
             {recipes.length === 0
-              ? "Click 'Add Recipe' to get started."
+              ? "Create your first recipe to start tracking food costs."
               : 'Try adjusting your filters'}
           </p>
           {recipes.length === 0 && (
@@ -181,6 +197,7 @@ export default function Recipes() {
           </Table>
         </Card>
       )}
-    </div>
+      </div>
+    </PageShell>
   )
 }

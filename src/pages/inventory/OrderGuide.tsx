@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
-import { ShoppingCart, AlertTriangle, Calendar, TrendingUp } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ShoppingCart, AlertTriangle, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -19,81 +20,86 @@ import {
 } from '@/lib/utils/orderCalculations'
 import { format, differenceInDays, subDays } from 'date-fns'
 import { toast } from 'sonner'
-import type { OrderRecommendation, PurchaseOrder, PurchaseOrderItem } from '@/types'
+import type { OrderRecommendation, PurchaseOrder, PurchaseOrderItem, Supplier } from '@/types'
 import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
 
+function getDaysOfStock(currentStock: number, dailyUsage: number): number {
+  if (dailyUsage <= 0) return 999
+  return Math.round(currentStock / dailyUsage)
+}
+
+function getDaysOfStockColor(days: number): string {
+  if (days < 2) return 'text-red-600 font-semibold'
+  if (days <= 4) return 'text-amber-600 font-semibold'
+  return 'text-green-600'
+}
+
+function getDaysOfStockBadge(days: number) {
+  if (days >= 999) return <Badge variant="secondary">No Usage</Badge>
+  if (days < 2) return <Badge variant="destructive">{days}d</Badge>
+  if (days <= 4) return <Badge className="bg-amber-500">{days}d</Badge>
+  return <Badge className="bg-green-600">{days}d</Badge>
+}
+
 export default function OrderGuide() {
+  const navigate = useNavigate()
   const { suppliers, ingredients, purchaseOrders, orders, loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB } = useDataStore()
-  
+
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('')
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set())
   const [customQuantities, setCustomQuantities] = useState<Record<string, number>>({})
-  
+
   // Load data from Supabase on mount
   useEffect(() => {
     loadSuppliersFromDB()
     loadIngredientsFromDB()
     loadPurchaseOrdersFromDB()
   }, [])
-  
+
   const selectedSupplier = suppliers.find((s) => s.id === selectedSupplierId)
-  
+
   // Calculate sales forecast for next 7 days
   const salesForecast = useMemo(() => {
-    // Use last 30 days of sales
     const thirtyDaysAgo = subDays(new Date(), 30)
     const recentSales = orders
       .filter((o) => new Date(o.order_datetime) >= thirtyDaysAgo && !o.is_void && !o.is_refund)
       .reduce((sum, o) => sum + o.gross_amount / 100, 0)
-    
-    // Daily average
     const dailyAverage = recentSales / 30
-    
-    // Forecast next 7 days
     return dailyAverage * 7
   }, [orders])
-  
+
   // Get supplier products and calculate recommendations
   const orderRecommendations = useMemo(() => {
     if (!selectedSupplier) return []
-    
+
     const supplierProducts = ingredients.filter(
       (p) => p.supplier_id === selectedSupplierId && p.active
     )
-    
+
     const nextDelivery = getNextDeliveryDate(selectedSupplier)
     const daysUntilDelivery = differenceInDays(nextDelivery, new Date())
-    
+
     return supplierProducts.map((product): OrderRecommendation => {
-      // Mock historical usage (in real app, would calculate from inventory transactions)
       const productUsage = 5
-      
-      // Calculate usage per $1000 sales
       const thirtyDaysAgo = subDays(new Date(), 30)
       const thirtyDaySales = orders
         .filter((o) => new Date(o.order_datetime) >= thirtyDaysAgo && !o.is_void && !o.is_refund)
         .reduce((sum, o) => sum + o.gross_amount / 100, 0)
-      
+
       const usagePerThousand = calculateUsagePerThousandSales(
         productUsage,
         thirtyDaySales
       )
-      
-      // Estimate usage for forecast period
       const estimatedUsage = calculateEstimatedUsage(
         salesForecast,
         usagePerThousand
       )
-      
-      // Calculate recommended quantity
       const recommended = calculateRecommendedQuantity(
         product.current_stock,
         product.par_level,
         estimatedUsage,
         daysUntilDelivery
       )
-      
-      // Determine urgency
       const urgency = determineUrgency(
         product.current_stock,
         product.par_level,
@@ -101,7 +107,7 @@ export default function OrderGuide() {
         estimatedUsage,
         daysUntilDelivery
       )
-      
+
       return {
         product,
         current_stock: product.current_stock,
@@ -116,12 +122,11 @@ export default function OrderGuide() {
       }
     })
     .sort((a, b) => {
-      // Sort by urgency first
       const urgencyOrder = { critical: 0, low: 1, adequate: 2, overstocked: 3 }
       return urgencyOrder[a.urgency] - urgencyOrder[b.urgency]
     })
   }, [selectedSupplier, ingredients, orders, salesForecast])
-  
+
   const handleToggleProduct = (productId: string) => {
     setSelectedProducts((prev) => {
       const newSet = new Set(prev)
@@ -133,37 +138,41 @@ export default function OrderGuide() {
       return newSet
     })
   }
-  
+
+  const handleSelectAll = () => {
+    const needsOrder = orderRecommendations.filter(
+      (r) => r.urgency === 'critical' || r.urgency === 'low'
+    )
+    if (needsOrder.length > 0) {
+      setSelectedProducts(new Set(needsOrder.map((r) => r.product.id)))
+    } else {
+      setSelectedProducts(new Set(orderRecommendations.map((r) => r.product.id)))
+    }
+  }
+
   const handleQuantityChange = (productId: string, quantity: number) => {
     setCustomQuantities((prev) => ({
       ...prev,
       [productId]: quantity,
     }))
   }
-  
+
   const getOrderQuantity = (recommendation: OrderRecommendation) => {
     return customQuantities[recommendation.product.id] ?? recommendation.recommended_quantity
   }
-  
-  const handleCreateOrder = async () => {
-    if (!selectedSupplier) return
-    
-    if (selectedProducts.size === 0) {
-      toast.error('Select at least one product')
-      return
-    }
-    
+
+  const createPOForSupplier = async (supplier: Supplier, recommendations: OrderRecommendation[], productIds: Set<string>) => {
     const items: PurchaseOrderItem[] = []
-    
-    selectedProducts.forEach((productId) => {
-      const recommendation = orderRecommendations.find(
+
+    productIds.forEach((productId) => {
+      const recommendation = recommendations.find(
         (r) => r.product.id === productId
       )
       if (!recommendation) return
-      
+
       const quantity = getOrderQuantity(recommendation)
       if (quantity <= 0) return
-      
+
       items.push({
         id: crypto.randomUUID(),
         purchase_order_id: '',
@@ -177,28 +186,25 @@ export default function OrderGuide() {
         line_total: quantity * recommendation.product.cost_per_unit,
       })
     })
-    
-    if (items.length === 0) {
-      toast.error('No items to order')
-      return
-    }
-    
+
+    if (items.length === 0) return null
+
     const subtotal = items.reduce((sum, item) => sum + item.line_total, 0)
     const taxAmount = items.reduce(
       (sum, item) => sum + calculateGST(item.line_total, true),
       0
     )
     const total = subtotal + taxAmount
-    
+
     const poId = crypto.randomUUID()
     const po: PurchaseOrder = {
       id: poId,
       po_number: generatePONumber(purchaseOrders),
       venue_id: 'main-venue',
-      supplier_id: selectedSupplierId,
-      supplier_name: selectedSupplier.name,
+      supplier_id: supplier.id,
+      supplier_name: supplier.name,
       order_date: new Date(),
-      expected_delivery_date: getNextDeliveryDate(selectedSupplier),
+      expected_delivery_date: getNextDeliveryDate(supplier),
       status: 'draft',
       subtotal,
       tax_amount: taxAmount,
@@ -209,26 +215,115 @@ export default function OrderGuide() {
       created_at: new Date(),
       updated_at: new Date(),
     }
-    
-    // Update items with PO ID
+
     items.forEach(item => {
       item.purchase_order_id = poId
     })
-    
+
+    const { addPurchaseOrder } = useDataStore.getState()
+    await addPurchaseOrder(po, items)
+    return po
+  }
+
+  const handleCreateOrder = async () => {
+    if (!selectedSupplier) return
+
+    if (selectedProducts.size === 0) {
+      toast.error('Select at least one product')
+      return
+    }
+
     try {
-      const { addPurchaseOrder } = useDataStore.getState()
-      await addPurchaseOrder(po, items)
-      toast.success(`Purchase order ${po.po_number} created`)
-      
-      // Reset selections
-      setSelectedProducts(new Set())
-      setCustomQuantities({})
+      const po = await createPOForSupplier(selectedSupplier, orderRecommendations, selectedProducts)
+      if (po) {
+        toast.success(`Purchase order ${po.po_number} created`)
+        setSelectedProducts(new Set())
+        setCustomQuantities({})
+      }
     } catch (error) {
       toast.error('Failed to create purchase order')
       console.error(error)
     }
   }
-  
+
+  // Generate All Orders — creates POs for all suppliers with critical/low items
+  const handleGenerateAllOrders = async () => {
+    const activeSuppliers = suppliers.filter((s) => s.active)
+    let ordersCreated = 0
+
+    for (const supplier of activeSuppliers) {
+      const supplierProducts = ingredients.filter(
+        (p) => p.supplier_id === supplier.id && p.active
+      )
+      if (supplierProducts.length === 0) continue
+
+      const nextDelivery = getNextDeliveryDate(supplier)
+      const daysUntilDelivery = differenceInDays(nextDelivery, new Date())
+
+      const recommendations: OrderRecommendation[] = supplierProducts.map((product) => {
+        const productUsage = 5
+        const thirtyDaysAgo = subDays(new Date(), 30)
+        const thirtyDaySales = orders
+          .filter((o) => new Date(o.order_datetime) >= thirtyDaysAgo && !o.is_void && !o.is_refund)
+          .reduce((sum, o) => sum + o.gross_amount / 100, 0)
+
+        const usagePerThousand = calculateUsagePerThousandSales(productUsage, thirtyDaySales)
+        const estimatedUsage = calculateEstimatedUsage(salesForecast, usagePerThousand)
+        const recommended = calculateRecommendedQuantity(
+          product.current_stock,
+          product.par_level,
+          estimatedUsage,
+          daysUntilDelivery
+        )
+        const urgency = determineUrgency(
+          product.current_stock,
+          product.par_level,
+          product.reorder_point || product.par_level * 0.5,
+          estimatedUsage,
+          daysUntilDelivery
+        )
+
+        return {
+          product,
+          current_stock: product.current_stock,
+          par_level: product.par_level,
+          usage_per_thousand_sales: usagePerThousand,
+          forecasted_sales: salesForecast,
+          estimated_usage: estimatedUsage,
+          days_until_delivery: daysUntilDelivery,
+          recommended_quantity: recommended,
+          estimated_cost: recommended * product.cost_per_unit,
+          urgency,
+        }
+      })
+
+      // Only create PO if there are critical or low stock items
+      const needsOrder = recommendations.filter(
+        (r) => r.urgency === 'critical' || r.urgency === 'low'
+      )
+      if (needsOrder.length === 0) continue
+
+      const productIds = new Set(needsOrder.map((r) => r.product.id))
+      try {
+        const po = await createPOForSupplier(supplier, recommendations, productIds)
+        if (po) ordersCreated++
+      } catch (error) {
+        console.error(`Failed to create PO for ${supplier.name}:`, error)
+      }
+    }
+
+    if (ordersCreated > 0) {
+      toast.success(`${ordersCreated} purchase order${ordersCreated !== 1 ? 's' : ''} generated`, {
+        action: {
+          label: 'View Orders',
+          onClick: () => navigate('/inventory/purchase-orders'),
+        },
+      })
+    } else {
+      toast.info('No suppliers need orders — all stock levels are adequate')
+    }
+  }
+
   const totalOrderValue = useMemo(() => {
     let sum = 0
     selectedProducts.forEach((productId) => {
@@ -236,32 +331,52 @@ export default function OrderGuide() {
         (r) => r.product.id === productId
       )
       if (!recommendation) return
-      
+
       const quantity = getOrderQuantity(recommendation)
       sum += quantity * recommendation.product.cost_per_unit
     })
     return sum
   }, [selectedProducts, orderRecommendations, customQuantities])
-  
+
+  // Stats across all suppliers
+  const globalStats = useMemo(() => {
+    let criticalCount = 0
+    let lowCount = 0
+    for (const supplier of suppliers.filter((s) => s.active)) {
+      const supplierProducts = ingredients.filter(
+        (p) => p.supplier_id === supplier.id && p.active
+      )
+      for (const product of supplierProducts) {
+        const dailyUsage = 5 / 7 // Mock: 5 units per week
+        const days = getDaysOfStock(product.current_stock, dailyUsage)
+        if (days < 2) criticalCount++
+        else if (days <= 4) lowCount++
+      }
+    }
+    return { criticalCount, lowCount }
+  }, [suppliers, ingredients])
+
   const urgencyBadge = (urgency: string) => {
     switch (urgency) {
       case 'critical':
         return <Badge variant="destructive">Critical</Badge>
       case 'low':
-        return <Badge className="bg-yellow-500">Low Stock</Badge>
+        return <Badge className="bg-amber-500">Low Stock</Badge>
       case 'adequate':
         return <Badge variant="default">Adequate</Badge>
       case 'overstocked':
         return <Badge variant="secondary">Overstocked</Badge>
     }
   }
-  
+
   const sidebarMetrics = selectedSupplier ? [
     { label: "Products", value: orderRecommendations.length },
     { label: "Selected", value: selectedProducts.size },
     ...(totalOrderValue > 0 ? [{ label: "Order Total", value: `$${(totalOrderValue / 100).toFixed(2)}` }] : []),
   ] : [
     { label: "Suppliers", value: suppliers.filter(s => s.active).length },
+    ...(globalStats.criticalCount > 0 ? [{ label: "Critical", value: globalStats.criticalCount }] : []),
+    ...(globalStats.lowCount > 0 ? [{ label: "Low Stock", value: globalStats.lowCount }] : []),
   ]
 
   const sidebarExtended = selectedSupplier ? [
@@ -281,26 +396,39 @@ export default function OrderGuide() {
     <PageToolbar
       title="Order Guide"
       filters={
-        <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId}>
-          <SelectTrigger className="h-8 w-[200px]">
-            <SelectValue placeholder="Select supplier..." />
-          </SelectTrigger>
-          <SelectContent>
-            {suppliers
-              .filter((s) => s.active)
-              .map((supplier) => (
-                <SelectItem key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId}>
+            <SelectTrigger className="h-8 w-[200px]">
+              <SelectValue placeholder="Select supplier..." />
+            </SelectTrigger>
+            <SelectContent>
+              {suppliers
+                .filter((s) => s.active)
+                .map((supplier) => (
+                  <SelectItem key={supplier.id} value={supplier.id}>
+                    {supplier.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+          {!selectedSupplier && (globalStats.criticalCount > 0 || globalStats.lowCount > 0) && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={handleGenerateAllOrders}
+            >
+              <Zap className="h-3.5 w-3.5 mr-1" />
+              Generate All Orders
+            </Button>
+          )}
+        </div>
       }
       primaryAction={selectedProducts.size > 0 ? {
         label: "Create PO",
         icon: ShoppingCart,
         onClick: handleCreateOrder,
-        variant: "teal",
+        variant: "primary",
       } : undefined}
     />
   )
@@ -308,7 +436,7 @@ export default function OrderGuide() {
   return (
     <PageShell sidebar={sidebar} toolbar={toolbar}>
       <div className="p-4 space-y-4">
-      
+
       {/* Products Table */}
       {selectedSupplier && orderRecommendations.length > 0 && (
         <>
@@ -316,6 +444,9 @@ export default function OrderGuide() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Products</h2>
               <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleSelectAll}>
+                  Select Low/Critical
+                </Button>
                 <Badge variant="outline">
                   {selectedProducts.size} selected
                 </Badge>
@@ -326,7 +457,7 @@ export default function OrderGuide() {
                 )}
               </div>
             </div>
-            
+
             <div className="border rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
@@ -335,6 +466,7 @@ export default function OrderGuide() {
                     <TableHead>Product</TableHead>
                     <TableHead>Current Stock</TableHead>
                     <TableHead>Par Level</TableHead>
+                    <TableHead>Days of Stock</TableHead>
                     <TableHead>Usage/week</TableHead>
                     <TableHead>Recommended</TableHead>
                     <TableHead>Order Qty</TableHead>
@@ -346,11 +478,16 @@ export default function OrderGuide() {
                   {orderRecommendations.map((rec) => {
                     const orderQty = getOrderQuantity(rec)
                     const isSelected = selectedProducts.has(rec.product.id)
-                    
+                    const dailyUsage = rec.estimated_usage / 7
+                    const daysOfStock = getDaysOfStock(rec.current_stock, dailyUsage)
+                    const daysColor = getDaysOfStockColor(daysOfStock)
+
                     return (
                       <TableRow
                         key={rec.product.id}
-                        className={isSelected ? 'bg-blue-50 dark:bg-blue-950' : ''}
+                        className={`${isSelected ? 'bg-blue-50 dark:bg-blue-950' : ''} ${
+                          daysOfStock < 2 ? 'bg-red-50/30 dark:bg-red-950/20' : ''
+                        }`}
                       >
                         <TableCell>
                           <Checkbox
@@ -380,6 +517,11 @@ export default function OrderGuide() {
                         </TableCell>
                         <TableCell>
                           {rec.par_level} {rec.product.unit}
+                        </TableCell>
+                        <TableCell>
+                          <span className={daysColor}>
+                            {daysOfStock >= 999 ? '—' : `${daysOfStock} days`}
+                          </span>
                         </TableCell>
                         <TableCell>
                           {rec.estimated_usage.toFixed(1)} {rec.product.unit}
@@ -414,7 +556,7 @@ export default function OrderGuide() {
               </Table>
             </div>
           </Card>
-          
+
           {selectedProducts.size > 0 && (
             <Card className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950">
               <div className="flex items-center justify-between">
@@ -454,7 +596,7 @@ export default function OrderGuide() {
           )}
         </>
       )}
-      
+
       {selectedSupplier && orderRecommendations.length === 0 && (
         <Card className="p-12 text-center">
           <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -464,16 +606,19 @@ export default function OrderGuide() {
           </p>
         </Card>
       )}
-      
+
       {!selectedSupplier && (
         <Card className="p-12 text-center">
           <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">Select a Supplier</h3>
           <p className="text-sm text-muted-foreground mb-6">
-            Choose a supplier above to see their products and ordering recommendations
+            Choose a supplier above to see their products and ordering recommendations.
+            {(globalStats.criticalCount > 0 || globalStats.lowCount > 0) && (
+              <> Or use <strong>Generate All Orders</strong> to auto-create POs for all low-stock items.</>
+            )}
           </p>
           {suppliers.length === 0 && (
-            <Button onClick={() => (window.location.href = '/suppliers')}>
+            <Button onClick={() => navigate('/suppliers')}>
               Add Suppliers
             </Button>
           )}

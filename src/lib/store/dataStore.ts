@@ -223,12 +223,16 @@ interface DataState {
   calculateMenuItemFields: (item: Types.MenuItem) => Types.MenuItem
   calculateSectionTotals: (sectionId: string) => Partial<Types.MenuSection>
   calculateMenuAnalytics: () => Types.MenuAnalytics
+  loadRecipesFromDB: () => Promise<void>
+  saveRecipeToDB: (recipe: Types.Recipe, ingredients: Types.RecipeIngredient[], isNew: boolean) => Promise<void>
+  deleteRecipeFromDB: (id: string) => Promise<void>
   setRecipes: (recipes: Types.Recipe[]) => void
   addRecipe: (recipe: Types.Recipe) => void
   updateRecipe: (id: string, updates: Partial<Types.Recipe>) => void
   deleteRecipe: (id: string) => void
   publishRecipe: (id: string) => void
   archiveRecipe: (id: string) => void
+  setRecipeIngredients: (recipeIngredients: Types.RecipeIngredient[]) => void
   addRecipeIngredient: (ingredient: Types.RecipeIngredient) => void
   updateRecipeIngredient: (id: string, updates: Partial<Types.RecipeIngredient>) => void
   deleteRecipeIngredient: (id: string) => void
@@ -437,7 +441,6 @@ export const useDataStore = create<DataState>()(
           payment_method: order.payment_method as 'card' | 'cash' | 'digital_wallet'
         }))
         set({ orders: formattedOrders as Types.Order[] })
-        console.log('✅ Loaded orders from DB, dates kept as ISO strings')
       }
     } catch (error) {
       console.error('Failed to load orders:', error)
@@ -1185,7 +1188,60 @@ export const useDataStore = create<DataState>()(
     }
   },
   
+  loadRecipesFromDB: async () => {
+    try {
+      const { loadRecipesFromDB } = await import('@/lib/services/recipeService')
+      const { recipes, recipeIngredients } = await loadRecipesFromDB()
+      set({ recipes, recipeIngredients })
+    } catch (error) {
+      console.error('Failed to load recipes:', error)
+    }
+  },
+
+  saveRecipeToDB: async (recipe, ingredients, isNew) => {
+    try {
+      const { saveRecipeToDB } = await import('@/lib/services/recipeService')
+      await saveRecipeToDB(recipe, ingredients, isNew)
+      // Update local state
+      if (isNew) {
+        set((state) => ({
+          recipes: [...state.recipes, recipe],
+          recipeIngredients: [
+            ...state.recipeIngredients.filter((ri) => ri.recipe_id !== recipe.id),
+            ...ingredients.filter((i) => i.product_id),
+          ],
+        }))
+      } else {
+        set((state) => ({
+          recipes: state.recipes.map((r) => (r.id === recipe.id ? recipe : r)),
+          recipeIngredients: [
+            ...state.recipeIngredients.filter((ri) => ri.recipe_id !== recipe.id),
+            ...ingredients.filter((i) => i.product_id),
+          ],
+        }))
+      }
+    } catch (error) {
+      console.error('Failed to save recipe:', error)
+      throw error
+    }
+  },
+
+  deleteRecipeFromDB: async (id) => {
+    try {
+      const { deleteRecipeFromDB } = await import('@/lib/services/recipeService')
+      await deleteRecipeFromDB(id)
+      set((state) => ({
+        recipes: state.recipes.filter((r) => r.id !== id),
+        recipeIngredients: state.recipeIngredients.filter((ri) => ri.recipe_id !== id),
+      }))
+    } catch (error) {
+      console.error('Failed to delete recipe:', error)
+      throw error
+    }
+  },
+
   setRecipes: (recipes) => set({ recipes }),
+  setRecipeIngredients: (recipeIngredients) => set({ recipeIngredients }),
   addRecipe: (recipe) =>
     set((state) => ({ recipes: [...state.recipes, recipe] })),
   
@@ -1543,32 +1599,41 @@ export const useDataStore = create<DataState>()(
   importOrders: async (orders, orderItems, tenders) => {
     try {
       const { supabase } = await import('@/integrations/supabase/client')
-      
+
       // Save orders to database
       if (orders.length > 0) {
         const ordersData = orders.map(order => ({
           ...order,
-          order_datetime: order.order_datetime instanceof Date 
-            ? order.order_datetime.toISOString() 
+          order_datetime: order.order_datetime instanceof Date
+            ? order.order_datetime.toISOString()
             : order.order_datetime
         }))
-        
+
         const { error } = await supabase
           .from('orders')
           .upsert(ordersData, { onConflict: 'id' })
-        
+
         if (error) console.error('Failed to save orders:', error)
       }
-      
+
       set({ orders, orderItems, tenders })
+
+      // Run theoretical inventory depletion if order items have menu_item_ids
+      if (orderItems.length > 0) {
+        const { calculateDepletion, applyDepletionToIngredients } = await import('@/lib/services/inventoryDepletion')
+        const state = get()
+        const result = calculateDepletion(orderItems, state.menuItems, state.recipes, state.recipeIngredients, state.ingredients)
+        if (result.depletions.length > 0) {
+          const updatedIngredients = applyDepletionToIngredients(result, state.ingredients)
+          set({ ingredients: updatedIngredients })
+        }
+      }
     } catch (error) {
       console.error('Failed to import orders:', error)
       set({ orders, orderItems, tenders })
     }
   },
   importParsedOrders: async (parsedOrders) => {
-    console.log('🔄 Starting import of', parsedOrders.length, 'parsed orders')
-    
     try {
       const { supabase } = await import('@/integrations/supabase/client')
       
@@ -1576,14 +1641,11 @@ export const useDataStore = create<DataState>()(
       const seenOrderNumbers = new Set<string>()
       const deduplicatedInput = parsedOrders.filter((po) => {
         if (seenOrderNumbers.has(po.order_number)) {
-          console.log('⚠️ Duplicate in import file skipped:', po.order_number)
           return false
         }
         seenOrderNumbers.add(po.order_number)
         return true
       })
-      
-      console.log(`📊 After input deduplication: ${deduplicatedInput.length} unique orders`)
       
       // Convert ParsedOrder to database Order type
       const newOrders = deduplicatedInput.map((po) => {
@@ -1621,10 +1683,7 @@ export const useDataStore = create<DataState>()(
         }
       })
       
-      console.log('✅ Transformed to database format:', newOrders.length, 'orders')
-      
       // CRITICAL: Delete ALL existing orders in database to prevent duplicates on re-import
-      console.log('🗑️ Clearing ALL existing orders in database...')
       const { error: deleteError } = await supabase
         .from('orders')
         .delete()
@@ -1636,7 +1695,6 @@ export const useDataStore = create<DataState>()(
       }
       
       // Insert all new orders
-      console.log('💾 Inserting', newOrders.length, 'orders to database...')
       const { error: insertError } = await supabase
         .from('orders')
         .insert(newOrders)
@@ -1646,8 +1704,6 @@ export const useDataStore = create<DataState>()(
         throw insertError
       }
       
-      console.log('✅ Database import complete')
-      
       // CRITICAL: REPLACE all orders in store (not append) to prevent duplicates
       set({
         orders: newOrders as Types.Order[],
@@ -1656,8 +1712,6 @@ export const useDataStore = create<DataState>()(
       })
       
       localStorage.setItem('supersolt-has-data', 'true')
-      
-      console.log(`✅ Store now has ${newOrders.length} orders (replaced, not appended)`)
       
       import('sonner').then(({ toast }) => {
         toast.success(`Imported ${newOrders.length} orders`)
@@ -1674,7 +1728,6 @@ export const useDataStore = create<DataState>()(
       // Save staff to database (if you have a staff table)
       // For now, just set in state - you may need to create a staff table
       set({ staff })
-      console.log('✅ Imported', staff.length, 'staff members')
     } catch (error) {
       console.error('Failed to import staff:', error)
       set({ staff })
@@ -1700,7 +1753,6 @@ export const useDataStore = create<DataState>()(
         if (error) {
           console.error('Failed to save ingredients:', error)
         } else {
-          console.log('✅ Saved', ingredients.length, 'ingredients to database')
         }
       }
       
@@ -1723,7 +1775,6 @@ export const useDataStore = create<DataState>()(
         if (error) {
           console.error('Failed to save suppliers:', error)
         } else {
-          console.log('✅ Saved', suppliers.length, 'suppliers to database')
         }
       }
       
@@ -1740,7 +1791,6 @@ export const useDataStore = create<DataState>()(
       // Save timesheets to database (if you have a timesheets table)
       // For now, just set in state - you may need to create a timesheets table
       set({ timesheets })
-      console.log('✅ Imported', timesheets.length, 'timesheets')
     } catch (error) {
       console.error('Failed to import timesheets:', error)
       set({ timesheets })
@@ -1773,11 +1823,13 @@ export const useDataStore = create<DataState>()(
   
   // Initialize all data from database
   initializeData: async () => {
-    console.log('🔄 Initializing data from database...')
+    set({ isLoading: true })
     const store = get()
-    
+
     try {
       // Load all data in parallel for faster initialization
+      const labourImport = import('@/lib/services/labourService')
+
       await Promise.all([
         store.loadOrdersFromDB(),
         store.loadSuppliersFromDB(),
@@ -1786,11 +1838,33 @@ export const useDataStore = create<DataState>()(
         store.loadStockCountsFromDB(),
         store.loadWasteLogsFromDB(),
         store.loadMenuItemsFromDB(),
+        // Labour module data
+        labourImport.then(async (svc) => {
+          const [staff, shifts, timesheets, templates, availability, swapRequests, budgets] = await Promise.all([
+            svc.loadStaffFromDB(),
+            svc.loadRosterShiftsFromDB(),
+            svc.loadTimesheetsFromDB(),
+            svc.loadShiftTemplatesFromDB(),
+            svc.loadStaffAvailabilityFromDB(),
+            svc.loadShiftSwapRequestsFromDB(),
+            svc.loadLaborBudgetsFromDB(),
+          ])
+          set({
+            staff,
+            rosterShifts: shifts,
+            timesheets,
+            shiftTemplates: templates,
+            staffAvailability: availability,
+            shiftSwapRequests: swapRequests,
+            laborBudgets: budgets,
+          })
+        }),
       ])
-      
-      console.log('✅ Data initialized successfully')
+
     } catch (error) {
-      console.error('❌ Failed to initialize data:', error)
+      console.error('Failed to initialize data:', error)
+    } finally {
+      set({ isLoading: false })
     }
   },
   

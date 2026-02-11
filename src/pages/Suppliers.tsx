@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Building2, Edit, Trash2, ChevronRight } from 'lucide-react'
+import { Plus, Search, Building2, Edit, Trash2, ChevronRight, DollarSign, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +15,37 @@ import { useDataStore } from '@/lib/store/dataStore'
 import { toast } from 'sonner'
 import * as Types from '@/types'
 import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
+import { formatCurrency } from '@/lib/utils/formatters'
+import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns'
+
+const CATEGORY_OPTIONS = [
+  { value: 'all', label: 'All Categories' },
+  { value: 'produce', label: 'Produce' },
+  { value: 'meat', label: 'Meat & Seafood' },
+  { value: 'dry-goods', label: 'Dry Goods' },
+  { value: 'beverages', label: 'Beverages' },
+  { value: 'equipment', label: 'Equipment' },
+  { value: 'other', label: 'Other' },
+]
+
+const CATEGORY_LABELS: Record<string, string> = {
+  produce: 'Produce',
+  meat: 'Meat',
+  'dry-goods': 'Dry Goods',
+  beverages: 'Beverages',
+  equipment: 'Equipment',
+  other: 'Other',
+}
+
+function validateABN(abn: string): boolean {
+  const cleaned = abn.replace(/\s/g, '')
+  if (!/^\d{11}$/.test(cleaned)) return false
+  const weights = [10, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19]
+  const digits = cleaned.split('').map(Number)
+  digits[0] -= 1
+  const sum = digits.reduce((acc, d, i) => acc + d * weights[i], 0)
+  return sum % 89 === 0
+}
 
 const DAYS_OF_WEEK = [
   { value: 0, label: 'Sunday' },
@@ -28,15 +59,18 @@ const DAYS_OF_WEEK = [
 
 export default function Suppliers() {
   const navigate = useNavigate()
-  const { suppliers, ingredients, addSupplier, updateSupplier, deleteSupplier, loadSuppliersFromDB } = useDataStore()
-  
+  const { suppliers, ingredients, purchaseOrders, isLoading, addSupplier, updateSupplier, deleteSupplier, loadSuppliersFromDB, loadPurchaseOrdersFromDB } = useDataStore()
+
   const [searchQuery, setSearchQuery] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingSupplier, setEditingSupplier] = useState<Types.Supplier | null>(null)
   
-  // Load suppliers from Supabase on mount
+  // Load suppliers and POs from Supabase on mount
   useEffect(() => {
     loadSuppliersFromDB()
+    loadPurchaseOrdersFromDB()
   }, [])
   
   const [formData, setFormData] = useState({
@@ -48,8 +82,12 @@ export default function Suppliers() {
     suburb: '',
     state: '',
     postcode: '',
+    abn: '',
+    is_gst_registered: true,
+    category: 'other' as Types.Supplier['category'],
     payment_terms: 'net-30',
     account_number: '',
+    order_method: 'email' as NonNullable<Types.Supplier['order_method']>,
     delivery_days: [1, 3, 5] as number[],
     cutoff_time: '14:00',
     delivery_lead_days: 1,
@@ -58,17 +96,37 @@ export default function Suppliers() {
     active: true,
   })
   
+  // Monthly spend per supplier from delivered POs
+  const monthlySpend = useMemo(() => {
+    const now = new Date()
+    const monthStart = startOfMonth(now)
+    const monthEnd = endOfMonth(now)
+    const spendMap: Record<string, number> = {}
+    purchaseOrders
+      .filter((po) => po.status === 'delivered' && isWithinInterval(new Date(po.order_date), { start: monthStart, end: monthEnd }))
+      .forEach((po) => {
+        spendMap[po.supplier_id] = (spendMap[po.supplier_id] || 0) + po.total
+      })
+    return spendMap
+  }, [purchaseOrders])
+
   const filteredSuppliers = useMemo(() => {
     return suppliers.filter((supplier) => {
+      if (statusFilter === 'active' && !supplier.active) return false
+      if (statusFilter === 'inactive' && supplier.active) return false
+      if (categoryFilter !== 'all' && supplier.category !== categoryFilter) return false
+
       const query = searchQuery.toLowerCase()
+      if (!query) return true
       return (
         supplier.name.toLowerCase().includes(query) ||
         supplier.contact_person?.toLowerCase().includes(query) ||
         supplier.email?.toLowerCase().includes(query) ||
-        supplier.phone?.includes(query)
+        supplier.phone?.includes(query) ||
+        supplier.abn?.includes(query)
       )
     })
-  }, [suppliers, searchQuery])
+  }, [suppliers, searchQuery, categoryFilter, statusFilter])
   
   const getProductCount = (supplierId: string) => {
     return ingredients.filter((i) => i.supplier_id === supplierId && i.active).length
@@ -86,8 +144,12 @@ export default function Suppliers() {
         suburb: supplier.suburb || '',
         state: supplier.state || '',
         postcode: supplier.postcode || '',
+        abn: supplier.abn || '',
+        is_gst_registered: supplier.is_gst_registered ?? true,
+        category: supplier.category || 'other',
         payment_terms: supplier.payment_terms || 'net-30',
         account_number: supplier.account_number || '',
+        order_method: supplier.order_method || 'email',
         delivery_days: supplier.delivery_days,
         cutoff_time: supplier.cutoff_time,
         delivery_lead_days: supplier.delivery_lead_days,
@@ -106,8 +168,12 @@ export default function Suppliers() {
         suburb: '',
         state: '',
         postcode: '',
+        abn: '',
+        is_gst_registered: true,
+        category: 'other',
         payment_terms: 'net-30',
         account_number: '',
+        order_method: 'email',
         delivery_days: [1, 3, 5],
         cutoff_time: '14:00',
         delivery_lead_days: 1,
@@ -129,7 +195,14 @@ export default function Suppliers() {
       toast.error('Select at least one delivery day')
       return
     }
-    
+
+    // ABN validation (if provided)
+    const cleanAbn = formData.abn.replace(/\s/g, '')
+    if (cleanAbn && !validateABN(cleanAbn)) {
+      toast.error('Invalid ABN. Must be a valid 11-digit Australian Business Number.')
+      return
+    }
+
     const supplierData = {
       name: formData.name.trim(),
       contact_person: formData.contact_person.trim() || undefined,
@@ -139,8 +212,12 @@ export default function Suppliers() {
       suburb: formData.suburb.trim() || undefined,
       state: formData.state.trim() || undefined,
       postcode: formData.postcode.trim() || undefined,
+      abn: cleanAbn || undefined,
+      is_gst_registered: formData.is_gst_registered,
+      category: formData.category,
       payment_terms: formData.payment_terms as Types.Supplier['payment_terms'],
       account_number: formData.account_number.trim() || undefined,
+      order_method: formData.order_method as Types.Supplier['order_method'],
       delivery_days: formData.delivery_days,
       cutoff_time: formData.cutoff_time,
       delivery_lead_days: formData.delivery_lead_days,
@@ -203,6 +280,15 @@ export default function Suppliers() {
   
   const activeCount = suppliers.filter(s => s.active).length
   const inactiveCount = suppliers.filter(s => !s.active).length
+  const totalMonthlySpend = Object.values(monthlySpend).reduce((a, b) => a + b, 0)
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    suppliers.forEach(s => {
+      if (s.active) counts[s.category] = (counts[s.category] || 0) + 1
+    })
+    return counts
+  }, [suppliers])
 
   const sidebar = (
     <PageSidebar
@@ -210,8 +296,16 @@ export default function Suppliers() {
       metrics={[
         { label: "Active", value: activeCount },
         { label: "Inactive", value: inactiveCount },
-        { label: "Total", value: suppliers.length },
+        { label: "This Month", value: formatCurrency(totalMonthlySpend) },
       ]}
+      extendedMetrics={
+        Object.keys(categoryCounts).length > 0
+          ? Object.entries(categoryCounts).map(([cat, count]) => ({
+              label: CATEGORY_LABELS[cat] || cat,
+              value: count,
+            }))
+          : undefined
+      }
     />
   )
 
@@ -219,24 +313,51 @@ export default function Suppliers() {
     <PageToolbar
       title="Suppliers"
       filters={
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search suppliers..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8 w-[200px] pl-8 text-sm"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search name, ABN..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-8 w-[180px] pl-8 text-sm"
+            />
+          </div>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="h-8 w-[140px] text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORY_OPTIONS.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as 'all' | 'active' | 'inactive')}>
+            <SelectTrigger className="h-8 w-[110px] text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       }
-      primaryAction={{ label: "Add Supplier", icon: Plus, onClick: () => handleOpenDialog(), variant: "teal" }}
+      primaryAction={{ label: "Add Supplier", icon: Plus, onClick: () => handleOpenDialog(), variant: "primary" }}
     />
   )
 
   return (
     <PageShell sidebar={sidebar} toolbar={toolbar}>
       <div className="p-4">
-      {filteredSuppliers.length === 0 && !searchQuery ? (
+      {isLoading && suppliers.length === 0 ? (
+        <Card className="p-12 text-center">
+          <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin opacity-50" />
+          <p className="text-muted-foreground">Loading suppliers...</p>
+        </Card>
+      ) : filteredSuppliers.length === 0 && !searchQuery ? (
         <Card className="p-12 text-center">
           <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">No Suppliers Yet</h3>
@@ -254,67 +375,83 @@ export default function Suppliers() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>Category</TableHead>
                 <TableHead>Contact</TableHead>
-                <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
-                <TableHead>Products</TableHead>
+                <TableHead>ABN</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Monthly Spend</TableHead>
                 <TableHead className="w-24"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredSuppliers.map((supplier) => (
-                <TableRow
-                  key={supplier.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => navigate(`/suppliers/${supplier.id}`)}
-                >
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{supplier.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{supplier.contact_person || '—'}</TableCell>
-                  <TableCell>{supplier.email || '—'}</TableCell>
-                  <TableCell>{supplier.phone || '—'}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {getProductCount(supplier.id)} products
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={supplier.active ? 'default' : 'secondary'}>
-                      {supplier.active ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenDialog(supplier)}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(supplier.id, supplier.name)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(`/suppliers/${supplier.id}`)}
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filteredSuppliers.map((supplier) => {
+                const spend = monthlySpend[supplier.id] || 0
+                return (
+                  <TableRow
+                    key={supplier.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => navigate(`/suppliers/${supplier.id}`)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">{supplier.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs">
+                        {CATEGORY_LABELS[supplier.category] || supplier.category}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{supplier.contact_person || '—'}</TableCell>
+                    <TableCell>{supplier.phone || '—'}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {supplier.abn ? supplier.abn.replace(/(\d{2})(\d{3})(\d{3})(\d{3})/, '$1 $2 $3 $4') : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={supplier.active ? 'default' : 'secondary'}>
+                        {supplier.active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {spend > 0 ? (
+                        <span className="flex items-center justify-end gap-1 text-sm font-medium">
+                          <DollarSign className="h-3 w-3 text-muted-foreground" />
+                          {(spend / 100).toLocaleString('en-AU', { minimumFractionDigits: 2 })}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenDialog(supplier)}
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(supplier.id, supplier.name)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(`/suppliers/${supplier.id}`)}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
           
@@ -337,6 +474,7 @@ export default function Suppliers() {
           </DialogHeader>
           
           <div className="space-y-4">
+            {/* Basic Info */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="name">Supplier Name *</Label>
@@ -347,7 +485,25 @@ export default function Suppliers() {
                   placeholder="ABC Food Supplies"
                 />
               </div>
-              
+              <div>
+                <Label htmlFor="category">Category</Label>
+                <Select
+                  value={formData.category}
+                  onValueChange={(v) => setFormData({ ...formData, category: v as Types.Supplier['category'] })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORY_OPTIONS.filter(o => o.value !== 'all').map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="contact_person">Contact Name</Label>
                 <Input
@@ -357,8 +513,17 @@ export default function Suppliers() {
                   placeholder="John Smith"
                 />
               </div>
+              <div>
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="0400 000 000"
+                />
+              </div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="email">Email</Label>
@@ -370,29 +535,105 @@ export default function Suppliers() {
                   placeholder="orders@supplier.com"
                 />
               </div>
-              
               <div>
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="0400 000 000"
-                />
+                <Label htmlFor="order_method">Order Method</Label>
+                <Select
+                  value={formData.order_method}
+                  onValueChange={(v) => setFormData({ ...formData, order_method: v as NonNullable<Types.Supplier['order_method']> })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="phone">Phone</SelectItem>
+                    <SelectItem value="online_portal">Online Portal</SelectItem>
+                    <SelectItem value="rep_visit">Rep Visit</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            
+
+            {/* ABN & GST */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="abn">ABN</Label>
+                <Input
+                  id="abn"
+                  value={formData.abn}
+                  onChange={(e) => setFormData({ ...formData, abn: e.target.value })}
+                  placeholder="12 345 678 901"
+                  maxLength={14}
+                />
+                <p className="text-[10px] text-muted-foreground mt-0.5">11-digit Australian Business Number</p>
+              </div>
+              <div className="flex items-end pb-5">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="is_gst_registered"
+                    checked={formData.is_gst_registered}
+                    onCheckedChange={(checked) => setFormData({ ...formData, is_gst_registered: checked as boolean })}
+                  />
+                  <Label htmlFor="is_gst_registered">GST Registered</Label>
+                </div>
+              </div>
+            </div>
+
+            {/* Address */}
             <div>
-              <Label htmlFor="address">Address</Label>
-              <Textarea
+              <Label htmlFor="address">Street Address</Label>
+              <Input
                 id="address"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder="123 Supply St, Melbourne VIC 3000"
-                rows={2}
+                placeholder="123 Supply St"
               />
             </div>
-            
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="suburb">Suburb</Label>
+                <Input
+                  id="suburb"
+                  value={formData.suburb}
+                  onChange={(e) => setFormData({ ...formData, suburb: e.target.value })}
+                  placeholder="Melbourne"
+                />
+              </div>
+              <div>
+                <Label htmlFor="state">State</Label>
+                <Select
+                  value={formData.state || '_none'}
+                  onValueChange={(v) => setFormData({ ...formData, state: v === '_none' ? '' : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">Select</SelectItem>
+                    <SelectItem value="VIC">VIC</SelectItem>
+                    <SelectItem value="NSW">NSW</SelectItem>
+                    <SelectItem value="QLD">QLD</SelectItem>
+                    <SelectItem value="WA">WA</SelectItem>
+                    <SelectItem value="SA">SA</SelectItem>
+                    <SelectItem value="TAS">TAS</SelectItem>
+                    <SelectItem value="ACT">ACT</SelectItem>
+                    <SelectItem value="NT">NT</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="postcode">Postcode</Label>
+                <Input
+                  id="postcode"
+                  value={formData.postcode}
+                  onChange={(e) => setFormData({ ...formData, postcode: e.target.value })}
+                  placeholder="3000"
+                  maxLength={4}
+                />
+              </div>
+            </div>
+
+            {/* Payment & Account */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="payment_terms">Payment Terms</Label>
@@ -412,7 +653,7 @@ export default function Suppliers() {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div>
                 <Label htmlFor="account_number">Account Number</Label>
                 <Input

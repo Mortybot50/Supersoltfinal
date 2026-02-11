@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle, Users, Shield, Trash2, AlertTriangle } from 'lucide-react'
+import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle, Users, Shield, Trash2, AlertTriangle, History, Clock } from 'lucide-react'
+import { PageShell, PageToolbar } from '@/components/shared'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
 import { parseOrdersExcel, downloadTemplate, type ParseResult } from '@/lib/utils/excelParser'
@@ -16,6 +17,17 @@ import { useLoadOrders } from '@/hooks/useLoadOrders'
 import { toast as sonnerToast } from 'sonner'
 import { Separator } from '@/components/ui/separator'
 import { InvoicesTab } from './data-imports/InvoicesTab'
+
+interface ImportHistoryEntry {
+  id: string
+  date: Date
+  type: 'sales' | 'invoices' | 'menu_items' | 'staff'
+  file_name: string
+  records_imported: number
+  records_skipped: number
+  records_errored: number
+  status: 'success' | 'partial' | 'failed'
+}
 
 export default function DataImports() {
   // Sales Data state
@@ -36,15 +48,26 @@ export default function DataImports() {
   const [isProcessingStaff, setIsProcessingStaff] = useState(false)
   const [isImportingStaff, setIsImportingStaff] = useState(false)
   
+  // Import history
+  const [importHistory, setImportHistory] = useState<ImportHistoryEntry[]>([])
+
+  const addHistoryEntry = (entry: Omit<ImportHistoryEntry, 'id' | 'date'>) => {
+    setImportHistory(prev => [{
+      ...entry,
+      id: crypto.randomUUID(),
+      date: new Date(),
+    }, ...prev])
+  }
+
   const { toast } = useToast()
-  const { 
-    orders, 
-    ingredients, 
-    suppliers, 
-    staff, 
+  const {
+    orders,
+    ingredients,
+    suppliers,
+    staff,
     purchaseOrders,
-    exportBackup, 
-    importBackup, 
+    exportBackup,
+    importBackup,
     clearAllData,
     hasImportedData,
     _lastImportDate
@@ -132,26 +155,40 @@ export default function DataImports() {
     setIsImporting(true)
     
     try {
-      console.log('🚀 Starting import of', parseResult.data.length, 'orders')
-      
       // CRITICAL: Import saves to database AND replaces store data
       const { importParsedOrders } = useDataStore.getState()
       await importParsedOrders(parseResult.data)
       
       // Verify final count
       const storeOrderCount = useDataStore.getState().orders.length
-      console.log('✅ Import complete! Store contains:', storeOrderCount, 'orders')
-      
-      toast({
-        title: 'Import successful! 🎉',
-        description: `Imported ${storeOrderCount} orders. Go to Insights → Sales to see your data.`,
+
+      addHistoryEntry({
+        type: 'sales',
+        file_name: selectedFile?.name || 'unknown',
+        records_imported: storeOrderCount,
+        records_skipped: parseResult.summary.invalid_rows,
+        records_errored: parseResult.errors.length,
+        status: parseResult.errors.length > 0 ? 'partial' : 'success',
       })
-      
+
+      toast({
+        title: 'Import successful!',
+        description: `Imported ${storeOrderCount} orders. Go to Insights to see your data.`,
+      })
+
       setSelectedFile(null)
       setParseResult(null)
-      
+
     } catch (error) {
-      console.error('❌ Import error:', error)
+      console.error('Import error:', error)
+      addHistoryEntry({
+        type: 'sales',
+        file_name: selectedFile?.name || 'unknown',
+        records_imported: 0,
+        records_skipped: 0,
+        records_errored: parseResult?.summary.total_rows || 0,
+        status: 'failed',
+      })
       toast({
         title: 'Import failed',
         description: error instanceof Error ? error.message : 'Unknown error',
@@ -204,15 +241,23 @@ export default function DataImports() {
     setIsImportingMenuItems(true)
     
     try {
-      // For now, just show success - implement actual save logic later
+      addHistoryEntry({
+        type: 'menu_items',
+        file_name: menuItemsFile?.name || 'unknown',
+        records_imported: menuItemsResult.summary.valid_rows,
+        records_skipped: menuItemsResult.summary.invalid_rows,
+        records_errored: menuItemsResult.errors.length,
+        status: menuItemsResult.errors.length > 0 ? 'partial' : 'success',
+      })
+
       toast({
-        title: 'Import successful! 🎉',
+        title: 'Import successful!',
         description: `Imported ${menuItemsResult.summary.valid_rows} menu items.`,
       })
-      
+
       setMenuItemsFile(null)
       setMenuItemsResult(null)
-      
+
     } catch (error) {
       console.error('Import error:', error)
       toast({
@@ -267,15 +312,23 @@ export default function DataImports() {
     setIsImportingStaff(true)
     
     try {
-      // For now, just show success - implement actual save logic later
+      addHistoryEntry({
+        type: 'staff',
+        file_name: staffFile?.name || 'unknown',
+        records_imported: staffResult.summary.valid_rows,
+        records_skipped: staffResult.summary.invalid_rows,
+        records_errored: staffResult.errors.length,
+        status: staffResult.errors.length > 0 ? 'partial' : 'success',
+      })
+
       toast({
-        title: 'Import successful! 🎉',
+        title: 'Import successful!',
         description: `Imported ${staffResult.summary.valid_rows} staff members.`,
       })
-      
+
       setStaffFile(null)
       setStaffResult(null)
-      
+
     } catch (error) {
       console.error('Import error:', error)
       toast({
@@ -288,14 +341,13 @@ export default function DataImports() {
     }
   }
   
+  const toolbar = (
+    <PageToolbar title="Data Imports" />
+  )
+
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Data Imports</h1>
-        <p className="text-muted-foreground">
-          Import sales, staff, inventory, and other data from Excel
-        </p>
-      </div>
+    <PageShell toolbar={toolbar}>
+      <div className="p-6 space-y-6">
       
       {/* Data Status & Backup Section */}
       <Card className="p-6">
@@ -377,8 +429,74 @@ export default function DataImports() {
         </Card>
       )}
       
+      {/* Import History */}
+      {importHistory.length > 0 && (
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <History className="h-5 w-5 text-muted-foreground" />
+            <h3 className="text-lg font-semibold">Import History</h3>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date & Time</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>File</TableHead>
+                <TableHead className="text-right">Imported</TableHead>
+                <TableHead className="text-right">Skipped</TableHead>
+                <TableHead className="text-right">Errors</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {importHistory.slice(0, 20).map((entry) => (
+                <TableRow key={entry.id}>
+                  <TableCell className="text-sm">
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="h-3 w-3 text-muted-foreground" />
+                      {format(entry.date, 'dd/MM/yyyy HH:mm')}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="capitalize">
+                      {entry.type.replace('_', ' ')}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm font-mono max-w-48 truncate">{entry.file_name}</TableCell>
+                  <TableCell className="text-right text-sm font-medium text-green-600">
+                    {entry.records_imported}
+                  </TableCell>
+                  <TableCell className="text-right text-sm text-muted-foreground">
+                    {entry.records_skipped}
+                  </TableCell>
+                  <TableCell className="text-right text-sm text-red-600">
+                    {entry.records_errored || 0}
+                  </TableCell>
+                  <TableCell>
+                    {entry.status === 'success' && (
+                      <Badge className="bg-green-600">Success</Badge>
+                    )}
+                    {entry.status === 'partial' && (
+                      <Badge className="bg-yellow-600">Partial</Badge>
+                    )}
+                    {entry.status === 'failed' && (
+                      <Badge variant="destructive">Failed</Badge>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {importHistory.length > 20 && (
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              Showing 20 most recent imports
+            </p>
+          )}
+        </Card>
+      )}
+
       <Separator />
-      
+
       <Tabs defaultValue="sales" className="space-y-4">
         <TabsList>
           <TabsTrigger value="sales">Sales Data</TabsTrigger>
@@ -1159,6 +1277,7 @@ export default function DataImports() {
           )}
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </PageShell>
   )
 }

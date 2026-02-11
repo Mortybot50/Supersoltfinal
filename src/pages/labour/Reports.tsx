@@ -161,10 +161,13 @@ export default function LabourReports() {
     })
   }, [period, periodDates, periodShifts])
 
-  // Penalty rate breakdown
+  // Penalty rate breakdown — all types
   const penaltyBreakdown = useMemo(() => {
     const breakdown: Record<string, { count: number; hours: number; cost: number }> = {
       none: { count: 0, hours: 0, cost: 0 },
+      evening: { count: 0, hours: 0, cost: 0 },
+      late_night: { count: 0, hours: 0, cost: 0 },
+      early_morning: { count: 0, hours: 0, cost: 0 },
       saturday: { count: 0, hours: 0, cost: 0 },
       sunday: { count: 0, hours: 0, cost: 0 },
       public_holiday: { count: 0, hours: 0, cost: 0 },
@@ -172,15 +175,51 @@ export default function LabourReports() {
 
     periodShifts.forEach((s) => {
       const type = s.penalty_type || "none"
-      if (breakdown[type]) {
-        breakdown[type].count += 1
-        breakdown[type].hours += s.total_hours
-        breakdown[type].cost += s.penalty_cost || 0
+      if (!breakdown[type]) {
+        breakdown[type] = { count: 0, hours: 0, cost: 0 }
       }
+      breakdown[type].count += 1
+      breakdown[type].hours += s.total_hours
+      breakdown[type].cost += s.penalty_cost || 0
     })
 
     return breakdown
   }, [periodShifts])
+
+  // Rostered vs actual overtime per staff
+  const overtimeComparison = useMemo(() => {
+    return activeStaff.map((s) => {
+      // Rostered hours
+      const staffShifts = periodShifts.filter((shift) => shift.staff_id === s.id)
+      const rosteredHours = staffShifts.reduce((sum, shift) => sum + shift.total_hours, 0)
+      const rosteredCost = staffShifts.reduce((sum, shift) => sum + shift.total_cost, 0)
+
+      // Actual hours (approved timesheets)
+      const staffTimesheets = approvedTimesheets.filter((t) => t.staff_id === s.id)
+      const actualHours = staffTimesheets.reduce((sum, t) => sum + t.total_hours, 0)
+      const actualPay = staffTimesheets.reduce((sum, t) => sum + t.gross_pay, 0)
+
+      const variance = actualHours - rosteredHours
+      const overtimeRostered = Math.max(0, rosteredHours - 38)
+      const overtimeActual = Math.max(0, actualHours - 38)
+
+      return {
+        id: s.id,
+        name: s.name,
+        role: s.role,
+        rosteredHours,
+        actualHours,
+        variance,
+        rosteredCost,
+        actualPay,
+        overtimeRostered,
+        overtimeActual,
+        overtimeVariance: overtimeActual - overtimeRostered,
+      }
+    })
+      .filter((s) => s.rosteredHours > 0 || s.actualHours > 0)
+      .sort((a, b) => b.variance - a.variance)
+  }, [activeStaff, periodShifts, approvedTimesheets])
 
   // Navigation
   const goToPrevious = () => {
@@ -273,7 +312,7 @@ export default function LabourReports() {
         label: "Export CSV",
         icon: Download,
         onClick: exportToCSV,
-        variant: "teal",
+        variant: "export",
       }}
     />
   )
@@ -515,28 +554,67 @@ export default function LabourReports() {
             <Card>
               <CardHeader>
                 <CardTitle>Penalty Rate Breakdown</CardTitle>
-                <CardDescription>Costs by penalty type</CardDescription>
+                <CardDescription>Costs by penalty type (AU Hospitality Award)</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <div>
                       <div className="font-medium">Regular Hours</div>
-                      <div className="text-sm text-muted-foreground">{penaltyBreakdown.none.count} shifts • {penaltyBreakdown.none.hours.toFixed(1)}h</div>
+                      <div className="text-sm text-muted-foreground">{penaltyBreakdown.none.count} shifts · {penaltyBreakdown.none.hours.toFixed(1)}h</div>
                     </div>
                     <div className="text-right">
                       <div className="font-medium">{formatLabourCost(metrics.baseCost)}</div>
-                      <div className="text-xs text-muted-foreground">100% base rate</div>
+                      <div className="text-xs text-muted-foreground">100% base</div>
                     </div>
                   </div>
+
+                  {penaltyBreakdown.evening.count > 0 && (
+                    <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+                      <div>
+                        <div className="font-medium text-blue-700 dark:text-blue-400">Evening (7pm-12am)</div>
+                        <div className="text-sm text-muted-foreground">{penaltyBreakdown.evening.count} shifts · {penaltyBreakdown.evening.hours.toFixed(1)}h</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium text-blue-600">+{formatLabourCost(penaltyBreakdown.evening.cost)}</div>
+                        <div className="text-xs text-blue-600">115% loading</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {penaltyBreakdown.late_night.count > 0 && (
+                    <div className="flex items-center justify-between p-3 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg">
+                      <div>
+                        <div className="font-medium text-indigo-700 dark:text-indigo-400">Late Night (12am-6am)</div>
+                        <div className="text-sm text-muted-foreground">{penaltyBreakdown.late_night.count} shifts · {penaltyBreakdown.late_night.hours.toFixed(1)}h</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium text-indigo-600">+{formatLabourCost(penaltyBreakdown.late_night.cost)}</div>
+                        <div className="text-xs text-indigo-600">125% loading</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {penaltyBreakdown.early_morning.count > 0 && (
+                    <div className="flex items-center justify-between p-3 bg-sky-50 dark:bg-sky-950/30 rounded-lg">
+                      <div>
+                        <div className="font-medium text-sky-700 dark:text-sky-400">Early Morning (before 7am)</div>
+                        <div className="text-sm text-muted-foreground">{penaltyBreakdown.early_morning.count} shifts · {penaltyBreakdown.early_morning.hours.toFixed(1)}h</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium text-sky-600">+{formatLabourCost(penaltyBreakdown.early_morning.cost)}</div>
+                        <div className="text-xs text-sky-600">115% loading</div>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg">
                     <div>
                       <div className="font-medium text-orange-700 dark:text-orange-400">Saturday</div>
-                      <div className="text-sm text-muted-foreground">{penaltyBreakdown.saturday.count} shifts • {penaltyBreakdown.saturday.hours.toFixed(1)}h</div>
+                      <div className="text-sm text-muted-foreground">{penaltyBreakdown.saturday.count} shifts · {penaltyBreakdown.saturday.hours.toFixed(1)}h</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-medium text-orange-600">{formatLabourCost(penaltyBreakdown.saturday.cost)}</div>
+                      <div className="font-medium text-orange-600">+{formatLabourCost(penaltyBreakdown.saturday.cost)}</div>
                       <div className="text-xs text-orange-600">125% loading</div>
                     </div>
                   </div>
@@ -544,10 +622,10 @@ export default function LabourReports() {
                   <div className="flex items-center justify-between p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
                     <div>
                       <div className="font-medium text-orange-800 dark:text-orange-300">Sunday</div>
-                      <div className="text-sm text-muted-foreground">{penaltyBreakdown.sunday.count} shifts • {penaltyBreakdown.sunday.hours.toFixed(1)}h</div>
+                      <div className="text-sm text-muted-foreground">{penaltyBreakdown.sunday.count} shifts · {penaltyBreakdown.sunday.hours.toFixed(1)}h</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-medium text-orange-700">{formatLabourCost(penaltyBreakdown.sunday.cost)}</div>
+                      <div className="font-medium text-orange-700">+{formatLabourCost(penaltyBreakdown.sunday.cost)}</div>
                       <div className="text-xs text-orange-700">150% loading</div>
                     </div>
                   </div>
@@ -555,10 +633,10 @@ export default function LabourReports() {
                   <div className="flex items-center justify-between p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
                     <div>
                       <div className="font-medium text-purple-800 dark:text-purple-300">Public Holiday</div>
-                      <div className="text-sm text-muted-foreground">{penaltyBreakdown.public_holiday.count} shifts • {penaltyBreakdown.public_holiday.hours.toFixed(1)}h</div>
+                      <div className="text-sm text-muted-foreground">{penaltyBreakdown.public_holiday.count} shifts · {penaltyBreakdown.public_holiday.hours.toFixed(1)}h</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-medium text-purple-700">{formatLabourCost(penaltyBreakdown.public_holiday.cost)}</div>
+                      <div className="font-medium text-purple-700">+{formatLabourCost(penaltyBreakdown.public_holiday.cost)}</div>
                       <div className="text-xs text-purple-700">250% loading</div>
                     </div>
                   </div>
@@ -572,7 +650,7 @@ export default function LabourReports() {
                 <CardDescription>Total additional costs from penalty rates</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8">
+                <div className="text-center py-6">
                   <div className="text-4xl font-bold text-orange-600">{formatLabourCost(metrics.penaltyCost)}</div>
                   <p className="text-muted-foreground mt-2">Additional penalty loading</p>
                   <div className="mt-4 p-4 bg-muted rounded-lg">
@@ -584,6 +662,28 @@ export default function LabourReports() {
                       <span className="text-muted-foreground"> of your total labor cost</span>
                     </div>
                   </div>
+                  {/* Breakdown mini-bars */}
+                  {metrics.penaltyCost > 0 && (
+                    <div className="mt-4 space-y-2 text-left">
+                      {[
+                        { key: "evening", label: "Evening", color: "bg-blue-500" },
+                        { key: "late_night", label: "Late Night", color: "bg-indigo-500" },
+                        { key: "early_morning", label: "Early AM", color: "bg-sky-500" },
+                        { key: "saturday", label: "Saturday", color: "bg-orange-400" },
+                        { key: "sunday", label: "Sunday", color: "bg-orange-500" },
+                        { key: "public_holiday", label: "Public Holiday", color: "bg-purple-500" },
+                      ].filter(({ key }) => penaltyBreakdown[key]?.cost > 0).map(({ key, label, color }) => (
+                        <div key={key} className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${color}`} />
+                          <span className="text-xs flex-1">{label}</span>
+                          <span className="text-xs font-medium">{formatLabourCost(penaltyBreakdown[key].cost)}</span>
+                          <span className="text-[10px] text-muted-foreground w-10 text-right">
+                            {((penaltyBreakdown[key].cost / metrics.penaltyCost) * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -653,7 +753,7 @@ export default function LabourReports() {
               <CardDescription>Compare scheduled hours with actual timesheets</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-4 mb-6">
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span>Rostered Hours</span>
@@ -672,6 +772,71 @@ export default function LabourReports() {
                   />
                 </div>
               </div>
+
+              {/* Per-staff rostered vs actual with overtime */}
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Staff</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead className="text-right">Rostered</TableHead>
+                    <TableHead className="text-right">Actual</TableHead>
+                    <TableHead className="text-right">Variance</TableHead>
+                    <TableHead className="text-right">OT Rostered</TableHead>
+                    <TableHead className="text-right">OT Actual</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {overtimeComparison.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+                        No data for this period
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    overtimeComparison.map((s) => (
+                      <TableRow key={s.id}>
+                        <TableCell className="font-medium cursor-pointer hover:text-teal-600" onClick={() => navigate(`/workforce/people/${s.id}`)}>
+                          {s.name}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="capitalize text-xs">{s.role}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">{s.rosteredHours.toFixed(1)}h</TableCell>
+                        <TableCell className="text-right">{s.actualHours.toFixed(1)}h</TableCell>
+                        <TableCell className="text-right">
+                          <span className={`text-xs font-medium ${
+                            Math.abs(s.variance) <= 1 ? "text-green-600" : Math.abs(s.variance) <= 3 ? "text-orange-600" : "text-red-600"
+                          }`}>
+                            {s.variance >= 0 ? "+" : ""}{s.variance.toFixed(1)}h
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {s.overtimeRostered > 0 ? (
+                            <span className="text-orange-600 text-xs font-medium">{s.overtimeRostered.toFixed(1)}h</span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {s.overtimeActual > 0 ? (
+                            <span className={`text-xs font-medium ${
+                              s.overtimeActual > s.overtimeRostered ? "text-red-600" : "text-orange-600"
+                            }`}>
+                              {s.overtimeActual.toFixed(1)}h
+                              {s.overtimeVariance > 0 && (
+                                <span className="text-red-500 ml-1">(+{s.overtimeVariance.toFixed(1)})</span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>

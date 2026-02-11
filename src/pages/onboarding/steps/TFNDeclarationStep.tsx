@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
+import { isValidTFN } from '@/lib/utils/validation'
 import { Info } from 'lucide-react'
 
 interface TFNDeclarationData {
@@ -39,15 +40,26 @@ export default function TFNDeclarationStep({ staffId, initialData, onComplete, o
     tfn_has_tsl_debt: initialData?.tfn_has_tsl_debt || false
   })
 
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (declarationStatus === 'provided' && !formData.tfn_number) {
-      toast({
-        title: 'TFN Required',
-        description: 'Please provide your Tax File Number.',
-        variant: 'destructive'
-      })
+    const newErrors: Record<string, string> = {}
+
+    if (declarationStatus === 'provided') {
+      if (!formData.tfn_number) {
+        newErrors.tfn_number = 'Tax File Number is required'
+      } else if (!isValidTFN(formData.tfn_number)) {
+        newErrors.tfn_number = 'TFN must be exactly 9 digits'
+      }
+    }
+
+    if (declarationStatus === 'exemption' && !formData.tfn_exemption_reason?.trim()) {
+      newErrors.tfn_exemption_reason = 'Exemption reason is required'
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
       return
     }
 
@@ -101,18 +113,23 @@ export default function TFNDeclarationStep({ staffId, initialData, onComplete, o
             <Label htmlFor="tfn">Tax File Number *</Label>
             <Input
               id="tfn"
-              required
               placeholder="123 456 789"
               maxLength={11}
               value={formData.tfn_number}
               onChange={e => {
                 const value = e.target.value.replace(/[^0-9\s]/g, '')
                 setFormData({ ...formData, tfn_number: value })
+                setErrors(prev => ({ ...prev, tfn_number: '' }))
               }}
+              className={errors.tfn_number ? 'border-destructive' : ''}
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              9 digits - will be encrypted and stored securely
-            </p>
+            {errors.tfn_number ? (
+              <p className="text-sm text-destructive mt-1">{errors.tfn_number}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-1">
+                9 digits - will be encrypted and stored securely
+              </p>
+            )}
           </div>
         )}
 
@@ -121,11 +138,12 @@ export default function TFNDeclarationStep({ staffId, initialData, onComplete, o
             <Label htmlFor="exemption_reason">Exemption Reason *</Label>
             <Textarea
               id="exemption_reason"
-              required
               placeholder="Explain why you have an exemption"
               value={formData.tfn_exemption_reason}
-              onChange={e => setFormData({ ...formData, tfn_exemption_reason: e.target.value })}
+              onChange={e => { setFormData({ ...formData, tfn_exemption_reason: e.target.value }); setErrors(prev => ({ ...prev, tfn_exemption_reason: '' })) }}
+              className={errors.tfn_exemption_reason ? 'border-destructive' : ''}
             />
+            {errors.tfn_exemption_reason && <p className="text-sm text-destructive mt-1">{errors.tfn_exemption_reason}</p>}
           </div>
         )}
 

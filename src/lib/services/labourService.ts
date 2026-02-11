@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client'
+import type { Tables } from '@/integrations/supabase/types'
 import type {
   Staff,
   RosterShift,
@@ -18,29 +19,7 @@ import type {
 // STAFF OPERATIONS
 // ============================================
 
-export interface DBStaff {
-  id: string
-  org_member_id: string
-  date_of_birth?: string
-  gender?: string
-  address_line1?: string
-  address_line2?: string
-  suburb?: string
-  state?: string
-  postcode?: string
-  emergency_contact_name?: string
-  emergency_contact_phone?: string
-  emergency_contact_relationship?: string
-  employment_type: 'full_time' | 'part_time' | 'casual'
-  position?: string
-  award_classification?: string
-  base_hourly_rate?: number
-  start_date?: string
-  end_date?: string
-  onboarding_status: string
-  created_at: string
-  updated_at: string
-}
+export type DBStaff = Tables<'staff'>
 
 export async function loadStaffFromDB(): Promise<Staff[]> {
   try {
@@ -106,36 +85,100 @@ export async function loadStaffFromDB(): Promise<Staff[]> {
   }
 }
 
+export async function updateStaffInDB(staffId: string, updates: Partial<Staff>): Promise<boolean> {
+  try {
+    const staffUpdates: Record<string, unknown> = {}
+
+    if (updates.hourly_rate !== undefined) staffUpdates.base_hourly_rate = updates.hourly_rate / 100
+    if (updates.role) staffUpdates.position = updates.role
+    if (updates.employment_type) staffUpdates.employment_type = updates.employment_type.replace('-', '_')
+    if (updates.award_classification !== undefined) staffUpdates.award_classification = updates.award_classification
+    if (updates.start_date) {
+      staffUpdates.start_date = updates.start_date instanceof Date
+        ? updates.start_date.toISOString().split('T')[0]
+        : String(updates.start_date).split('T')[0]
+    }
+    if (updates.date_of_birth) {
+      staffUpdates.date_of_birth = updates.date_of_birth instanceof Date
+        ? updates.date_of_birth.toISOString().split('T')[0]
+        : String(updates.date_of_birth).split('T')[0]
+    }
+    if (updates.emergency_contact_name !== undefined) staffUpdates.emergency_contact_name = updates.emergency_contact_name
+    if (updates.emergency_contact_phone !== undefined) staffUpdates.emergency_contact_phone = updates.emergency_contact_phone
+    if (updates.emergency_contact_relationship !== undefined) staffUpdates.emergency_contact_relationship = updates.emergency_contact_relationship
+    if (updates.address_line1 !== undefined) staffUpdates.address_line1 = updates.address_line1
+    if (updates.address_line2 !== undefined) staffUpdates.address_line2 = updates.address_line2
+    if (updates.suburb !== undefined) staffUpdates.suburb = updates.suburb
+    if (updates.state !== undefined) staffUpdates.state = updates.state
+    if (updates.postcode !== undefined) staffUpdates.postcode = updates.postcode
+    if (updates.onboarding_status) staffUpdates.onboarding_status = updates.onboarding_status
+
+    if (Object.keys(staffUpdates).length > 0) {
+      const { error } = await supabase
+        .from('staff')
+        .update(staffUpdates)
+        .eq('id', staffId)
+
+      if (error) throw error
+    }
+
+    // Update org_member role if changed
+    if (updates.role) {
+      const { data: staffRow } = await supabase
+        .from('staff')
+        .select('org_member_id')
+        .eq('id', staffId)
+        .single()
+
+      if (staffRow?.org_member_id) {
+        const { error: omError } = await supabase
+          .from('org_members')
+          .update({ role: updates.role })
+          .eq('id', staffRow.org_member_id)
+
+        if (omError) throw omError
+      }
+    }
+
+    return true
+  } catch (error) {
+    console.error('Failed to update staff in DB:', error)
+    return false
+  }
+}
+
+export async function toggleStaffActiveInDB(staffId: string, active: boolean): Promise<boolean> {
+  try {
+    const { data: staffRow } = await supabase
+      .from('staff')
+      .select('org_member_id')
+      .eq('id', staffId)
+      .single()
+
+    if (!staffRow?.org_member_id) {
+      console.error('No org_member_id found for staff:', staffId)
+      return false
+    }
+
+    const { error } = await supabase
+      .from('org_members')
+      .update({ is_active: active })
+      .eq('id', staffRow.org_member_id)
+
+    if (error) throw error
+
+    return true
+  } catch (error) {
+    console.error('Failed to toggle staff active status in DB:', error)
+    return false
+  }
+}
+
 // ============================================
 // ROSTER SHIFTS OPERATIONS
 // ============================================
 
-interface DBRosterShift {
-  id: string
-  org_id: string
-  venue_id: string
-  staff_id: string
-  shift_date: string
-  start_time: string
-  end_time: string
-  break_duration_mins: number
-  position?: string
-  status: string
-  hourly_rate?: number
-  penalty_rate?: number
-  estimated_cost?: number
-  base_cost?: number
-  penalty_cost?: number
-  penalty_type?: string
-  is_open_shift?: boolean
-  template_id?: string
-  notes?: string
-  published_at?: string
-  confirmed_at?: string
-  created_at: string
-  updated_at: string
-  created_by?: string
-}
+type DBRosterShift = Tables<'roster_shifts'>
 
 export async function loadRosterShiftsFromDB(venueId?: string): Promise<RosterShift[]> {
   try {
@@ -307,38 +350,7 @@ export async function publishRosterShifts(shiftIds: string[]): Promise<boolean> 
 // TIMESHEETS OPERATIONS
 // ============================================
 
-interface DBTimesheet {
-  id: string
-  org_id: string
-  venue_id: string
-  staff_id: string
-  roster_shift_id?: string
-  work_date: string
-  clock_in: string
-  clock_out?: string
-  break_start?: string
-  break_end?: string
-  total_break_mins: number
-  total_hours: number
-  clock_in_lat?: number
-  clock_in_lng?: number
-  clock_out_lat?: number
-  clock_out_lng?: number
-  clock_in_method: string
-  status: string
-  hourly_rate?: number
-  penalty_rate?: number
-  overtime_hours?: number
-  total_pay?: number
-  approved_by?: string
-  approved_at?: string
-  rejection_reason?: string
-  edited: boolean
-  edit_reason?: string
-  notes?: string
-  created_at: string
-  updated_at: string
-}
+type DBTimesheet = Tables<'timesheets'>
 
 export async function loadTimesheetsFromDB(venueId?: string, dateRange?: { start: Date; end: Date }): Promise<Timesheet[]> {
   try {
@@ -506,23 +518,7 @@ export async function rejectTimesheetInDB(id: string, reason?: string): Promise<
 // SHIFT TEMPLATES OPERATIONS
 // ============================================
 
-interface DBShiftTemplate {
-  id: string
-  org_id: string
-  venue_id: string
-  name: string
-  description?: string
-  start_time: string
-  end_time: string
-  break_minutes: number
-  position: string
-  days_of_week: number[]
-  usage_count: number
-  last_used_at?: string
-  is_active: boolean
-  created_at: string
-  updated_at: string
-}
+type DBShiftTemplate = Tables<'shift_templates'>
 
 export async function loadShiftTemplatesFromDB(venueId?: string): Promise<ShiftTemplate[]> {
   try {

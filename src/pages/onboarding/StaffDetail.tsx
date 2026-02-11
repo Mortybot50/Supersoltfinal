@@ -90,8 +90,6 @@ export default function StaffDetail() {
     addOnboardingInvite(invite)
     updateStaffOnboarding(member.id, { onboarding_status: 'invited' })
     
-    console.log('Invite URL:', inviteUrl)
-    
     toast.success(`Onboarding invite sent to ${member.email}`)
     
     navigator.clipboard.writeText(inviteUrl)

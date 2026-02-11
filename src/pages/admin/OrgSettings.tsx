@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Save, Upload, Plus, X, GripVertical, Download, AlertCircle, Calendar } from 'lucide-react'
+import { Save, Upload, Plus, X, GripVertical, Download, AlertCircle, Calendar, CheckCircle, ImagePlus } from 'lucide-react'
+import { PageShell, PageToolbar } from '@/components/shared'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -12,10 +13,12 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useDataStore } from '@/lib/store/dataStore'
-import { AU_STATES, AU_TIMEZONES, FSANZ_ALLERGENS, DEFAULT_CSV_COLUMNS, MenuSection, Organization, OrgBranding, OrgMenuDefaults, OrgApprovals, OrgHolidays, OrgExportMappings, OrgSecurity } from '@/types'
+import { useAuth } from '@/contexts/AuthContext'
+import { AU_STATES, AU_TIMEZONES, FSANZ_ALLERGENS, DEFAULT_CSV_COLUMNS, MenuSection, Organization, OrgBranding, OrgMenuDefaults, OrgApprovals, OrgHolidays, OrgExportMappings, OrgSecurity, validateABN, formatABN, MONTH_NAMES } from '@/types'
 import { toast } from 'sonner'
 
 export default function OrgSettings() {
+  const { currentOrg } = useAuth()
   const {
     organization,
     branding,
@@ -38,11 +41,16 @@ export default function OrgSettings() {
   
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [activeTab, setActiveTab] = useState('profile')
-  
-  // Initialize defaults on mount
+  const [abnValid, setAbnValid] = useState<boolean | null>(null)
+  const [logoUploading, setLogoUploading] = useState(false)
+
+  // Initialize defaults on mount, and sync real org name from auth
   useEffect(() => {
     initializeOrgDefaults()
-  }, [initializeOrgDefaults])
+    if (currentOrg?.name && (!organization?.name || organization.name === 'My Restaurant Group')) {
+      updateOrganization({ name: currentOrg.name })
+    }
+  }, [initializeOrgDefaults, currentOrg])
   
   // Local form state (to track unsaved changes)
   const [formData, setFormData] = useState<{
@@ -90,6 +98,32 @@ export default function OrgSettings() {
     setHasUnsavedChanges(hasChanges)
   }, [formData, organization, branding, menuDefaults, approvals, holidays, exportMappings, security])
   
+  // Handle logo upload
+  const handleLogoUpload = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/png,image/jpeg,image/svg+xml'
+    input.onchange = (e: Event) => {
+      const target = e.target as HTMLInputElement
+      const file = target.files?.[0]
+      if (!file) return
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('Logo must be under 2MB')
+        return
+      }
+      setLogoUploading(true)
+      // Create local preview URL (in production, upload to Supabase storage)
+      const url = URL.createObjectURL(file)
+      setFormData((prev) => ({
+        ...prev,
+        branding: { ...prev.branding, logo_url: url },
+      }))
+      setLogoUploading(false)
+      toast.success('Logo uploaded')
+    }
+    input.click()
+  }
+
   // Handle save
   const handleSave = () => {
     // Validation
@@ -97,9 +131,17 @@ export default function OrgSettings() {
       toast.error('Organization name is required')
       return
     }
-    
+
     if (formData.organization.gst_rate_percent < 0 || formData.organization.gst_rate_percent > 100) {
       toast.error('GST rate must be between 0 and 100')
+      return
+    }
+
+    // ABN validation (only if provided)
+    const abnValue = formData.organization.abn?.replace(/\s/g, '')
+    if (abnValue && !validateABN(abnValue)) {
+      toast.error('Invalid ABN — must be a valid 11-digit Australian Business Number')
+      setActiveTab('profile')
       return
     }
     
@@ -146,38 +188,40 @@ export default function OrgSettings() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [hasUnsavedChanges])
   
-  return (
-    <div className="space-y-6">
-      {/* Header with Actions */}
-      <div className="flex items-center justify-between sticky top-0 bg-background z-10 py-4 border-b">
-        <div>
-          <h1 className="text-3xl font-bold">Organization Settings</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage organization-wide defaults and settings
-          </p>
-        </div>
-        
-        <div className="flex gap-2">
+  const toolbar = (
+    <PageToolbar
+      title="Organisation Settings"
+      actions={
+        <>
           {hasUnsavedChanges && (
             <>
-              <Button variant="outline" onClick={handleReset}>
+              <Button variant="outline" size="sm" onClick={handleReset}>
                 Discard Changes
               </Button>
               <Badge variant="destructive" className="flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
-                Unsaved Changes
+                Unsaved
               </Badge>
             </>
           )}
-          <Button variant="outline" onClick={() => publishToVenues()}>
+          <Button variant="outline" size="sm" onClick={() => publishToVenues()}>
             Publish to Venues
           </Button>
-          <Button onClick={handleSave} disabled={!hasUnsavedChanges}>
-            <Save className="h-4 w-4 mr-2" />
-            Save Settings
-          </Button>
-        </div>
-      </div>
+        </>
+      }
+      primaryAction={{
+        label: 'Save Settings',
+        icon: Save,
+        onClick: handleSave,
+        disabled: !hasUnsavedChanges,
+        variant: 'primary',
+      }}
+    />
+  )
+
+  return (
+    <PageShell toolbar={toolbar}>
+      <div className="p-6 space-y-6">
       
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -220,14 +264,38 @@ export default function OrgSettings() {
                   <Input
                     id="abn"
                     placeholder="12 345 678 910"
-                    value={formData.organization.abn || ''}
-                    onChange={(e) =>
+                    maxLength={14}
+                    value={formatABN(formData.organization.abn || '')}
+                    onChange={(e) => {
+                      const cleaned = e.target.value.replace(/[^0-9]/g, '').slice(0, 11)
                       setFormData((prev) => ({
                         ...prev,
-                        organization: { ...prev.organization, abn: e.target.value },
+                        organization: { ...prev.organization, abn: cleaned },
                       }))
-                    }
+                      if (cleaned.length === 11) {
+                        setAbnValid(validateABN(cleaned))
+                      } else if (cleaned.length === 0) {
+                        setAbnValid(null)
+                      } else {
+                        setAbnValid(null)
+                      }
+                    }}
                   />
+                  {abnValid === true && (
+                    <div className="flex items-center gap-1 text-sm text-green-600">
+                      <CheckCircle className="h-3 w-3" />
+                      Valid ABN
+                    </div>
+                  )}
+                  {abnValid === false && (
+                    <div className="flex items-center gap-1 text-sm text-destructive">
+                      <AlertCircle className="h-3 w-3" />
+                      Invalid ABN — check the number
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    11-digit Australian Business Number
+                  </p>
                 </div>
               </div>
               
@@ -340,6 +408,85 @@ export default function OrgSettings() {
                   Used for recipe pricing calculations
                 </p>
               </div>
+
+              <Separator />
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="financial-year">Financial Year Starts</Label>
+                  <Select
+                    value={String(formData.organization.financial_year_start_month || 7)}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        organization: { ...prev.organization, financial_year_start_month: parseInt(value) },
+                      }))
+                    }
+                  >
+                    <SelectTrigger id="financial-year">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MONTH_NAMES.map((month, index) => (
+                        <SelectItem key={index + 1} value={String(index + 1)}>
+                          {month}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Australian default: July
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="currency">Currency</Label>
+                  <Select
+                    value={formData.organization.currency_code || 'AUD'}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        organization: { ...prev.organization, currency_code: value },
+                      }))
+                    }
+                  >
+                    <SelectTrigger id="currency">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="AUD">AUD — Australian Dollar ($)</SelectItem>
+                      <SelectItem value="NZD">NZD — New Zealand Dollar ($)</SelectItem>
+                      <SelectItem value="USD">USD — US Dollar ($)</SelectItem>
+                      <SelectItem value="GBP">GBP — British Pound (£)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="payroll-cycle">Payroll Cycle</Label>
+                  <Select
+                    value={formData.organization.payroll_cycle || 'fortnightly'}
+                    onValueChange={(value: 'weekly' | 'fortnightly' | 'monthly') =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        organization: { ...prev.organization, payroll_cycle: value },
+                      }))
+                    }
+                  >
+                    <SelectTrigger id="payroll-cycle">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="fortnightly">Fortnightly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Determines pay period for timesheets and payroll
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -353,18 +500,49 @@ export default function OrgSettings() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="logo-url">Logo URL (Optional)</Label>
-                <Input
-                  id="logo-url"
-                  placeholder="https://example.com/logo.png"
-                  value={formData.branding.logo_url || ''}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      branding: { ...prev.branding, logo_url: e.target.value },
-                    }))
-                  }
-                />
+                <Label>Organization Logo</Label>
+                <div className="flex items-start gap-4">
+                  <div className="w-24 h-24 rounded-lg border-2 border-dashed flex items-center justify-center bg-muted/30 overflow-hidden">
+                    {formData.branding.logo_url ? (
+                      <img
+                        src={formData.branding.logo_url}
+                        alt="Logo"
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <ImagePlus className="h-8 w-8 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleLogoUpload}
+                      disabled={logoUploading}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {logoUploading ? 'Uploading...' : 'Upload Logo'}
+                    </Button>
+                    {formData.branding.logo_url && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            branding: { ...prev.branding, logo_url: '' },
+                          }))
+                        }
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Remove
+                      </Button>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      PNG, JPG, or SVG. Max 2MB. Shown on receipts and reports.
+                    </p>
+                  </div>
+                </div>
               </div>
               
               <div className="space-y-2">
@@ -1089,6 +1267,7 @@ export default function OrgSettings() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </PageShell>
   )
 }

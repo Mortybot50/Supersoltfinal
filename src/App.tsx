@@ -1,5 +1,6 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { ThemeProvider } from "next-themes"
 import { Toaster } from "@/components/ui/toaster"
 import { Toaster as Sonner } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -24,11 +25,15 @@ import PurchaseOrderDetail from "./pages/inventory/PurchaseOrderDetail"
 import StockCounts from "./pages/inventory/StockCounts"
 import NewStockCount from "./pages/inventory/NewStockCount"
 import Waste from "./pages/inventory/Waste"
+import InventoryReports from "./pages/inventory/InventoryReports"
 
 // Menu & Costing
 import MenuItems from "./pages/MenuItems"
 import Recipes from "./pages/menu/Recipes"
 import RecipeEditor from "./pages/menu/RecipeEditor"
+
+// Sales
+import Sales from "./pages/Sales"
 
 // Workforce
 import Roster from "./pages/labour/Roster"
@@ -61,6 +66,7 @@ const queryClient = new QueryClient()
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
     <TooltipProvider>
       <BrowserRouter>
         <AuthProvider>
@@ -81,6 +87,9 @@ const App = () => (
               <Route index element={<Dashboard />} />
               <Route path="dashboard" element={<Dashboard />} />
 
+              {/* Sales */}
+              <Route path="sales" element={<Sales />} />
+
               {/* Inventory */}
               <Route path="inventory/order-guide" element={<OrderGuide />} />
               <Route path="inventory/ingredients" element={<Ingredients />} />
@@ -91,6 +100,7 @@ const App = () => (
               <Route path="inventory/stock-counts" element={<StockCounts />} />
               <Route path="inventory/stock-counts/new" element={<NewStockCount />} />
               <Route path="inventory/waste" element={<Waste />} />
+              <Route path="inventory/reports" element={<InventoryReports />} />
 
               {/* Menu & Costing */}
               <Route path="menu/items" element={<MenuItems />} />
@@ -132,6 +142,7 @@ const App = () => (
       <Toaster />
       <Sonner />
     </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 )
 

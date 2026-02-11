@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, Fragment } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import {
@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Download, DollarSign, Clock, Users, Calendar, FileSpreadsheet } from "lucide-react"
+import { Download, DollarSign, Clock, Users, Calendar, FileSpreadsheet, ChevronDown, ChevronRight } from "lucide-react"
 import { useDataStore } from "@/lib/store/dataStore"
 import { useRosterMetrics } from "@/lib/hooks/useRosterMetrics"
 import { format, startOfWeek, endOfWeek, addDays, subWeeks, startOfMonth, endOfMonth, isWithinInterval } from "date-fns"
@@ -16,6 +16,8 @@ import { toast } from "sonner"
 import { useNavigate } from "react-router-dom"
 import { PageShell, PageToolbar, PageSidebar, StatusBadge } from "@/components/shared"
 import { formatLabourCost } from "@/lib/utils/rosterCalculations"
+import { formatCurrency } from "@/lib/utils/formatters"
+import { Badge } from "@/components/ui/badge"
 
 type PayrollPeriod = "this-week" | "last-week" | "this-fortnight" | "this-month"
 type ExportFormat = "xero" | "keypay" | "myob" | "csv"
@@ -27,6 +29,16 @@ export default function Payroll() {
 
   const [period, setPeriod] = useState<PayrollPeriod>("this-week")
   const [exportFormat, setExportFormat] = useState<ExportFormat>("csv")
+  const [expandedStaff, setExpandedStaff] = useState<Set<string>>(new Set())
+
+  const toggleExpand = (id: string) => {
+    setExpandedStaff((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const dateRange = useMemo(() => {
     const now = new Date()
@@ -54,6 +66,16 @@ export default function Payroll() {
     })
   }, [timesheets, dateRange])
 
+  interface PenaltyLine {
+    type: string
+    label: string
+    hours: number
+    baseCost: number
+    penaltyCost: number
+    totalCost: number
+    multiplier: number
+  }
+
   const staffBreakdown = useMemo(() => {
     const activeStaff = staff.filter((s) => s.status === "active")
     return activeStaff.map((s) => {
@@ -61,7 +83,7 @@ export default function Payroll() {
       const actualHours = staffTimesheets.reduce((sum, ts) => sum + ts.total_hours, 0)
       const grossPay = staffTimesheets.reduce((sum, ts) => sum + ts.gross_pay, 0)
 
-      // Get rostered hours for period
+      // Get rostered shifts for period (with penalty data)
       const rosteredShifts = rosterShifts.filter((shift) => {
         const shiftDate = new Date(shift.date)
         return shift.staff_id === s.id &&
@@ -69,6 +91,48 @@ export default function Payroll() {
           shift.status !== "cancelled"
       })
       const rosteredHours = rosteredShifts.reduce((sum, shift) => sum + shift.total_hours, 0)
+
+      // Build penalty line breakdown from roster shifts
+      const penaltyMap: Record<string, PenaltyLine> = {}
+      let totalBaseCost = 0
+      let totalPenaltyCost = 0
+
+      rosteredShifts.forEach((shift) => {
+        const pType = shift.penalty_type || "none"
+        totalBaseCost += shift.base_cost || 0
+        totalPenaltyCost += shift.penalty_cost || 0
+
+        if (!penaltyMap[pType]) {
+          const labels: Record<string, string> = {
+            none: "Base Rate",
+            saturday: "Saturday Loading (125%)",
+            sunday: "Sunday Loading (150%)",
+            public_holiday: "Public Holiday (250%)",
+            evening: "Evening Loading (115%)",
+            late_night: "Late Night Loading (125%)",
+            early_morning: "Early Morning Loading (115%)",
+          }
+          penaltyMap[pType] = {
+            type: pType,
+            label: labels[pType] || pType,
+            hours: 0,
+            baseCost: 0,
+            penaltyCost: 0,
+            totalCost: 0,
+            multiplier: shift.penalty_multiplier || 1,
+          }
+        }
+        penaltyMap[pType].hours += shift.total_hours
+        penaltyMap[pType].baseCost += shift.base_cost || 0
+        penaltyMap[pType].penaltyCost += shift.penalty_cost || 0
+        penaltyMap[pType].totalCost += shift.total_cost || 0
+      })
+
+      const penaltyLines = Object.values(penaltyMap).sort((a, b) => {
+        if (a.type === "none") return -1
+        if (b.type === "none") return 1
+        return b.totalCost - a.totalCost
+      })
 
       const superAmount = Math.round(grossPay * 0.115) // 11.5% super
       const variance = actualHours - rosteredHours
@@ -82,6 +146,9 @@ export default function Payroll() {
         actualHours,
         variance,
         grossPay,
+        baseCost: totalBaseCost,
+        penaltyCost: totalPenaltyCost,
+        penaltyLines,
         superAmount,
         total: grossPay + superAmount,
         entryCount: staffTimesheets.length,
@@ -89,6 +156,10 @@ export default function Payroll() {
     }).filter((s) => s.entryCount > 0 || s.rosteredHours > 0)
       .sort((a, b) => b.actualHours - a.actualHours)
   }, [staff, approvedTimesheets, rosterShifts, dateRange])
+
+  const totalPenaltyCost = useMemo(() => {
+    return staffBreakdown.reduce((sum, s) => sum + s.penaltyCost, 0)
+  }, [staffBreakdown])
 
   const totals = useMemo(() => {
     return {
@@ -148,9 +219,9 @@ export default function Payroll() {
         break
       default:
         csvContent = [
-          "Staff Name,Role,Rostered Hours,Actual Hours,Variance,Hourly Rate,Gross Pay,Super (11.5%),Total",
+          "Staff Name,Role,Rostered Hours,Actual Hours,Variance,Hourly Rate,Base Pay,Penalty Loading,Gross Pay,Super (11.5%),Total",
           ...staffBreakdown.map((s) =>
-            `"${s.name}","${s.role}",${s.rosteredHours.toFixed(2)},${s.actualHours.toFixed(2)},${s.variance.toFixed(2)},${(s.hourlyRate / 100).toFixed(2)},${(s.grossPay / 100).toFixed(2)},${(s.superAmount / 100).toFixed(2)},${(s.total / 100).toFixed(2)}`
+            `"${s.name}","${s.role}",${s.rosteredHours.toFixed(2)},${s.actualHours.toFixed(2)},${s.variance.toFixed(2)},${(s.hourlyRate / 100).toFixed(2)},${(s.baseCost / 100).toFixed(2)},${(s.penaltyCost / 100).toFixed(2)},${(s.grossPay / 100).toFixed(2)},${(s.superAmount / 100).toFixed(2)},${(s.total / 100).toFixed(2)}`
           ),
         ].join("\n")
     }
@@ -174,6 +245,7 @@ export default function Payroll() {
         { label: "Staff", value: totals.staffCount },
       ]}
       extendedMetrics={[
+        ...(totalPenaltyCost > 0 ? [{ label: "Penalty Loading", value: formatLabourCost(totalPenaltyCost), color: "orange" as const }] : []),
         { label: "Super (11.5%)", value: formatLabourCost(totals.superAmount) },
         { label: "Total Cost", value: formatLabourCost(totals.total) },
       ]}
@@ -210,7 +282,7 @@ export default function Payroll() {
         label: "Export",
         icon: Download,
         onClick: handleExport,
-        variant: "teal",
+        variant: "export",
       }}
     />
   )
@@ -272,31 +344,87 @@ export default function Payroll() {
               </TableRow>
             ) : (
               <>
-                {staffBreakdown.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-medium">{s.name}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={s.role as "manager" | "supervisor" | "crew"} size="sm" />
-                    </TableCell>
-                    <TableCell className="text-right">{s.rosteredHours.toFixed(1)}h</TableCell>
-                    <TableCell className="text-right">{s.actualHours.toFixed(1)}h</TableCell>
-                    <TableCell className="text-right">
-                      <span className={`text-xs font-medium ${
-                        Math.abs(s.variance) <= 0.5
-                          ? "text-green-600"
-                          : Math.abs(s.variance) <= 1
-                          ? "text-orange-600"
-                          : "text-red-600"
-                      }`}>
-                        {s.variance >= 0 ? "+" : ""}{s.variance.toFixed(1)}h
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">${(s.hourlyRate / 100).toFixed(2)}/hr</TableCell>
-                    <TableCell className="text-right">{formatLabourCost(s.grossPay)}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">{formatLabourCost(s.superAmount)}</TableCell>
-                    <TableCell className="text-right font-medium">{formatLabourCost(s.total)}</TableCell>
-                  </TableRow>
-                ))}
+                {staffBreakdown.map((s) => {
+                  const isExpanded = expandedStaff.has(s.id)
+                  const hasPenalties = s.penaltyLines.length > 1 || (s.penaltyLines.length === 1 && s.penaltyLines[0].type !== "none")
+
+                  return (
+                    <Fragment key={s.id}>
+                      <TableRow
+                        className={`${hasPenalties ? "cursor-pointer hover:bg-muted/50" : ""}`}
+                        onClick={() => hasPenalties && toggleExpand(s.id)}
+                      >
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-1.5">
+                            {hasPenalties && (
+                              isExpanded
+                                ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                                : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
+                            {s.name}
+                            {s.penaltyCost > 0 && (
+                              <Badge variant="outline" className="ml-1.5 text-[9px] px-1 py-0 text-orange-600 border-orange-200 bg-orange-50">
+                                +{formatLabourCost(s.penaltyCost)}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={s.role as "manager" | "supervisor" | "crew"} size="sm" />
+                        </TableCell>
+                        <TableCell className="text-right">{s.rosteredHours.toFixed(1)}h</TableCell>
+                        <TableCell className="text-right">{s.actualHours.toFixed(1)}h</TableCell>
+                        <TableCell className="text-right">
+                          <span className={`text-xs font-medium ${
+                            Math.abs(s.variance) <= 0.5
+                              ? "text-green-600"
+                              : Math.abs(s.variance) <= 1
+                              ? "text-orange-600"
+                              : "text-red-600"
+                          }`}>
+                            {s.variance >= 0 ? "+" : ""}{s.variance.toFixed(1)}h
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">{formatCurrency(s.hourlyRate)}/hr</TableCell>
+                        <TableCell className="text-right">{formatLabourCost(s.grossPay)}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">{formatLabourCost(s.superAmount)}</TableCell>
+                        <TableCell className="text-right font-medium">{formatLabourCost(s.total)}</TableCell>
+                      </TableRow>
+
+                      {/* Penalty breakdown rows */}
+                      {isExpanded && s.penaltyLines.map((line) => (
+                        <TableRow key={`${s.id}-${line.type}`} className="bg-muted/30">
+                          <TableCell className="pl-10 text-xs text-muted-foreground" colSpan={2}>
+                            {line.label}
+                            {line.multiplier > 1 && (
+                              <Badge variant="outline" className="ml-1.5 text-[9px] px-1 py-0">
+                                {Math.round(line.multiplier * 100)}%
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right text-xs text-muted-foreground">{line.hours.toFixed(1)}h</TableCell>
+                          <TableCell />
+                          <TableCell />
+                          <TableCell />
+                          <TableCell className="text-right text-xs">
+                            {line.type === "none"
+                              ? formatLabourCost(line.baseCost)
+                              : (
+                                <span className="text-orange-600">
+                                  {formatLabourCost(line.baseCost)} + {formatLabourCost(line.penaltyCost)}
+                                </span>
+                              )
+                            }
+                          </TableCell>
+                          <TableCell />
+                          <TableCell className="text-right text-xs font-medium">
+                            {formatLabourCost(line.totalCost)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </Fragment>
+                  )
+                })}
                 <TableRow className="bg-muted/50 font-medium">
                   <TableCell>Totals</TableCell>
                   <TableCell>{totals.staffCount} staff</TableCell>

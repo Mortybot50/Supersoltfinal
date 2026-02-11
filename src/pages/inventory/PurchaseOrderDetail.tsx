@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -13,6 +13,7 @@ import {
   Printer,
   Trash2,
   Mail,
+  AlertTriangle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -23,38 +24,84 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useDataStore } from '@/lib/store/dataStore'
 import { PurchaseOrder, PurchaseOrderItem } from '@/types'
+import { logPriceChange, runCostCascade, applyCascadeToState } from '@/lib/services/costCascade'
+import { PageShell, PageToolbar } from '@/components/shared'
+import { calculateCostPerBaseUnit, calculatePackToBaseFactor } from '@/lib/utils/unitConversions'
+import { getDefaultOrgSettings } from '@/lib/venueSettings'
 import { toast } from 'sonner'
-import { format } from 'date-fns'
+import { format, isBefore, differenceInDays } from 'date-fns'
+
+function isOverdue(po: PurchaseOrder): boolean {
+  if (po.status === 'delivered' || po.status === 'cancelled' || po.status === 'draft') return false
+  return isBefore(new Date(po.expected_delivery_date), new Date())
+}
+
+interface ReceiveLineState {
+  quantity: number
+  actualUnitCost: number
+  updateCost: boolean
+}
 
 export default function PurchaseOrderDetail() {
   const { poId } = useParams()
   const navigate = useNavigate()
-  const { 
-    purchaseOrders, 
-    suppliers, 
-    updatePurchaseOrder, 
+  const {
+    purchaseOrders,
+    suppliers,
+    ingredients,
+    recipes,
+    recipeIngredients,
+    menuItems,
+    updatePurchaseOrder,
+    updateIngredient,
     deletePurchaseOrder,
     loadPurchaseOrdersFromDB,
-    loadSuppliersFromDB 
+    loadSuppliersFromDB,
+    setIngredients: setStoreIngredients,
+    setRecipes,
+    setRecipeIngredients: setStoreRecipeIngredients,
+    setMenuItems,
   } = useDataStore()
-  
+
   const [submitDialogOpen, setSubmitDialogOpen] = useState(false)
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [receiveDialogOpen, setReceiveDialogOpen] = useState(false)
   const [emailMessage, setEmailMessage] = useState('')
   const [cancellationReason, setCancellationReason] = useState('')
-  const [receivedQuantities, setReceivedQuantities] = useState<Record<string, number>>({})
-  
+  const [receiveLines, setReceiveLines] = useState<Record<string, ReceiveLineState>>({})
+
   useEffect(() => {
     loadPurchaseOrdersFromDB()
     loadSuppliersFromDB()
   }, [])
-  
+
   const po = purchaseOrders.find((p: PurchaseOrder) => p.id === poId)
   const supplier = po ? suppliers.find((s) => s.id === po.supplier_id) : null
-  
+  const overdue = po ? isOverdue(po) : false
+  const daysOverdue = overdue && po
+    ? differenceInDays(new Date(), new Date(po.expected_delivery_date))
+    : 0
+
+  // Calculate price variance summary for the receive dialog
+  const receiveVarianceSummary = useMemo(() => {
+    if (!po?.items) return { totalVariance: 0, itemsWithVariance: 0 }
+    let totalVariance = 0
+    let itemsWithVariance = 0
+    for (const item of po.items) {
+      const line = receiveLines[item.id]
+      if (!line) continue
+      const diff = line.actualUnitCost - item.unit_cost
+      if (diff !== 0 && line.quantity > 0) {
+        totalVariance += diff * line.quantity
+        itemsWithVariance++
+      }
+    }
+    return { totalVariance, itemsWithVariance }
+  }, [po?.items, receiveLines])
+
   if (!po) {
     return (
       <div className="p-6">
@@ -67,18 +114,18 @@ export default function PurchaseOrderDetail() {
       </div>
     )
   }
-  
+
   const canEdit = po.status === 'draft'
   const canSubmit = po.status === 'draft'
   const canCancel = po.status === 'draft' || po.status === 'submitted'
   const canReceive = po.status === 'submitted' || po.status === 'confirmed'
-  
+
   const handleSubmit = () => {
     if (!supplier?.email) {
       toast.error('Supplier has no email address')
       return
     }
-    
+
     const defaultMessage = `Hi ${supplier.contact_person || 'there'},
 
 Please find our purchase order ${po.po_number} attached.
@@ -91,11 +138,11 @@ Please confirm receipt of this order.
 
 Thank you,
 Team`
-    
+
     setEmailMessage(defaultMessage)
     setSubmitDialogOpen(true)
   }
-  
+
   const confirmSubmit = async () => {
     try {
       await updatePurchaseOrder(po.id, {
@@ -103,50 +150,49 @@ Team`
         submitted_at: new Date(),
         submitted_by: 'current-user',
       })
-      
+
       toast.success(`Purchase order sent to ${supplier?.email}`)
       setSubmitDialogOpen(false)
-      
-      console.log('Email sent:', {
-        to: supplier?.email,
-        subject: `Purchase Order ${po.po_number}`,
-        body: emailMessage,
-      })
+
     } catch (error) {
       toast.error('Failed to submit order')
     }
   }
-  
+
   const handleCancel = () => {
     setCancelDialogOpen(true)
   }
-  
+
   const confirmCancel = async () => {
     if (!cancellationReason.trim()) {
       toast.error('Cancellation reason is required')
       return
     }
-    
+
     try {
       await updatePurchaseOrder(po.id, {
         status: 'cancelled',
         cancelled_at: new Date(),
         cancellation_reason: cancellationReason,
       })
-      
+
       toast.success('Purchase order cancelled')
       setCancelDialogOpen(false)
     } catch (error) {
       toast.error('Failed to cancel order')
     }
   }
-  
+
   const handleReceive = () => {
-    const quantities: Record<string, number> = {}
+    const lines: Record<string, ReceiveLineState> = {}
     po.items?.forEach((item: PurchaseOrderItem) => {
-      quantities[item.id] = (item.quantity_ordered) - (item.quantity_received || 0)
+      lines[item.id] = {
+        quantity: (item.quantity_ordered) - (item.quantity_received || 0),
+        actualUnitCost: item.unit_cost,
+        updateCost: false,
+      }
     })
-    setReceivedQuantities(quantities)
+    setReceiveLines(lines)
     setReceiveDialogOpen(true)
   }
 
@@ -154,26 +200,95 @@ Team`
     try {
       const updatedItems = po.items?.map((item: PurchaseOrderItem) => ({
         ...item,
-        quantity_received: (item.quantity_received || 0) + (receivedQuantities[item.id] || 0),
+        quantity_received: (item.quantity_received || 0) + (receiveLines[item.id]?.quantity || 0),
       }))
 
       const allReceived = updatedItems?.every(
         (item: PurchaseOrderItem) => (item.quantity_received || 0) >= (item.quantity_ordered)
       )
-      
+
       await updatePurchaseOrder(po.id, {
         items: updatedItems,
         status: allReceived ? 'delivered' : 'confirmed',
         ...(allReceived && { delivered_at: new Date() }),
       })
-      
-      toast.success('Delivery recorded')
+
+      // Update ingredient stock and optionally cost, then cascade
+      const gpThreshold = getDefaultOrgSettings().below_gp_threshold_alert_percent ?? 60
+      const costChangedIngredients: Array<{ id: string; oldCost: number; newCost: number }> = []
+
+      for (const item of po.items || []) {
+        const line = receiveLines[item.id]
+        if (!line || line.quantity <= 0) continue
+
+        const ingredient = ingredients.find((i) => i.id === item.ingredient_id)
+        if (!ingredient) continue
+
+        const updates: Record<string, unknown> = {
+          current_stock: ingredient.current_stock + line.quantity,
+        }
+
+        // Update cost if user opted in and the price changed
+        if (line.updateCost && line.actualUnitCost !== item.unit_cost) {
+          updates.cost_per_unit = line.actualUnitCost
+          updates.last_cost_update = new Date()
+          costChangedIngredients.push({
+            id: ingredient.id,
+            oldCost: ingredient.cost_per_unit,
+            newCost: line.actualUnitCost,
+          })
+        }
+
+        await updateIngredient(ingredient.id, updates)
+      }
+
+      // Run cost cascade for each ingredient whose cost changed
+      let totalAffectedRecipes = 0
+      let totalGpAlerts = 0
+      let currentIngredients = ingredients
+      let currentRecipes = recipes
+      let currentRecipeIngredients = recipeIngredients
+      let currentMenuItems = menuItems
+
+      for (const change of costChangedIngredients) {
+        await logPriceChange(change.id, change.oldCost, change.newCost, 'invoice')
+        const ing = currentIngredients.find((i) => i.id === change.id)
+        const packToBase = calculatePackToBaseFactor(ing?.units_per_pack ?? 1, ing?.unit_size ?? 1, ing?.unit ?? 'ea')
+        const unitCostExBase = calculateCostPerBaseUnit(change.newCost, packToBase)
+
+        const cascade = runCostCascade(change.id, change.newCost, unitCostExBase, currentIngredients, currentRecipes, currentRecipeIngredients, currentMenuItems, gpThreshold)
+        if (cascade.affectedRecipes.length > 0) {
+          const applied = applyCascadeToState(cascade, currentIngredients, currentRecipes, currentRecipeIngredients, currentMenuItems, change.newCost, unitCostExBase)
+          currentIngredients = applied.ingredients
+          currentRecipes = applied.recipes
+          currentRecipeIngredients = applied.recipeIngredients
+          currentMenuItems = applied.menuItems
+          totalAffectedRecipes += cascade.affectedRecipes.length
+          totalGpAlerts += cascade.gpAlerts.length
+        }
+      }
+
+      // Apply cascaded state if any costs changed
+      if (costChangedIngredients.length > 0) {
+        setStoreIngredients(currentIngredients)
+        setRecipes(currentRecipes)
+        setStoreRecipeIngredients(currentRecipeIngredients)
+        setMenuItems(currentMenuItems)
+      }
+
+      if (costChangedIngredients.length > 0) {
+        const alertMsg = totalGpAlerts > 0 ? ` ${totalGpAlerts} GP alert(s)!` : ''
+        toast.success(`Delivery recorded. ${costChangedIngredients.length} price update(s), ${totalAffectedRecipes} recipe(s) recalculated.${alertMsg}`)
+      } else {
+        toast.success('Delivery recorded. Stock updated.')
+      }
+
       setReceiveDialogOpen(false)
     } catch (error) {
       toast.error('Failed to record delivery')
     }
   }
-  
+
   const handleDelete = async () => {
     if (confirm(`Delete ${po.po_number}? This cannot be undone.`)) {
       try {
@@ -185,64 +300,64 @@ Team`
       }
     }
   }
-  
+
   const handlePrint = () => {
     window.print()
   }
-  
+
   const handleDownload = () => {
     toast.info('PDF download coming soon')
   }
-  
-  return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate('/inventory/purchase-orders')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
+
+  const toolbar = (
+    <PageToolbar
+      title={po.po_number}
+      actions={
+        <>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/inventory/purchase-orders')}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> Back
           </Button>
-          <div>
-            <div className="flex items-center gap-3">
-              <FileText className="h-6 w-6 text-muted-foreground" />
-              <h1 className="text-3xl font-bold">{po.po_number}</h1>
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">
-              Created {format(new Date(po.created_at || po.order_date), 'dd MMM yyyy')} 
-              {po.created_by_name && ` by ${po.created_by_name}`}
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex gap-2">
-          {canSubmit && (
-            <Button onClick={handleSubmit} size="lg">
-              <Send className="h-4 w-4 mr-2" />
-              Submit Order
-            </Button>
+          <Separator orientation="vertical" className="h-5" />
+          {overdue && (
+            <Badge variant="destructive">
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              {daysOverdue}d Overdue
+            </Badge>
           )}
           {canReceive && (
-            <Button onClick={handleReceive} variant="outline">
+            <Button onClick={handleReceive} variant="outline" size="sm">
               <Package className="h-4 w-4 mr-2" />
-              Receive Items
+              Receive
             </Button>
           )}
-          <Button variant="outline" onClick={handlePrint}>
+          <Button variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />
             Print
           </Button>
-          <Button variant="outline" onClick={handleDownload}>
+          <Button variant="outline" size="sm" onClick={handleDownload}>
             <Download className="h-4 w-4 mr-2" />
             Download
           </Button>
           {canEdit && (
-            <Button variant="ghost" onClick={handleDelete}>
+            <Button variant="ghost" size="sm" onClick={handleDelete}>
               <Trash2 className="h-4 w-4" />
             </Button>
           )}
-        </div>
-      </div>
-      
+        </>
+      }
+      primaryAction={canSubmit ? {
+        label: 'Submit Order',
+        icon: Send,
+        onClick: handleSubmit,
+        variant: 'primary',
+      } : undefined}
+    />
+  )
+
+  return (
+    <PageShell toolbar={toolbar}>
+      <div className="p-6 space-y-6">
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-6">
           <div className="flex items-center justify-between mb-2">
@@ -275,7 +390,7 @@ Team`
             </Button>
           )}
         </Card>
-        
+
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-2">
             <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -298,23 +413,28 @@ Team`
             </>
           )}
         </Card>
-        
-        <Card className="p-6">
+
+        <Card className={`p-6 ${overdue ? 'border-red-300 dark:border-red-700' : ''}`}>
           <div className="flex items-center gap-2 mb-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <p className="text-sm font-medium text-muted-foreground">Delivery</p>
           </div>
-          <p className="font-semibold">
+          <p className={`font-semibold ${overdue ? 'text-red-600' : ''}`}>
             {format(new Date(po.expected_delivery_date), 'EEEE, dd MMM yyyy')}
           </p>
-          {supplier && (
+          {overdue && (
+            <p className="text-sm text-red-600 mt-1 font-medium">
+              {daysOverdue} day{daysOverdue !== 1 ? 's' : ''} overdue
+            </p>
+          )}
+          {supplier && !overdue && (
             <p className="text-sm text-muted-foreground mt-1">
               {supplier.delivery_lead_days} day lead time
             </p>
           )}
         </Card>
       </div>
-      
+
       <Card className="p-6">
         <h3 className="text-lg font-semibold mb-4">Order Items</h3>
         <Table>
@@ -329,37 +449,48 @@ Team`
             </TableRow>
           </TableHeader>
           <TableBody>
-            {po.items?.map((item: PurchaseOrderItem) => (
-              <TableRow key={item.id}>
-                <TableCell className="font-medium">{item.ingredient_name}</TableCell>
-                <TableCell>{item.unit}</TableCell>
-                <TableCell className="text-right">{item.quantity_ordered || item.quantity}</TableCell>
-                <TableCell className="text-right">
-                  <span
-                    className={
-                      (item.quantity_received || 0) >= (item.quantity_ordered || item.quantity)
-                        ? 'text-green-600 font-semibold'
-                        : (item.quantity_received || 0) > 0
-                        ? 'text-orange-600 font-semibold'
-                        : ''
-                    }
-                  >
-                    {item.quantity_received || 0}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">
-                  ${(item.unit_cost / 100).toFixed(2)}
-                </TableCell>
-                <TableCell className="text-right font-semibold">
-                  ${(item.line_total / 100).toFixed(2)}
-                </TableCell>
-              </TableRow>
-            ))}
+            {po.items?.map((item: PurchaseOrderItem) => {
+              const receiveProgress = item.quantity_ordered > 0
+                ? ((item.quantity_received || 0) / item.quantity_ordered) * 100
+                : 0
+
+              return (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">{item.ingredient_name}</TableCell>
+                  <TableCell>{item.unit}</TableCell>
+                  <TableCell className="text-right">{item.quantity_ordered || item.quantity}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <span
+                        className={
+                          (item.quantity_received || 0) >= (item.quantity_ordered || item.quantity)
+                            ? 'text-green-600 font-semibold'
+                            : (item.quantity_received || 0) > 0
+                            ? 'text-orange-600 font-semibold'
+                            : ''
+                        }
+                      >
+                        {item.quantity_received || 0}
+                      </span>
+                      {po.status === 'delivered' && receiveProgress >= 100 && (
+                        <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    ${(item.unit_cost / 100).toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold">
+                    ${(item.line_total / 100).toFixed(2)}
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
-        
+
         <Separator className="my-4" />
-        
+
         <div className="flex justify-end">
           <div className="w-64 space-y-2">
             <div className="flex justify-between text-sm">
@@ -378,20 +509,21 @@ Team`
           </div>
         </div>
       </Card>
-      
+
       {po.notes && (
         <Card className="p-6">
           <h3 className="text-sm font-semibold mb-2">Notes</h3>
           <p className="text-sm text-muted-foreground">{po.notes}</p>
         </Card>
       )}
-      
+
+      {/* Submit Dialog */}
       <Dialog open={submitDialogOpen} onOpenChange={setSubmitDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Submit Purchase Order</DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div>
               <Label>Send to:</Label>
@@ -400,7 +532,7 @@ Team`
                 <p className="font-medium">{supplier?.email}</p>
               </div>
             </div>
-            
+
             <div>
               <Label htmlFor="email_message">Email Message</Label>
               <Textarea
@@ -411,7 +543,7 @@ Team`
                 className="mt-2 font-mono text-sm"
               />
             </div>
-            
+
             <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
               <p className="text-sm">
                 <strong>Note:</strong> This will send an email to {supplier?.email} with
@@ -419,7 +551,7 @@ Team`
               </p>
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setSubmitDialogOpen(false)}>
               Cancel
@@ -431,7 +563,8 @@ Team`
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
+      {/* Cancel Dialog */}
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -440,7 +573,7 @@ Team`
               Provide a reason for cancelling this purchase order
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               Please provide a reason for cancelling this order:
@@ -452,7 +585,7 @@ Team`
               rows={4}
             />
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setCancelDialogOpen(false)}>
               Back
@@ -464,58 +597,133 @@ Team`
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
+      {/* Receive Dialog — Enhanced with price variance */}
       <Dialog open={receiveDialogOpen} onOpenChange={setReceiveDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Receive Items</DialogTitle>
+            <DialogTitle>Receive Items — {po.po_number}</DialogTitle>
+            <DialogDescription>
+              Enter quantity received and actual unit cost for each item. Stock will be updated automatically.
+            </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Enter the quantity received for each item:
-            </p>
-            
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Product</TableHead>
-                  <TableHead>Ordered</TableHead>
-                  <TableHead>Previously Received</TableHead>
-                  <TableHead>Receiving Now</TableHead>
+                  <TableHead className="text-right">Ordered</TableHead>
+                  <TableHead className="text-right">Prev. Received</TableHead>
+                  <TableHead className="text-right w-24">Receiving</TableHead>
+                  <TableHead className="text-right">PO Cost</TableHead>
+                  <TableHead className="text-right w-28">Actual Cost</TableHead>
+                  <TableHead className="text-right">Variance</TableHead>
+                  <TableHead className="text-center w-20">Update Cost</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {po.items?.map((item: PurchaseOrderItem) => {
                   const remaining = (item.quantity_ordered) - (item.quantity_received || 0)
-                  
+                  const line = receiveLines[item.id]
+                  if (!line) return null
+
+                  const costDiff = line.actualUnitCost - item.unit_cost
+                  const variancePercent = item.unit_cost > 0
+                    ? ((costDiff / item.unit_cost) * 100).toFixed(1)
+                    : '0'
+
                   return (
-                    <TableRow key={item.id}>
+                    <TableRow key={item.id} className={costDiff !== 0 ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''}>
                       <TableCell className="font-medium">{item.ingredient_name}</TableCell>
-                      <TableCell>{item.quantity_ordered || item.quantity}</TableCell>
-                      <TableCell>{item.quantity_received || 0}</TableCell>
-                      <TableCell>
+                      <TableCell className="text-right">{item.quantity_ordered}</TableCell>
+                      <TableCell className="text-right">{item.quantity_received || 0}</TableCell>
+                      <TableCell className="text-right">
                         <Input
                           type="number"
                           min="0"
                           max={remaining}
-                          value={receivedQuantities[item.id] || 0}
+                          value={line.quantity}
                           onChange={(e) =>
-                            setReceivedQuantities({
-                              ...receivedQuantities,
-                              [item.id]: parseInt(e.target.value) || 0,
+                            setReceiveLines({
+                              ...receiveLines,
+                              [item.id]: { ...line, quantity: parseInt(e.target.value) || 0 },
                             })
                           }
-                          className="w-24"
+                          className="w-20 text-right"
                         />
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        ${(item.unit_cost / 100).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={line.actualUnitCost}
+                          onChange={(e) =>
+                            setReceiveLines({
+                              ...receiveLines,
+                              [item.id]: { ...line, actualUnitCost: parseInt(e.target.value) || 0 },
+                            })
+                          }
+                          className={`w-24 text-right ${costDiff !== 0 ? 'border-amber-400' : ''}`}
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {costDiff !== 0 ? (
+                          <span className={costDiff > 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'}>
+                            {costDiff > 0 ? '+' : ''}${(costDiff / 100).toFixed(2)}
+                            <span className="text-xs ml-1">({variancePercent}%)</span>
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {costDiff !== 0 && (
+                          <Checkbox
+                            checked={line.updateCost}
+                            onCheckedChange={(checked) =>
+                              setReceiveLines({
+                                ...receiveLines,
+                                [item.id]: { ...line, updateCost: checked === true },
+                              })
+                            }
+                          />
+                        )}
                       </TableCell>
                     </TableRow>
                   )
                 })}
               </TableBody>
             </Table>
+
+            {/* Variance summary */}
+            {receiveVarianceSummary.itemsWithVariance > 0 && (
+              <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                    {receiveVarianceSummary.itemsWithVariance} item{receiveVarianceSummary.itemsWithVariance !== 1 ? 's' : ''} with price variance.
+                    Net impact: {receiveVarianceSummary.totalVariance > 0 ? '+' : ''}
+                    ${(receiveVarianceSummary.totalVariance / 100).toFixed(2)}
+                  </span>
+                </div>
+                <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                  Check "Update Cost" to update the ingredient's unit cost in the system.
+                </p>
+              </div>
+            )}
+
+            <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                Received quantities will be added to ingredient stock levels automatically.
+              </p>
+            </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setReceiveDialogOpen(false)}>
               Cancel
@@ -527,6 +735,7 @@ Team`
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </PageShell>
   )
 }

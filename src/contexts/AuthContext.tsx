@@ -74,24 +74,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Fetch user's profile and organizations
   const fetchUserData = async (userId: string) => {
-    console.log("[AuthContext] fetchUserData started for userId:", userId);
     try {
       // Fetch profile
-      console.log("[AuthContext] Fetching profile...");
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", userId)
         .single();
 
-      console.log("[AuthContext] Profile result:", { profileData, profileError });
-
       if (profileData) {
         setProfile(profileData as Profile);
       }
 
       // Fetch user's organizations through org_members
-      console.log("[AuthContext] Fetching org_members...");
       const { data: memberships, error: membershipsError } = await supabase
         .from("org_members")
         .select(`
@@ -105,8 +100,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         `)
         .eq("user_id", userId)
         .eq("is_active", true);
-
-      console.log("[AuthContext] Memberships result:", { memberships, membershipsError });
 
       if (memberships && memberships.length > 0) {
         const orgs = (memberships as unknown as MembershipWithOrg[])
@@ -135,11 +128,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         // Fetch venues for current org
-        console.log("[AuthContext] Fetching venues...");
         await fetchVenues(orgToUse.id);
-        console.log("[AuthContext] Venues fetched");
       }
-      console.log("[AuthContext] fetchUserData completed");
     } catch (error) {
       console.error("[AuthContext] Error fetching user data:", error);
     }

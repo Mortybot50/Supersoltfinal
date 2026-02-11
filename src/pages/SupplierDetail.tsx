@@ -4,12 +4,11 @@ import {
   ArrowLeft,
   Building2,
   Package,
-  Calendar,
-  FileText,
   Plus,
   Edit,
   Trash2,
   Search,
+  ShoppingCart,
 } from 'lucide-react'
 import { getBaseUnit, calculatePackToBaseFactor, calculateCostPerBaseUnit, formatPackSizeText, formatBaseUnitCost } from '@/lib/utils/unitConversions'
 import { Button } from '@/components/ui/button'
@@ -26,6 +25,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useDataStore } from '@/lib/store/dataStore'
 import { Ingredient } from '@/types'
 import { toast } from 'sonner'
+import { PageShell, PageToolbar, PageSidebar } from '@/components/shared'
+import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths } from 'date-fns'
 
 const CATEGORIES = [
   { value: 'produce', label: 'Produce' },
@@ -44,7 +45,7 @@ const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 export default function SupplierDetail() {
   const { supplierId } = useParams()
   const navigate = useNavigate()
-  const { suppliers, ingredients, addIngredient, updateIngredient, deleteIngredient, loadSuppliersFromDB, loadIngredientsFromDB } = useDataStore()
+  const { suppliers, ingredients, purchaseOrders, addIngredient, updateIngredient, deleteIngredient, loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB } = useDataStore()
   
   const supplier = suppliers.find((s) => s.id === supplierId)
   
@@ -65,6 +66,7 @@ export default function SupplierDetail() {
   useEffect(() => {
     loadSuppliersFromDB()
     loadIngredientsFromDB()
+    loadPurchaseOrdersFromDB()
   }, [])
   
   const [productForm, setProductForm] = useState({
@@ -110,6 +112,47 @@ export default function SupplierDetail() {
     return grouped
   }, [filteredProducts])
   
+  // Purchase orders for this supplier
+  const supplierPOs = useMemo(() => {
+    return purchaseOrders
+      .filter((po) => po.supplier_id === supplierId)
+      .sort((a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime())
+  }, [purchaseOrders, supplierId])
+
+  // Monthly spend tracking
+  const spendMetrics = useMemo(() => {
+    const now = new Date()
+    const thisMonthStart = startOfMonth(now)
+    const thisMonthEnd = endOfMonth(now)
+    const lastMonthStart = startOfMonth(subMonths(now, 1))
+    const lastMonthEnd = endOfMonth(subMonths(now, 1))
+
+    let thisMonth = 0
+    let lastMonth = 0
+    let allTime = 0
+
+    supplierPOs
+      .filter((po) => po.status === 'delivered')
+      .forEach((po) => {
+        const d = new Date(po.order_date)
+        allTime += po.total
+        if (isWithinInterval(d, { start: thisMonthStart, end: thisMonthEnd })) thisMonth += po.total
+        if (isWithinInterval(d, { start: lastMonthStart, end: lastMonthEnd })) lastMonth += po.total
+      })
+
+    return { thisMonth, lastMonth, allTime, orderCount: supplierPOs.length }
+  }, [supplierPOs])
+
+  const formatCurrency = (cents: number) => `$${(cents / 100).toLocaleString('en-AU', { minimumFractionDigits: 2 })}`
+
+  const PO_STATUS_COLORS: Record<string, string> = {
+    draft: 'bg-gray-100 text-gray-700',
+    submitted: 'bg-blue-100 text-blue-700',
+    confirmed: 'bg-yellow-100 text-yellow-700',
+    delivered: 'bg-green-100 text-green-700',
+    cancelled: 'bg-red-100 text-red-700',
+  }
+
   if (!supplier) {
     return (
       <Card className="p-12 text-center">
@@ -119,6 +162,13 @@ export default function SupplierDetail() {
         </Button>
       </Card>
     )
+  }
+
+  const ORDER_METHOD_LABELS: Record<string, string> = {
+    email: 'Email',
+    phone: 'Phone',
+    online_portal: 'Online Portal',
+    rep_visit: 'Rep Visit',
   }
   
   const handleOpenProductDialog = (product?: Ingredient) => {
@@ -252,83 +302,68 @@ export default function SupplierDetail() {
     return null
   }
   
-  return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={() => navigate('/suppliers')}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <Building2 className="h-8 w-8 text-muted-foreground" />
-            <div>
-              <h1 className="text-3xl font-bold">{supplier.name}</h1>
-              <p className="text-muted-foreground">{supplier.contact_person}</p>
-            </div>
-          </div>
+  const sidebar = (
+    <PageSidebar
+      title={supplier.name}
+      metrics={[
+        { label: "Products", value: supplierProducts.length },
+        { label: "Orders", value: spendMetrics.orderCount },
+        { label: "This Month", value: formatCurrency(spendMetrics.thisMonth) },
+      ]}
+      extendedMetrics={[
+        { label: "Last Month", value: formatCurrency(spendMetrics.lastMonth) },
+        { label: "All Time", value: formatCurrency(spendMetrics.allTime) },
+        { label: "Lead Time", value: `${supplier.delivery_lead_days}d` },
+        { label: "Payment", value: supplier.payment_terms?.toUpperCase() || '—' },
+      ]}
+      quickActions={[
+        { label: "Add Product", icon: Plus, onClick: () => handleOpenProductDialog() },
+        { label: "Create PO", icon: ShoppingCart, onClick: () => navigate(`/inventory/purchase-orders/new?supplier=${supplierId}`) },
+      ]}
+    />
+  )
+
+  const toolbar = (
+    <PageToolbar
+      title={supplier.name}
+      filters={
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/suppliers')}>
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back
+          </Button>
+          <Badge variant={supplier.active ? 'default' : 'secondary'}>
+            {supplier.active ? 'Active' : 'Inactive'}
+          </Badge>
+          {supplier.abn && (
+            <span className="text-xs text-muted-foreground font-mono">
+              ABN {supplier.abn.replace(/(\d{2})(\d{3})(\d{3})(\d{3})/, '$1 $2 $3 $4')}
+            </span>
+          )}
         </div>
-        <Badge variant={supplier.active ? 'default' : 'secondary'} className="text-sm">
-          {supplier.active ? 'Active' : 'Inactive'}
-        </Badge>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Package className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Products</p>
-          </div>
-          <p className="text-2xl font-bold">{supplierProducts.length}</p>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Delivery Days</p>
-          </div>
-          <div className="flex gap-1">
-            {supplier.delivery_days.map((day) => (
-              <Badge key={day} variant="outline" className="text-xs">
-                {DAYS_OF_WEEK[day]}
-              </Badge>
-            ))}
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <FileText className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Cutoff Time</p>
-          </div>
-          <p className="text-xl font-bold">{supplier.cutoff_time}</p>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <FileText className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Lead Time</p>
-          </div>
-          <p className="text-xl font-bold">{supplier.delivery_lead_days} day{supplier.delivery_lead_days !== 1 ? 's' : ''}</p>
-        </Card>
-      </div>
-      
+      }
+    />
+  )
+
+  return (
+    <PageShell sidebar={sidebar} toolbar={toolbar}>
+      <div className="p-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="products">
             <Package className="h-4 w-4 mr-2" />
             Products ({supplierProducts.length})
           </TabsTrigger>
+          <TabsTrigger value="orders">
+            <ShoppingCart className="h-4 w-4 mr-2" />
+            Orders ({supplierPOs.length})
+          </TabsTrigger>
           <TabsTrigger value="info">
             <Building2 className="h-4 w-4 mr-2" />
-            Supplier Info
-          </TabsTrigger>
-          <TabsTrigger value="orders">
-            <FileText className="h-4 w-4 mr-2" />
-            Order History
+            Info
           </TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="products" className="space-y-4">
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
@@ -346,7 +381,7 @@ export default function SupplierDetail() {
                 Add Product
               </Button>
             </div>
-            
+
             {supplierProducts.length === 0 ? (
               <div className="text-center py-12">
                 <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -441,66 +476,162 @@ export default function SupplierDetail() {
             )}
           </Card>
         </TabsContent>
-        
-        <TabsContent value="info">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Supplier Information</h3>
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <Label className="text-muted-foreground">Contact Name</Label>
-                <p className="font-medium">{supplier.contact_person || '—'}</p>
-              </div>
-              
-              <div>
-                <Label className="text-muted-foreground">Email</Label>
-                <p className="font-medium">{supplier.email || '—'}</p>
-              </div>
-              
-              <div>
-                <Label className="text-muted-foreground">Phone</Label>
-                <p className="font-medium">{supplier.phone || '—'}</p>
-              </div>
-              
-              <div>
-                <Label className="text-muted-foreground">Account Number</Label>
-                <p className="font-medium">{supplier.account_number || '—'}</p>
-              </div>
-              
-              <div className="col-span-2">
-                <Label className="text-muted-foreground">Address</Label>
-                <p className="font-medium">{supplier.address || '—'}</p>
-              </div>
-              
-              <div>
-                <Label className="text-muted-foreground">Payment Terms</Label>
-                <p className="font-medium">{supplier.payment_terms || '—'}</p>
-              </div>
-              
-              <div>
-                <Label className="text-muted-foreground">Minimum Order</Label>
-                <p className="font-medium">
-                  {supplier.minimum_order
-                    ? `$${(supplier.minimum_order / 100).toFixed(2)}`
-                    : '—'}
-                </p>
-              </div>
-              
-              <div className="col-span-2">
-                <Label className="text-muted-foreground">Notes</Label>
-                <p className="font-medium">{supplier.notes || '—'}</p>
-              </div>
-            </div>
-          </Card>
+
+        <TabsContent value="orders" className="space-y-4">
+          {supplierPOs.length === 0 ? (
+            <Card className="p-12 text-center">
+              <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Orders Yet</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Order history will appear here once you start placing orders
+              </p>
+              <Button onClick={() => navigate(`/inventory/purchase-orders/new?supplier=${supplierId}`)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Purchase Order
+              </Button>
+            </Card>
+          ) : (
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>PO #</TableHead>
+                    <TableHead>Order Date</TableHead>
+                    <TableHead>Expected Delivery</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Items</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {supplierPOs.map((po) => (
+                    <TableRow
+                      key={po.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => navigate(`/inventory/purchase-orders/${po.id}`)}
+                    >
+                      <TableCell className="font-mono font-medium">{po.po_number}</TableCell>
+                      <TableCell>{format(new Date(po.order_date), 'dd MMM yyyy')}</TableCell>
+                      <TableCell>{format(new Date(po.expected_delivery_date), 'dd MMM yyyy')}</TableCell>
+                      <TableCell>
+                        <Badge className={PO_STATUS_COLORS[po.status] || ''}>
+                          {po.status.charAt(0).toUpperCase() + po.status.slice(1)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{po.items?.length || 0}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(po.total)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+          )}
         </TabsContent>
-        
-        <TabsContent value="orders">
-          <Card className="p-12 text-center">
-            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Order History</h3>
-            <p className="text-sm text-muted-foreground">
-              Order history will appear here once you start placing orders
-            </p>
-          </Card>
+
+        <TabsContent value="info">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="p-6">
+              <h3 className="text-sm font-semibold uppercase text-muted-foreground mb-4">Contact Details</h3>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-muted-foreground text-xs">Contact Name</Label>
+                  <p className="font-medium">{supplier.contact_person || '—'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Email</Label>
+                  <p className="font-medium">{supplier.email || '—'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Phone</Label>
+                  <p className="font-medium">{supplier.phone || '—'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Order Method</Label>
+                  <p className="font-medium">{ORDER_METHOD_LABELS[supplier.order_method || ''] || '—'}</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <h3 className="text-sm font-semibold uppercase text-muted-foreground mb-4">Business Details</h3>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-muted-foreground text-xs">ABN</Label>
+                  <p className="font-medium font-mono">
+                    {supplier.abn
+                      ? supplier.abn.replace(/(\d{2})(\d{3})(\d{3})(\d{3})/, '$1 $2 $3 $4')
+                      : '—'}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">GST Registered</Label>
+                  <p className="font-medium">{supplier.is_gst_registered ? 'Yes' : 'No'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Account Number</Label>
+                  <p className="font-medium">{supplier.account_number || '—'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Payment Terms</Label>
+                  <p className="font-medium">{supplier.payment_terms?.toUpperCase() || '—'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Minimum Order</Label>
+                  <p className="font-medium">
+                    {supplier.minimum_order ? formatCurrency(supplier.minimum_order) : '—'}
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <h3 className="text-sm font-semibold uppercase text-muted-foreground mb-4">Address</h3>
+              <div className="space-y-1">
+                {supplier.address && <p className="font-medium">{supplier.address}</p>}
+                {(supplier.suburb || supplier.state || supplier.postcode) && (
+                  <p className="font-medium">
+                    {[supplier.suburb, supplier.state, supplier.postcode].filter(Boolean).join(' ')}
+                  </p>
+                )}
+                {!supplier.address && !supplier.suburb && (
+                  <p className="text-muted-foreground">No address on file</p>
+                )}
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <h3 className="text-sm font-semibold uppercase text-muted-foreground mb-4">Delivery</h3>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-muted-foreground text-xs">Delivery Days</Label>
+                  <div className="flex gap-1 mt-1">
+                    {supplier.delivery_days.map((day) => (
+                      <Badge key={day} variant="outline" className="text-xs">
+                        {DAYS_OF_WEEK[day]}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Order Cutoff</Label>
+                  <p className="font-medium">{supplier.cutoff_time}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Lead Time</Label>
+                  <p className="font-medium">{supplier.delivery_lead_days} day{supplier.delivery_lead_days !== 1 ? 's' : ''}</p>
+                </div>
+              </div>
+            </Card>
+
+            {supplier.notes && (
+              <Card className="p-6 col-span-full">
+                <h3 className="text-sm font-semibold uppercase text-muted-foreground mb-2">Notes</h3>
+                <p className="text-sm whitespace-pre-wrap">{supplier.notes}</p>
+              </Card>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
       
@@ -698,6 +829,7 @@ export default function SupplierDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </PageShell>
   )
 }

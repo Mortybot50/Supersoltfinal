@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
 import { validateBSB, lookupBank, formatBSB } from '@/lib/utils/bsbLookup'
+import { isValidAccountNumber } from '@/lib/utils/validation'
 import { CheckCircle, AlertCircle } from 'lucide-react'
 
 interface BankDetailsData {
@@ -60,15 +61,22 @@ export default function BankDetailsStep({ staffId, initialData, onComplete, onBa
     setFormData({ ...formData, bank_bsb: cleaned })
   }
 
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!bsbValid) {
-      toast({
-        title: 'Invalid BSB',
-        description: 'Please enter a valid 6-digit BSB number.',
-        variant: 'destructive'
-      })
+    const newErrors: Record<string, string> = {}
+
+    if (!formData.bank_account_name.trim()) newErrors.bank_account_name = 'Account name is required'
+    if (!bsbValid) newErrors.bank_bsb = 'Enter a valid 6-digit BSB number'
+    if (!formData.bank_account_number) {
+      newErrors.bank_account_number = 'Account number is required'
+    } else if (!isValidAccountNumber(formData.bank_account_number)) {
+      newErrors.bank_account_number = 'Account number must be 6-10 digits'
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
       return
     }
 
@@ -133,13 +141,13 @@ export default function BankDetailsStep({ staffId, initialData, onComplete, onBa
           <Label htmlFor="account_number">Account Number *</Label>
           <Input
             id="account_number"
-            required
             placeholder="12345678"
-            pattern="[0-9]{6,10}"
             maxLength={10}
             value={formData.bank_account_number}
-            onChange={e => setFormData({ ...formData, bank_account_number: e.target.value.replace(/[^0-9]/g, '') })}
+            onChange={e => { setFormData({ ...formData, bank_account_number: e.target.value.replace(/[^0-9]/g, '') }); setErrors(prev => ({ ...prev, bank_account_number: '' })) }}
+            className={errors.bank_account_number ? 'border-destructive' : ''}
           />
+          {errors.bank_account_number && <p className="text-sm text-destructive mt-1">{errors.bank_account_number}</p>}
         </div>
 
         <div>

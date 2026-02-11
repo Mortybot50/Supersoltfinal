@@ -1,20 +1,12 @@
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/integrations/supabase/client'
 import { useMemo } from 'react'
-import { useDataStore } from '@/lib/store/dataStore'
-import { 
-  calculateNetSales, 
-  calculateAverageCheck, 
-  calculateVariance,
-  calculateRefundMetrics,
-  calculateChannelMix,
-  calculatePaymentMix
-} from '@/lib/utils/calculations'
 import type { SalesMetrics, RefundMetrics, ChannelMetrics, PaymentMix } from '@/types'
 
 interface SalesFilters {
-  startDate?: Date
-  endDate?: Date
-  venueIds?: string[]
-  channels?: string[]
+  venueId?: string
+  startDate?: string // ISO string
+  endDate?: string   // ISO string
 }
 
 interface SalesMetricsResult {
@@ -22,95 +14,139 @@ interface SalesMetricsResult {
   refunds: RefundMetrics | null
   channelMix: ChannelMetrics[]
   paymentMix: PaymentMix[]
+  orders: Array<{
+    id: string
+    order_datetime: string
+    net_amount: number
+    channel: string
+    is_void: boolean
+    is_refund: boolean
+    payment_method: string | null
+  }>
   hasData: boolean
+  isLoading: boolean
 }
 
 export function useSalesMetrics(filters?: SalesFilters): SalesMetricsResult {
-  const { orders, orderItems, tenders, isLoading } = useDataStore()
-  
+  const { venueId, startDate, endDate } = filters || {}
+
+  const { data: rawOrders, isLoading } = useQuery({
+    queryKey: ['salesMetrics', venueId, startDate, endDate],
+    queryFn: async () => {
+      let query = supabase
+        .from('orders')
+        .select('id, order_datetime, channel, gross_amount, net_amount, is_void, is_refund, refund_reason, payment_method')
+      if (venueId) query = query.eq('venue_id', venueId)
+      if (startDate) query = query.gte('order_datetime', startDate)
+      if (endDate) query = query.lte('order_datetime', endDate)
+      const { data, error } = await query.order('order_datetime')
+      if (error) throw error
+      return data || []
+    },
+    enabled: !!venueId,
+  })
+
   return useMemo(() => {
-    console.log('🔍 useSalesMetrics - Store data:', { 
-      ordersCount: orders.length, 
-      orderItemsCount: orderItems.length,
-      tendersCount: tenders.length,
-      isLoading 
+    const orders = rawOrders || []
+
+    if (isLoading || orders.length === 0) {
+      return {
+        metrics: null,
+        refunds: null,
+        channelMix: [],
+        paymentMix: [],
+        orders,
+        hasData: false,
+        isLoading,
+      }
+    }
+
+    const validOrders = orders.filter(o => !o.is_void)
+    const nonRefundOrders = validOrders.filter(o => !o.is_refund)
+
+    // Net sales (cents) — refunds subtract
+    const netSales = validOrders.reduce(
+      (sum, o) => sum + (o.is_refund ? -o.net_amount : o.net_amount),
+      0
+    )
+    const totalOrders = nonRefundOrders.length
+    const avgCheck = totalOrders > 0 ? netSales / totalOrders : 0
+
+    // Refund metrics
+    const refundOrders = orders.filter(o => o.is_refund)
+    const voidOrders = orders.filter(o => o.is_void)
+    const totalRefundValue = Math.abs(refundOrders.reduce((sum, o) => sum + o.net_amount, 0))
+
+    const refunds: RefundMetrics = {
+      refund_count: refundOrders.length,
+      refund_rate_percent: orders.length > 0 ? (refundOrders.length / orders.length) * 100 : 0,
+      refund_value: totalRefundValue,
+      refund_value_percent: netSales > 0 ? (totalRefundValue / netSales) * 100 : 0,
+      void_count: voidOrders.length,
+      void_rate_percent: orders.length > 0 ? (voidOrders.length / orders.length) * 100 : 0,
+    }
+
+    // Channel mix
+    const byChannel = new Map<string, typeof validOrders>()
+    validOrders.forEach(o => {
+      const arr = byChannel.get(o.channel) || []
+      arr.push(o)
+      byChannel.set(o.channel, arr)
     })
-    
-    if (isLoading) {
-      return {
-        metrics: null,
-        refunds: null,
-        channelMix: [],
-        paymentMix: [],
-        hasData: false
+    const channelMix: ChannelMetrics[] = Array.from(byChannel.entries()).map(
+      ([channel, chOrders]) => {
+        const chSales = chOrders.reduce(
+          (sum, o) => sum + (o.is_refund ? -o.net_amount : o.net_amount),
+          0
+        )
+        return {
+          channel,
+          sales: chSales,
+          orders: chOrders.length,
+          avg_check: chOrders.length > 0 ? chSales / chOrders.length : 0,
+          share_pct: netSales > 0 ? (chSales / netSales) * 100 : 0,
+        }
       }
-    }
+    )
 
-    if (orders.length === 0) {
-      return {
-        metrics: null,
-        refunds: null,
-        channelMix: [],
-        paymentMix: [],
-        hasData: false
-      }
-    }
-    
-    // Apply filters
-    let filteredOrders = orders
-    
-    if (filters?.startDate && filters?.endDate) {
-      filteredOrders = filteredOrders.filter(o => {
-        const orderDate = new Date(o.order_datetime)
-        return orderDate >= filters.startDate! && orderDate <= filters.endDate!
+    // Payment mix from orders.payment_method
+    const byPayment = new Map<string, { amount: number; count: number }>()
+    const totalPaymentAmount = validOrders.reduce((sum, o) => sum + o.net_amount, 0)
+    validOrders.forEach(o => {
+      const method = o.payment_method || 'unknown'
+      const existing = byPayment.get(method) || { amount: 0, count: 0 }
+      existing.amount += o.net_amount
+      existing.count += 1
+      byPayment.set(method, existing)
+    })
+    const paymentMix: PaymentMix[] = Array.from(byPayment.entries()).map(
+      ([method, data]) => ({
+        payment_method: method,
+        amount: data.amount,
+        transaction_count: data.count,
+        share_pct: totalPaymentAmount > 0 ? (data.amount / totalPaymentAmount) * 100 : 0,
+        avg_transaction: data.count > 0 ? data.amount / data.count : 0,
       })
-    }
-    
-    if (filters?.venueIds && filters.venueIds.length > 0) {
-      filteredOrders = filteredOrders.filter(o => filters.venueIds!.includes(o.venue_id))
-    }
-    
-    if (filters?.channels && filters.channels.length > 0) {
-      filteredOrders = filteredOrders.filter(o => filters.channels!.includes(o.channel))
-    }
+    )
 
-    if (filteredOrders.length === 0) {
-      return {
-        metrics: null,
-        refunds: null,
-        channelMix: [],
-        paymentMix: [],
-        hasData: false
-      }
-    }
-    
-    // Calculate metrics
-    const netSales = calculateNetSales(filteredOrders)
-    const avgCheck = calculateAverageCheck(filteredOrders)
-    const totalOrders = filteredOrders.filter(o => !o.is_void).length
-    
-    const filteredOrderIds = new Set(filteredOrders.map(o => o.id))
-    const filteredItems = orderItems.filter(item => filteredOrderIds.has(item.order_id))
-    const totalItems = filteredItems.reduce((sum, item) => sum + item.quantity, 0)
-    
-    const filteredTenders = tenders.filter(t => filteredOrderIds.has(t.order_id))
-    
     const metrics: SalesMetrics = {
       net_sales: netSales,
       avg_check: avgCheck,
       total_orders: totalOrders,
-      total_items: totalItems,
-      items_per_order: totalOrders > 0 ? totalItems / totalOrders : 0,
+      total_items: 0,
+      items_per_order: 0,
       variance_vs_previous: { absolute: 0, percentage: null },
-      variance_vs_forecast: { absolute: 0, percentage: null }
+      variance_vs_forecast: { absolute: 0, percentage: null },
     }
-    
+
     return {
       metrics,
-      refunds: calculateRefundMetrics(filteredOrders),
-      channelMix: calculateChannelMix(filteredOrders),
-      paymentMix: calculatePaymentMix(filteredTenders),
-      hasData: true
+      refunds,
+      channelMix,
+      paymentMix,
+      orders,
+      hasData: true,
+      isLoading: false,
     }
-  }, [orders, orderItems, tenders, isLoading, filters])
+  }, [rawOrders, isLoading])
 }

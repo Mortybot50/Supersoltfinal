@@ -12,6 +12,8 @@ export interface Organization {
   gst_rate_percent: number
   price_display_mode: 'INC_GST' | 'EX_GST'
   default_gp_target_percent: number
+  financial_year_start_month: number // 1-12, default 7 (July for AU)
+  payroll_cycle: 'weekly' | 'fortnightly' | 'monthly'
   created_at: Date
   updated_at: Date
 }
@@ -95,7 +97,33 @@ export const DEFAULT_ORG_SETTINGS = {
   gst_rate_percent: 10,
   price_display_mode: 'INC_GST' as const,
   default_gp_target_percent: 65,
+  financial_year_start_month: 7,
+  payroll_cycle: 'fortnightly' as const,
 }
+
+// Australian Business Number validation
+export function validateABN(abn: string): boolean {
+  const cleaned = abn.replace(/\s/g, '')
+  if (!/^\d{11}$/.test(cleaned)) return false
+  const weights = [10, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19]
+  const digits = cleaned.split('').map(Number)
+  digits[0] -= 1
+  const sum = digits.reduce((acc, d, i) => acc + d * weights[i], 0)
+  return sum % 89 === 0
+}
+
+export function formatABN(abn: string): string {
+  const cleaned = abn.replace(/\s/g, '')
+  if (cleaned.length <= 2) return cleaned
+  if (cleaned.length <= 5) return `${cleaned.slice(0, 2)} ${cleaned.slice(2)}`
+  if (cleaned.length <= 8) return `${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(5)}`
+  return `${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(5, 8)} ${cleaned.slice(8, 11)}`
+}
+
+export const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+]
 
 export const DEFAULT_BRANDING = {
   brand_color_hex: '#6C5CE7',
@@ -252,8 +280,22 @@ export interface Ingredient {
   pack_to_base_factor?: number // Total base units in pack (e.g., 7920 for 24×330mL)
   unit_cost_ex_base?: number // Cost per base unit in cents (e.g., 0.2879 cents/mL)
   pack_size_text?: string // Display text (e.g., "24×330mL")
-  
+
+  // Allergens & waste
+  allergens?: string[]
+  default_waste_percent?: number // Trim/prep waste % (0-100)
+
   active: boolean
+}
+
+export interface IngredientPriceHistory {
+  id: string
+  ingredient_id: string
+  old_cost_cents: number | null
+  new_cost_cents: number
+  changed_at: string
+  changed_by: string | null
+  source: 'manual' | 'invoice' | 'import' | 'bulk_update'
 }
 
 export interface StockCount {
@@ -261,10 +303,12 @@ export interface StockCount {
   venue_id: string
   count_number: string
   count_date: Date
+  count_type: 'full' | 'cycle'
   counted_by_user_id: string
   counted_by_name: string
   status: 'in-progress' | 'completed' | 'reviewed'
   total_variance_value: number
+  total_count_value: number
   notes?: string
   items?: StockCountItem[]
 }
@@ -290,7 +334,7 @@ export interface WasteEntry {
   quantity: number
   unit: string
   value: number
-  reason: 'spoilage' | 'spillage' | 'prep-waste' | 'over-production' | 'damaged' | 'other'
+  reason: 'spoilage' | 'expired' | 'overproduction' | 'breakage' | 'staff_meal' | 'promo' | 'theft_unknown' | 'spillage' | 'prep-waste' | 'over-production' | 'damaged' | 'other'
   notes?: string
   recorded_by_user_id: string
   recorded_by_name: string
@@ -344,9 +388,15 @@ export interface Supplier {
   email?: string
   phone?: string
   address?: string
+  suburb?: string
+  state?: string
+  postcode?: string
+  abn?: string // Australian Business Number (11 digits)
+  is_gst_registered?: boolean
   category: 'produce' | 'meat' | 'dry-goods' | 'beverages' | 'equipment' | 'other'
-  payment_terms: 'net-7' | 'net-14' | 'net-30' | 'cod'
+  payment_terms: 'net-7' | 'net-14' | 'net-30' | 'net-60' | 'cod'
   account_number?: string
+  order_method?: 'email' | 'phone' | 'online_portal' | 'rep_visit'
   delivery_days: number[] // Array of day numbers (0=Sunday, 1=Monday, etc.)
   cutoff_time: string // HH:MM format (24hr)
   delivery_lead_days: number // Days between order and delivery
@@ -404,19 +454,24 @@ export interface Recipe {
 export interface RecipeIngredient {
   id: string
   recipe_id: string
-  product_id: string // Links to Ingredient from inventory
+  product_id: string // Links to Ingredient or sub-recipe
   product_name: string // Denormalized for display
   quantity: number // Amount needed
   unit: 'g' | 'kg' | 'mL' | 'L' | 'ea'
-  
+
   // Calculated fields
   cost_per_unit: number // Cost per selected unit (in cents) - DEPRECATED, use unit_cost_ex_base
   line_cost: number // quantity × unit_cost_ex_base (in cents)
   unit_cost_ex_base?: number // Cost per base unit from ingredient (cents per g/mL/ea)
-  
+
   // Reference data (from Ingredient)
   product_unit: string // Original unit from ingredient
   product_cost: number // Original cost per unit from ingredient (pack cost)
+
+  // Sub-recipe support
+  is_sub_recipe?: boolean
+  sub_recipe_id?: string // When is_sub_recipe=true, points to recipe.id
+  sort_order?: number
 }
 
 // Common Australian allergens (FSANZ)
@@ -651,8 +706,11 @@ export interface Shift {
   total_cost: number // base_cost + penalty_cost (cents)
 
   // Penalty rate breakdown
-  penalty_type?: 'none' | 'saturday' | 'sunday' | 'public_holiday' | 'late_night' | 'early_morning'
+  penalty_type?: 'none' | 'saturday' | 'sunday' | 'public_holiday' | 'late_night' | 'early_morning' | 'evening'
   penalty_multiplier?: number // e.g., 1.25 for Saturday, 1.5 for Sunday
+
+  // Warnings from penalty rate engine
+  warnings?: string[]
 
   // Template reference
   template_id?: string
@@ -961,7 +1019,7 @@ export interface DiagnosticsResult {
 // ============================================
 
 export type InvoiceIntakeStatus = 'queued' | 'parsing' | 'needs_review' | 'approved' | 'rejected' | 'failed'
-export type InvoiceIntakeSource = 'UPLOAD' | 'EMAIL' | 'EDI' | 'PEPPOL'
+export type InvoiceIntakeSource = 'UPLOAD' | 'EMAIL' | 'EDI' | 'PEPPOL' | 'MANUAL'
 export type MatchType = 'exact' | 'alias' | 'fuzzy' | 'new_item'
 export type GSTMode = 'INC' | 'EX' | 'NONE'
 
@@ -1212,31 +1270,71 @@ export interface RosterWarning {
 // ============================================
 
 /**
- * Australian Hospitality Award penalty rates (as of 2024)
+ * Hospitality Industry (General) Award 2020 penalty rates
  * Reference: https://www.fairwork.gov.au/employment-conditions/awards/awards-summary/ma000009-summary
+ *
+ * For permanent (full-time/part-time) employees, the base rate is the ordinary hourly rate.
+ * Casual employees already receive a 25% loading on top of the base rate, which covers
+ * some weekend/evening loadings. However, Sundays and Public Holidays have separate
+ * casual rates.
  */
 export const AU_HOSPITALITY_PENALTY_RATES = {
   // Casual loading
-  casual_loading: 1.25, // 25% casual loading
+  casual_loading: 1.25, // 25% casual loading (built into hourly rate)
 
-  // Day-based penalties (full-time/part-time)
-  saturday: 1.25, // 125%
-  sunday: 1.50, // 150%
-  public_holiday: 2.50, // 250%
+  // Day-based penalties — Permanent (full-time / part-time)
+  saturday: 1.25,       // 125% of base
+  sunday: 1.50,         // 150% of base
+  public_holiday: 2.50, // 250% of base
 
-  // Time-based penalties
-  late_night: 1.15, // After 10pm weekdays (15% loading)
-  early_morning: 1.10, // Before 7am (10% loading)
+  // Day-based penalties — Casual
+  casual_saturday: 1.25,       // Casual loading already covers Saturday (no extra)
+  casual_sunday: 1.75,         // 175% of base (not covered by casual loading)
+  casual_public_holiday: 2.75, // 275% of base
 
-  // Overtime rates
-  overtime_first_2_hours: 1.50, // First 2 hours
-  overtime_after_2_hours: 2.00, // After 2 hours
-  overtime_sunday: 2.00, // Sunday overtime
+  // Time-based penalties — Evening (after 7pm weekdays)
+  evening: 1.15, // 15% loading for shifts ending/spanning after 7pm on weekdays
+
+  // Legacy aliases
+  late_night: 1.15,      // After 7pm weekdays (15% loading)
+  early_morning: 1.10,   // Before 7am (10% loading)
+
+  // Overtime rates (full-time only: beyond 38hrs/week or 10hrs/day)
+  overtime_first_2_hours: 1.50, // First 2 hours of overtime
+  overtime_after_2_hours: 2.00, // After 2 hours of overtime
+  overtime_sunday: 2.00,         // Sunday overtime
   overtime_public_holiday: 2.50, // Public holiday overtime
+
+  // Minimum engagement
+  minimum_shift_hours_casual: 3,    // Minimum 3-hour shift for casuals
+  minimum_shift_hours_part_time: 3, // Minimum 3-hour shift for part-time
+
+  // Break rules
+  meal_break_threshold_hours: 5,    // After 5 continuous hours: 30-min unpaid meal break
+  meal_break_duration_minutes: 30,
+  rest_break_threshold_hours: 4,    // After 4 hours: 10-min paid rest break
+  rest_break_duration_minutes: 10,
+
+  // Superannuation (current AU rate)
+  super_rate_percent: 11.5, // 11.5% of OTE
 } as const
 
 /**
- * Calculate applicable penalty rate for a shift
+ * Shift cost breakdown — returned by the penalty rate engine
+ */
+export interface ShiftCostBreakdown {
+  base_hours: number
+  base_cost_cents: number
+  penalty_type: string | null
+  penalty_multiplier: number
+  penalty_cost_cents: number
+  break_deduction_minutes: number
+  total_cost_cents: number
+  warnings: string[]
+}
+
+/**
+ * Penalty rate type union
  */
 export type PenaltyRateType =
   | 'none'
@@ -1245,9 +1343,13 @@ export type PenaltyRateType =
   | 'public_holiday'
   | 'late_night'
   | 'early_morning'
+  | 'evening'
   | 'overtime'
 
-// Public holidays for Australian states
+// ============================================
+// AUSTRALIAN PUBLIC HOLIDAYS 2024-2026
+// ============================================
+
 export const AU_PUBLIC_HOLIDAYS_2024: Record<string, string[]> = {
   national: [
     '2024-01-01', // New Year's Day
@@ -1257,18 +1359,102 @@ export const AU_PUBLIC_HOLIDAYS_2024: Record<string, string[]> = {
     '2024-03-31', // Easter Sunday
     '2024-04-01', // Easter Monday
     '2024-04-25', // ANZAC Day
-    '2024-06-10', // Queen's Birthday (varies by state)
+    '2024-06-10', // Queen's Birthday (VIC/most states)
     '2024-12-25', // Christmas Day
     '2024-12-26', // Boxing Day
   ],
   VIC: ['2024-03-12', '2024-11-05'], // Labour Day, Melbourne Cup
-  NSW: ['2024-06-10', '2024-08-05'], // Queen's Birthday, Bank Holiday
-  QLD: ['2024-05-06', '2024-08-14'], // Labour Day, Ekka
-  SA: ['2024-03-11', '2024-10-07'], // Adelaide Cup, Labour Day
-  WA: ['2024-03-04', '2024-06-03'], // Labour Day, WA Day
-  TAS: ['2024-02-12', '2024-03-11'], // Regatta Day, Eight Hours Day
-  NT: ['2024-05-06', '2024-08-05'], // May Day, Picnic Day
-  ACT: ['2024-03-11', '2024-05-27'], // Canberra Day, Reconciliation Day
+  NSW: ['2024-06-10', '2024-08-05'],
+  QLD: ['2024-05-06', '2024-08-14'],
+  SA: ['2024-03-11', '2024-10-07'],
+  WA: ['2024-03-04', '2024-06-03'],
+  TAS: ['2024-02-12', '2024-03-11'],
+  NT: ['2024-05-06', '2024-08-05'],
+  ACT: ['2024-03-11', '2024-05-27'],
+}
+
+export const AU_PUBLIC_HOLIDAYS_2025: Record<string, string[]> = {
+  national: [
+    '2025-01-01', // New Year's Day
+    '2025-01-27', // Australia Day (observed — 26th is Sunday)
+    '2025-04-18', // Good Friday
+    '2025-04-19', // Easter Saturday
+    '2025-04-20', // Easter Sunday
+    '2025-04-21', // Easter Monday
+    '2025-04-25', // ANZAC Day
+    '2025-06-09', // Queen's Birthday (VIC)
+    '2025-12-25', // Christmas Day
+    '2025-12-26', // Boxing Day
+  ],
+  VIC: ['2025-03-10', '2025-09-26', '2025-11-04'], // Labour Day, AFL Grand Final Fri, Melbourne Cup
+  NSW: ['2025-06-09', '2025-08-04'],
+  QLD: ['2025-05-05', '2025-08-13'],
+  SA: ['2025-03-10', '2025-10-06'],
+  WA: ['2025-03-03', '2025-06-02'],
+  TAS: ['2025-02-10', '2025-03-10'],
+  NT: ['2025-05-05', '2025-08-04'],
+  ACT: ['2025-03-10', '2025-05-26'],
+}
+
+export const AU_PUBLIC_HOLIDAYS_2026: Record<string, string[]> = {
+  national: [
+    '2026-01-01', // New Year's Day
+    '2026-01-26', // Australia Day
+    '2026-04-03', // Good Friday
+    '2026-04-04', // Easter Saturday
+    '2026-04-05', // Easter Sunday
+    '2026-04-06', // Easter Monday
+    '2026-04-25', // ANZAC Day (Saturday — observed Monday 27th in some states)
+    '2026-06-08', // Queen's Birthday (VIC)
+    '2026-12-25', // Christmas Day
+    '2026-12-28', // Boxing Day (observed — 26th is Saturday)
+  ],
+  VIC: ['2026-03-09', '2026-11-03'], // Labour Day, Melbourne Cup
+  NSW: ['2026-06-08', '2026-08-03'],
+  QLD: ['2026-05-04', '2026-08-12'],
+  SA: ['2026-03-09', '2026-10-05'],
+  WA: ['2026-03-02', '2026-06-01'],
+  TAS: ['2026-02-09', '2026-03-09'],
+  NT: ['2026-05-04', '2026-08-03'],
+  ACT: ['2026-03-09', '2026-05-25'],
+}
+
+/** All holidays combined for lookup */
+export const AU_PUBLIC_HOLIDAYS_ALL: Record<string, string[]> = (() => {
+  const result: Record<string, string[]> = {}
+  for (const yearData of [AU_PUBLIC_HOLIDAYS_2024, AU_PUBLIC_HOLIDAYS_2025, AU_PUBLIC_HOLIDAYS_2026]) {
+    for (const [key, dates] of Object.entries(yearData)) {
+      if (!result[key]) result[key] = []
+      result[key].push(...dates)
+    }
+  }
+  return result
+})()
+
+/** Holiday name lookup */
+export const AU_HOLIDAY_NAMES: Record<string, string> = {
+  // 2024
+  '2024-01-01': "New Year's Day", '2024-01-26': 'Australia Day',
+  '2024-03-29': 'Good Friday', '2024-03-30': 'Easter Saturday',
+  '2024-03-31': 'Easter Sunday', '2024-04-01': 'Easter Monday',
+  '2024-04-25': 'ANZAC Day', '2024-06-10': "Queen's Birthday",
+  '2024-12-25': 'Christmas Day', '2024-12-26': 'Boxing Day',
+  '2024-03-12': 'Labour Day (VIC)', '2024-11-05': 'Melbourne Cup Day',
+  // 2025
+  '2025-01-01': "New Year's Day", '2025-01-27': 'Australia Day',
+  '2025-04-18': 'Good Friday', '2025-04-19': 'Easter Saturday',
+  '2025-04-20': 'Easter Sunday', '2025-04-21': 'Easter Monday',
+  '2025-04-25': 'ANZAC Day', '2025-06-09': "Queen's Birthday",
+  '2025-12-25': 'Christmas Day', '2025-12-26': 'Boxing Day',
+  '2025-03-10': 'Labour Day (VIC)', '2025-09-26': 'AFL Grand Final Friday',
+  '2025-11-04': 'Melbourne Cup Day',
+  // 2026
+  '2026-01-01': "New Year's Day", '2026-01-26': 'Australia Day',
+  '2026-04-03': 'Good Friday', '2026-04-04': 'Easter Saturday',
+  '2026-04-05': 'Easter Sunday', '2026-04-06': 'Easter Monday',
+  '2026-04-25': 'ANZAC Day', '2026-06-08': "Queen's Birthday",
+  '2026-12-25': 'Christmas Day', '2026-12-28': 'Boxing Day (observed)',
+  '2026-03-09': 'Labour Day (VIC)', '2026-11-03': 'Melbourne Cup Day',
 }
 
 // ============================================
