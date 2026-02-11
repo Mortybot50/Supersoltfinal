@@ -138,7 +138,12 @@ export default function Signup() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-8">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Supersolt</CardTitle>
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="w-12 h-12 bg-brand rounded-xl flex items-center justify-center">
+              <span className="text-gray-900 font-black text-2xl">S</span>
+            </div>
+            <span className="text-3xl font-black tracking-tight uppercase">SuperSolt</span>
+          </div>
           <CardDescription>Create your account</CardDescription>
         </CardHeader>
         <form onSubmit={handleSignup}>
@@ -241,7 +246,7 @@ export default function Signup() {
             </Button>
             <p className="text-sm text-muted-foreground text-center">
               Already have an account?{" "}
-              <Link to="/login" className="text-primary hover:underline">
+              <Link to="/login" className="text-brand-700 hover:underline">
                 Sign in
               </Link>
             </p>

@@ -468,7 +468,7 @@ export default function Ingredients() {
               </div>
             </div>
 
-            <Button onClick={handleSave} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
+            <Button onClick={handleSave} className="w-full bg-brand hover:bg-brand-500 text-gray-900 font-semibold">
               {editingId ? "Save Changes" : "Add Ingredient"}
             </Button>
           </div>

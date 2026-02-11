@@ -576,14 +576,14 @@ export default function LabourReports() {
                   )}
 
                   {penaltyBreakdown.late_night.count > 0 && (
-                    <div className="flex items-center justify-between p-3 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg">
+                    <div className="flex items-center justify-between p-3 bg-brand-50 dark:bg-brand/10 rounded-lg">
                       <div>
-                        <div className="font-medium text-indigo-700 dark:text-indigo-400">Late Night (12am-6am)</div>
+                        <div className="font-medium text-brand-800 dark:text-brand-400">Late Night (12am-6am)</div>
                         <div className="text-sm text-muted-foreground">{penaltyBreakdown.late_night.count} shifts · {penaltyBreakdown.late_night.hours.toFixed(1)}h</div>
                       </div>
                       <div className="text-right">
-                        <div className="font-medium text-indigo-600">+{formatLabourCost(penaltyBreakdown.late_night.cost)}</div>
-                        <div className="text-xs text-indigo-600">125% loading</div>
+                        <div className="font-medium text-brand-700">+{formatLabourCost(penaltyBreakdown.late_night.cost)}</div>
+                        <div className="text-xs text-brand-700">125% loading</div>
                       </div>
                     </div>
                   )}
@@ -660,7 +660,7 @@ export default function LabourReports() {
                     <div className="mt-4 space-y-2 text-left">
                       {[
                         { key: "evening", label: "Evening", color: "bg-blue-500" },
-                        { key: "late_night", label: "Late Night", color: "bg-indigo-500" },
+                        { key: "late_night", label: "Late Night", color: "bg-brand" },
                         { key: "early_morning", label: "Early AM", color: "bg-sky-500" },
                         { key: "saturday", label: "Saturday", color: "bg-orange-400" },
                         { key: "sunday", label: "Sunday", color: "bg-orange-500" },

@@ -59,7 +59,12 @@ export default function ResetPassword() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Supersolt</CardTitle>
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="w-12 h-12 bg-brand rounded-xl flex items-center justify-center">
+              <span className="text-gray-900 font-black text-2xl">S</span>
+            </div>
+            <span className="text-3xl font-black tracking-tight uppercase">SuperSolt</span>
+          </div>
           <CardDescription>
             {success ? "Password updated!" : "Set your new password"}
           </CardDescription>

@@ -85,7 +85,7 @@ export function PageToolbar({
             className={cn(
               "h-8",
               primaryAction.variant === "primary" || primaryAction.variant === "teal"
-                ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                ? "bg-brand hover:bg-brand-500 text-gray-900 font-semibold"
                 : primaryAction.variant === "export"
                   ? "bg-emerald-600 hover:bg-emerald-700 text-white"
                   : ""

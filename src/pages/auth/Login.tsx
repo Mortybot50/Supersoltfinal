@@ -41,7 +41,12 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Supersolt</CardTitle>
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="w-12 h-12 bg-brand rounded-xl flex items-center justify-center">
+              <span className="text-gray-900 font-black text-2xl">S</span>
+            </div>
+            <span className="text-3xl font-black tracking-tight uppercase">SuperSolt</span>
+          </div>
           <CardDescription>Sign in to your account</CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin}>
@@ -68,7 +73,7 @@ export default function Login() {
                 <Label htmlFor="password">Password</Label>
                 <Link
                   to="/forgot-password"
-                  className="text-xs text-primary hover:underline"
+                  className="text-xs text-brand-700 hover:underline"
                 >
                   Forgot password?
                 </Link>
@@ -97,7 +102,7 @@ export default function Login() {
             </Button>
             <p className="text-sm text-muted-foreground text-center">
               Don't have an account?{" "}
-              <Link to="/signup" className="text-primary hover:underline">
+              <Link to="/signup" className="text-brand-700 hover:underline">
                 Sign up
               </Link>
             </p>

@@ -133,7 +133,7 @@ function GroupFlyout({
           className={cn(
             "block px-3 py-1.5 text-sm transition-colors",
             isActiveRoute(item.url)
-              ? "text-indigo-600 bg-indigo-50 dark:text-indigo-400 dark:bg-indigo-950/50 font-semibold"
+              ? "text-brand-800 bg-brand-50 dark:text-brand-400 dark:bg-brand/10 font-semibold"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-700"
           )}
         >
@@ -230,7 +230,7 @@ function AppSidebar({
             className={cn(
               "w-10 h-10 mx-auto flex items-center justify-center rounded-lg transition-colors",
               active
-                ? "text-indigo-600 bg-indigo-50 dark:text-indigo-400 dark:bg-indigo-950/50"
+                ? "text-brand-800 bg-brand-50 dark:text-brand-400 dark:bg-brand/10"
                 : "text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-800"
             )}
             title={group.title}
@@ -256,7 +256,7 @@ function AppSidebar({
           className={cn(
             "w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-left",
             active
-              ? "text-indigo-600 dark:text-indigo-400"
+              ? "text-brand-800 dark:text-brand-400"
               : "text-slate-500 hover:text-slate-700 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800"
           )}
         >
@@ -286,7 +286,7 @@ function AppSidebar({
                 className={cn(
                   "flex items-center gap-2 pl-10 pr-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
                   isActiveRoute(item.url)
-                    ? "text-indigo-600 bg-indigo-50 font-semibold dark:text-indigo-400 dark:bg-indigo-950/50"
+                    ? "text-brand-800 bg-brand-50 font-semibold dark:text-brand-400 dark:bg-brand/10"
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800"
                 )}
               >
@@ -294,7 +294,7 @@ function AppSidebar({
                   className={cn(
                     "w-1 h-1 rounded-full shrink-0",
                     isActiveRoute(item.url)
-                      ? "bg-indigo-600 dark:bg-indigo-400"
+                      ? "bg-brand dark:bg-brand-400"
                       : "bg-slate-300 dark:bg-slate-600"
                   )}
                 />
@@ -317,9 +317,18 @@ function AppSidebar({
         )}
       >
         {collapsed && !isMobile ? (
-          <span className="text-lg font-bold text-slate-900 dark:text-white">S</span>
+          <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center">
+            <span className="text-gray-900 font-black text-lg">S</span>
+          </div>
         ) : (
-          <span className="text-lg font-bold text-slate-900 dark:text-white">SuperSolt</span>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center shrink-0">
+              <span className="text-gray-900 font-black text-lg">S</span>
+            </div>
+            <span className="text-lg font-black tracking-tight text-gray-900 dark:text-white uppercase">
+              SuperSolt
+            </span>
+          </div>
         )}
         {!isMobile && (
           <button
@@ -352,7 +361,7 @@ function AppSidebar({
             className={cn(
               "w-10 h-10 flex items-center justify-center rounded-lg transition-colors",
               isActiveRoute("/dashboard")
-                ? "text-indigo-600 bg-indigo-50 dark:text-indigo-400 dark:bg-indigo-950/50"
+                ? "text-brand-800 bg-brand-50 dark:text-brand-400 dark:bg-brand/10"
                 : "text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-800"
             )}
             title="Dashboard"
@@ -366,7 +375,7 @@ function AppSidebar({
             className={cn(
               "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium",
               isActiveRoute("/dashboard")
-                ? "text-indigo-600 bg-indigo-50 font-semibold dark:text-indigo-400 dark:bg-indigo-950/50"
+                ? "text-brand-800 bg-brand-50 font-semibold dark:text-brand-400 dark:bg-brand/10"
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800"
             )}
           >
