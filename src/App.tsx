@@ -54,8 +54,8 @@ import Daybook from "./pages/operations/Daybook"
 import Imports from "./pages/operations/Imports"
 import Compliance from "./pages/operations/Compliance"
 
-// Automation & Integrations
-import Integrations from "./pages/automation/Integrations"
+// Integrations
+import AdminIntegrations from "./pages/admin/Integrations"
 
 // Admin
 import DataImports from "./pages/admin/DataImports"
@@ -125,19 +125,18 @@ const App = () => (
               <Route path="operations/imports" element={<Imports />} />
               <Route path="operations/compliance" element={<Compliance />} />
 
-              {/* Integrations */}
-              <Route path="integrations" element={<Integrations />} />
-
               {/* Admin */}
               <Route path="admin/data-imports" element={<DataImports />} />
               <Route path="admin/org-settings" element={<OrgSettings />} />
               <Route path="admin/venue-settings" element={<VenueSettings />} />
               <Route path="admin/locations" element={<Locations />} />
               <Route path="admin/access-roles" element={<AccessRoles />} />
+              <Route path="admin/integrations" element={<AdminIntegrations />} />
 
               {/* Legacy route redirects */}
               <Route path="menu/ingredients" element={<Navigate to="/inventory/ingredients" replace />} />
               <Route path="settings" element={<Navigate to="/admin/org-settings" replace />} />
+              <Route path="integrations" element={<Navigate to="/admin/integrations" replace />} />
 
               <Route path="*" element={<NotFound />} />
             </Route>

@@ -101,7 +101,7 @@ const settingsGroup: NavGroup = {
     { title: "Locations", url: "/admin/locations" },
     { title: "Access & Roles", url: "/admin/access-roles" },
     { title: "Data Imports", url: "/admin/data-imports" },
-    { title: "Integrations", url: "/integrations" },
+    { title: "Integrations", url: "/admin/integrations" },
   ],
 }
 
