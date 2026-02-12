@@ -2,7 +2,7 @@
  * Currency formatting (cents to AUD display)
  */
 export function formatCurrency(cents: number | null | undefined): string {
-  if (cents === null || cents === undefined) return '$0.00'
+  if (cents === null || cents === undefined || isNaN(cents)) return '$0.00'
   return new Intl.NumberFormat('en-AU', {
     style: 'currency',
     currency: 'AUD',
@@ -15,7 +15,7 @@ export function formatCurrency(cents: number | null | undefined): string {
  * Currency without symbol
  */
 export function formatCurrencyNoSymbol(cents: number | null | undefined): string {
-  if (cents === null || cents === undefined) return '0.00'
+  if (cents === null || cents === undefined || isNaN(cents)) return '0.00'
   return new Intl.NumberFormat('en-AU', {
     style: 'decimal',
     minimumFractionDigits: 2,

@@ -228,6 +228,7 @@ interface DataState {
   addMenuItem: (item: Types.MenuItem) => Promise<void>
   updateMenuItem: (id: string, updates: Partial<Types.MenuItem>) => Promise<void>
   deleteMenuItem: (id: string) => Promise<void>
+  loadMenuSectionsFromDB: () => Promise<void>
   addMenuSection: (section: Types.MenuSection) => void
   updateMenuSection: (id: string, updates: Partial<Types.MenuSection>) => void
   deleteMenuSection: (id: string) => void
@@ -1056,6 +1057,35 @@ export const useDataStore = create<DataState>()(
   },
   
   // Menu Sections
+  loadMenuSectionsFromDB: async () => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client')
+      const { data, error } = await supabase
+        .from('menu_sections')
+        .select('*')
+        .order('sort_order', { ascending: true })
+
+      if (error) throw error
+
+      if (data) {
+        const sections: Types.MenuSection[] = data.map(s => ({
+          id: s.id,
+          organization_id: s.org_id,
+          name: s.name,
+          display_order: s.sort_order ?? 0,
+          is_drinks: false,
+          tax_mode: 'FOLLOW_ITEM' as const,
+          created_at: new Date(s.created_at),
+          updated_at: new Date(s.updated_at),
+        }))
+        set({ menuSections: sections })
+      }
+    } catch (error) {
+      console.error('Failed to load menu sections:', dbError(error))
+      toast.error('Failed to load menu sections. Please refresh.')
+    }
+  },
+
   addMenuSection: (section) => {
     set((state) => ({ menuSections: [...state.menuSections, section] }))
   },
@@ -1456,9 +1486,12 @@ export const useDataStore = create<DataState>()(
           return acc
         }, {} as Record<string, PurchaseOrderItem[]>)
 
-        // Combine POs with their items
+        // Combine POs with their items — map DB column names to app type
         const posWithItems = poData.map(po => ({
           ...po,
+          total: po.total_amount ?? 0,
+          subtotal: po.subtotal ?? 0,
+          tax_amount: po.tax_amount ?? 0,
           items: itemsByPO[po.id] || [],
           order_date: new Date(po.order_date),
           expected_delivery_date: new Date(po.expected_delivery_date),
@@ -1887,6 +1920,8 @@ export const useDataStore = create<DataState>()(
         store.loadStockCountsFromDB(),
         store.loadWasteLogsFromDB(),
         store.loadMenuItemsFromDB(),
+        store.loadMenuSectionsFromDB(),
+        store.loadRecipesFromDB(),
         // Labour module data
         labourImport.then(async (svc) => {
           const [staff, shifts, timesheets, templates, availability, swapRequests, budgets] = await Promise.all([

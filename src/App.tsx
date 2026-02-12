@@ -135,6 +135,10 @@ const App = () => (
               <Route path="admin/locations" element={<Locations />} />
               <Route path="admin/access-roles" element={<AccessRoles />} />
 
+              {/* Legacy route redirects */}
+              <Route path="menu/ingredients" element={<Navigate to="/inventory/ingredients" replace />} />
+              <Route path="settings" element={<Navigate to="/admin/org-settings" replace />} />
+
               <Route path="*" element={<NotFound />} />
             </Route>
 

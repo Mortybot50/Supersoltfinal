@@ -34,6 +34,9 @@ export default function MenuItems() {
     menuSections,
     menuItems,
     recipes,
+    loadMenuSectionsFromDB,
+    loadMenuItemsFromDB,
+    loadRecipesFromDB,
     addMenuSection,
     updateMenuSection,
     deleteMenuSection,
@@ -44,7 +47,13 @@ export default function MenuItems() {
     calculateSectionTotals,
     calculateMenuAnalytics,
   } = useDataStore()
-  
+
+  useEffect(() => {
+    loadMenuSectionsFromDB()
+    loadMenuItemsFromDB()
+    loadRecipesFromDB()
+  }, [])
+
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [sectionDialogOpen, setSectionDialogOpen] = useState(false)

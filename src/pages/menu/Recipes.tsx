@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useDataStore } from '@/lib/store/dataStore'
 import { PageShell, PageToolbar } from '@/components/shared'
 import { StatCards } from '@/components/ui/StatCards'
+import { formatCurrency } from '@/lib/utils/formatters'
 
 const CATEGORIES = [
   { value: 'mains', label: 'Mains' },
@@ -171,10 +172,10 @@ export default function Recipes() {
                   </TableCell>
                   <TableCell>{recipe.serves}</TableCell>
                   <TableCell className="font-semibold">
-                    ${(recipe.cost_per_serve / 100).toFixed(2)}
+                    {formatCurrency(recipe.cost_per_serve)}
                   </TableCell>
                   <TableCell className="font-semibold text-green-600">
-                    ${(recipe.suggested_price / 100).toFixed(2)}
+                    {formatCurrency(recipe.suggested_price)}
                   </TableCell>
                   <TableCell>{recipe.gp_target_percent}%</TableCell>
                   <TableCell>

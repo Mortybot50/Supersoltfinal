@@ -219,8 +219,8 @@ export default function PurchaseOrders() {
         ]} columns={4} />
         <SecondaryStats stats={[
           ...(stats.overdue > 0 ? [{ label: "Overdue", value: stats.overdue }] : []),
-          { label: "Pending Value", value: `$${(stats.pendingValue / 100).toFixed(0)}` },
-          { label: "Total Value", value: `$${(stats.totalValue / 100).toFixed(0)}` },
+          { label: "Pending Value", value: formatCurrency(stats.pendingValue) },
+          { label: "Total Value", value: formatCurrency(stats.totalValue) },
         ]} />
       </div>
       <div className="p-4">

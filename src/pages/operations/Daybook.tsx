@@ -69,6 +69,48 @@ export default function Daybook() {
     time: format(new Date(), 'HH:mm'),
   })
 
+  // Load daybook entries from Supabase
+  useEffect(() => {
+    async function loadEntries() {
+      try {
+        const { supabase } = await import('@/integrations/supabase/client')
+        const { data, error } = await supabase
+          .from('daybook_entries')
+          .select('*')
+          .order('entry_date', { ascending: false })
+
+        if (error) throw error
+        if (data) {
+          const mapped: DaybookEntry[] = data.map(row => {
+            const totalAmount = (row.pos_sales ?? 0) + (row.cash_counted ?? 0) + (row.card_total ?? 0)
+            const createdAt = new Date(row.created_at)
+            const notesParts = [row.notes, row.issues].filter(Boolean).join(' | ')
+            return {
+              id: row.id,
+              date: row.entry_date,
+              time: format(createdAt, 'HH:mm'),
+              category: 'financial' as EntryCategory,
+              title: row.status === 'approved' ? 'Daily Reconciliation (Approved)' : 'Daily Reconciliation',
+              notes: notesParts,
+              amount: totalAmount > 0 ? totalAmount : undefined,
+              created_at: createdAt,
+              created_by: row.created_by || 'system',
+            }
+          })
+          setEntries(prev => {
+            // Merge DB entries with any local-only entries
+            const dbIds = new Set(mapped.map(e => e.id))
+            const localOnly = prev.filter(e => !dbIds.has(e.id))
+            return [...mapped, ...localOnly]
+          })
+        }
+      } catch (err) {
+        console.error('Failed to load daybook entries:', err)
+      }
+    }
+    loadEntries()
+  }, [])
+
   const dateKey = format(selectedDate, 'yyyy-MM-dd')
 
   const filteredEntries = useMemo(() => {
