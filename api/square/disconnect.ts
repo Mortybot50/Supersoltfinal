@@ -8,8 +8,8 @@
  *   3. Sets is_active = false on the pos_connection
  *   4. Deactivates all related pos_location_mappings
  */
-import type { VercelRequest, VercelResponse } from './_lib'
-import { env, supabaseAdmin, SQUARE_BASE } from './_lib'
+import type { VercelRequest, VercelResponse } from './_lib.js'
+import { env, supabaseAdmin, SQUARE_BASE } from './_lib.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

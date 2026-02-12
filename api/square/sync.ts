@@ -9,8 +9,8 @@
  *   - Automatic token refresh on 401
  *   - Updates last_sync_at / last_sync_status on pos_connections
  */
-import type { VercelRequest, VercelResponse } from './_lib'
-import { env, supabaseAdmin, SQUARE_BASE, refreshSquareToken } from './_lib'
+import type { VercelRequest, VercelResponse } from './_lib.js'
+import { env, supabaseAdmin, SQUARE_BASE, refreshSquareToken } from './_lib.js'
 
 interface SquareOrder {
   id: string

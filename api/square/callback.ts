@@ -9,8 +9,8 @@
  *   4. Upserts rows in `pos_location_mappings`
  *   5. Redirects the user back to the Integrations page
  */
-import type { VercelRequest, VercelResponse } from './_lib'
-import { env, supabaseAdmin, SQUARE_BASE } from './_lib'
+import type { VercelRequest, VercelResponse } from './_lib.js'
+import { env, supabaseAdmin, SQUARE_BASE } from './_lib.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {

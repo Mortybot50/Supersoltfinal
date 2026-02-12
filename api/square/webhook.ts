@@ -6,8 +6,8 @@
  * event, and returns 200 immediately to avoid Square retries.
  */
 import crypto from 'crypto'
-import type { VercelRequest, VercelResponse } from './_lib'
-import { env } from './_lib'
+import type { VercelRequest, VercelResponse } from './_lib.js'
+import { env } from './_lib.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

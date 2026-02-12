@@ -5,8 +5,8 @@
  * authorization page. The org_id and venue_id are packed into the
  * `state` parameter so the callback can associate the connection.
  */
-import type { VercelRequest, VercelResponse } from './_lib'
-import { env, SQUARE_BASE, SQUARE_SCOPES } from './_lib'
+import type { VercelRequest, VercelResponse } from './_lib.js'
+import { env, SQUARE_BASE, SQUARE_SCOPES } from './_lib.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
