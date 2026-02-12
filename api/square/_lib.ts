@@ -35,7 +35,10 @@ export function supabaseAdmin() {
 }
 
 // ── Square API base URL ─────────────────────────────────────────────
-export const SQUARE_BASE = 'https://connect.squareup.com'
+export const SQUARE_BASE =
+  process.env.SQUARE_ENVIRONMENT === 'sandbox'
+    ? 'https://connect.squareupsandbox.com'
+    : 'https://connect.squareup.com'
 
 // ── Square OAuth scopes ─────────────────────────────────────────────
 export const SQUARE_SCOPES = [
