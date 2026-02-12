@@ -67,8 +67,10 @@ import { useInventoryMetrics } from "@/lib/hooks/useInventoryMetrics"
 import { useRosterMetrics } from "@/lib/hooks/useRosterMetrics"
 import { useDataStore } from "@/lib/store/dataStore"
 import { useAuth } from "@/contexts/AuthContext"
-import { useState, useMemo } from "react"
-import { useNavigate } from "react-router-dom"
+import { supabase } from "@/integrations/supabase/client"
+import { useState, useMemo, useEffect } from "react"
+import { useNavigate, Link } from "react-router-dom"
+import { formatDistanceToNow } from "date-fns"
 import { PageShell, PageToolbar } from "@/components/shared"
 
 // ============================================
@@ -195,6 +197,25 @@ export default function Dashboard() {
   const { currentVenue, venues } = useAuth()
   const venueId = currentVenue?.id
   const { ingredients, staff: allStaff } = useDataStore()
+
+  // POS connection status
+  const [posStatus, setPosStatus] = useState<{ connected: boolean; lastSync: string | null } | null>(null)
+  useEffect(() => {
+    if (!currentVenue) return
+    supabase
+      .from('pos_connections')
+      .select('is_active, last_sync_at')
+      .eq('provider', 'square')
+      .eq('is_active', true)
+      .limit(1)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setPosStatus({ connected: true, lastSync: data[0].last_sync_at })
+        } else {
+          setPosStatus({ connected: false, lastSync: null })
+        }
+      })
+  }, [currentVenue])
 
   const [preset, setPreset] = useState<DatePreset>("this-week")
   const dateRange = useMemo(() => getDateRange(preset), [preset])
@@ -471,6 +492,21 @@ export default function Dashboard() {
               Last data: {format(lastOrderDate, "d MMM h:mma")}
             </span>
           )}
+          {posStatus?.connected ? (
+            <span className="text-xs border-l pl-3 ml-1 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#B8E636] animate-pulse" />
+              <span className="text-muted-foreground">Square</span>
+              {posStatus.lastSync && (
+                <span className="text-muted-foreground/60">
+                  {formatDistanceToNow(new Date(posStatus.lastSync), { addSuffix: true })}
+                </span>
+              )}
+            </span>
+          ) : posStatus !== null ? (
+            <Link to="/admin/integrations" className="text-xs border-l pl-3 ml-1 text-muted-foreground hover:text-foreground transition-colors">
+              Connect POS
+            </Link>
+          ) : null}
         </div>
       }
     />

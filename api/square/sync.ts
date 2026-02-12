@@ -2,10 +2,13 @@
  * POST /api/square/sync
  * Body: { org_id: string, venue_id?: string }
  *
- * Pulls orders from Square and upserts them into `sales_transactions`.
+ * Pulls orders from Square and inserts them into the `orders` table
+ * (which Dashboard + Sales read from). Also writes to `sales_transactions`
+ * for POS sync tracking.
+ *
  * Handles:
  *   - Pagination via cursor
- *   - Dedup via pos_transaction_id
+ *   - Dedup via source + external_id on orders table
  *   - Automatic token refresh on 401
  *   - Updates last_sync_at / last_sync_status on pos_connections
  */
@@ -150,62 +153,105 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       cursor = page.cursor
     } while (cursor)
 
-    // ── Map & upsert into sales_transactions ────────────────────
+    // ── Map & insert into orders table (primary) ────────────────
     let synced = 0
     let skipped = 0
 
     if (allOrders.length > 0) {
-      const rows = allOrders
+      const mappedOrders = allOrders
         .filter((order) => locationToVenue.has(order.location_id))
-        .map((order) => {
-          const venueId = locationToVenue.get(order.location_id)!
-          const total = order.total_money?.amount ?? 0
-          const tax = order.total_tax_money?.amount ?? 0
-          const discount = order.total_discount_money?.amount ?? 0
-          const subtotal = total - tax
-          const itemCount = order.line_items?.reduce((n, li) => n + parseInt(li.quantity || '0', 10), 0) ?? 0
-          const paymentMethod = order.tenders?.[0]?.type?.toLowerCase() ?? 'unknown'
-          const isRefund = (order.refunds?.length ?? 0) > 0
-          const orderType = order.source?.name ?? 'square'
-          const createdAt = new Date(order.created_at)
 
-          return {
-            org_id,
-            venue_id: venueId,
-            pos_connection_id: conn.id,
-            pos_transaction_id: order.id,
-            transaction_type: isRefund ? 'refund' : 'sale',
-            transaction_at: order.created_at,
-            transaction_date: createdAt.toISOString().slice(0, 10),
-            transaction_time: createdAt.toISOString().slice(11, 19),
-            total,
-            subtotal,
-            gst_amount: tax,
-            discount_amount: discount,
-            item_count: itemCount,
-            payment_method: paymentMethod,
-            order_type: orderType,
-            synced_at: new Date().toISOString(),
-          }
-        })
+      // Build rows for the `orders` table (what Dashboard + Sales read)
+      const orderRows = mappedOrders.map((order) => {
+        const venueId = locationToVenue.get(order.location_id)!
+        const grossAmount = order.total_money?.amount ?? 0
+        const taxAmount = order.total_tax_money?.amount ?? 0
+        const discountAmount = order.total_discount_money?.amount ?? 0
+        const netAmount = grossAmount - taxAmount
+        const paymentMethod = order.tenders?.[0]?.type?.toLowerCase() ?? 'unknown'
+        const isRefund = (order.refunds?.length ?? 0) > 0
+        const channel = mapSquareChannel(order.source?.name)
 
-      // Batch upsert (dedup on pos_transaction_id)
+        return {
+          venue_id: venueId,
+          order_number: `SQ-${order.id.slice(0, 12)}`,
+          order_datetime: order.created_at,
+          channel,
+          gross_amount: grossAmount,
+          tax_amount: taxAmount,
+          net_amount: netAmount,
+          discount_amount: discountAmount,
+          is_refund: isRefund,
+          is_void: false,
+          payment_method: paymentMethod,
+          source: 'square',
+          external_id: order.id,
+        }
+      })
+
+      // Batch upsert into `orders` (dedup on source + external_id unique index)
       const BATCH_SIZE = 200
-      for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-        const batch = rows.slice(i, i + BATCH_SIZE)
-        const { error: upsertErr, count } = await db
-          .from('sales_transactions')
+      for (let i = 0; i < orderRows.length; i += BATCH_SIZE) {
+        const batch = orderRows.slice(i, i + BATCH_SIZE)
+        const { error: upsertErr } = await db
+          .from('orders')
           .upsert(batch, {
-            onConflict: 'pos_transaction_id',
-            ignoreDuplicates: false,
+            onConflict: 'source,external_id',
+            ignoreDuplicates: true,
           })
 
         if (upsertErr) {
-          console.error('[square/sync] Upsert error:', upsertErr)
+          console.error('[square/sync] Orders upsert error:', upsertErr)
           skipped += batch.length
         } else {
           synced += batch.length
         }
+      }
+
+      // Also write to sales_transactions for POS tracking / sync log
+      const trackingRows = mappedOrders.map((order) => {
+        const venueId = locationToVenue.get(order.location_id)!
+        const total = order.total_money?.amount ?? 0
+        const tax = order.total_tax_money?.amount ?? 0
+        const discount = order.total_discount_money?.amount ?? 0
+        const subtotal = total - tax
+        const itemCount = order.line_items?.reduce((n, li) => n + parseInt(li.quantity || '0', 10), 0) ?? 0
+        const paymentMethod = order.tenders?.[0]?.type?.toLowerCase() ?? 'unknown'
+        const isRefund = (order.refunds?.length ?? 0) > 0
+        const orderType = order.source?.name ?? 'square'
+        const createdAt = new Date(order.created_at)
+
+        return {
+          org_id,
+          venue_id: venueId,
+          pos_connection_id: conn.id,
+          pos_transaction_id: order.id,
+          transaction_type: isRefund ? 'refund' : 'sale',
+          transaction_at: order.created_at,
+          transaction_date: createdAt.toISOString().slice(0, 10),
+          transaction_time: createdAt.toISOString().slice(11, 19),
+          total,
+          subtotal,
+          gst_amount: tax,
+          discount_amount: discount,
+          item_count: itemCount,
+          payment_method: paymentMethod,
+          order_type: orderType,
+          synced_at: new Date().toISOString(),
+        }
+      })
+
+      for (let i = 0; i < trackingRows.length; i += BATCH_SIZE) {
+        const batch = trackingRows.slice(i, i + BATCH_SIZE)
+        await db
+          .from('sales_transactions')
+          .upsert(batch, {
+            onConflict: 'pos_transaction_id',
+            ignoreDuplicates: true,
+          })
+          .then(({ error }) => {
+            if (error) console.error('[square/sync] Tracking upsert error:', error)
+          })
       }
     }
 
@@ -242,4 +288,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(500).json({ error: err.message ?? 'Sync failed' })
   }
+}
+
+/** Map Square source name to a channel the app recognises */
+function mapSquareChannel(sourceName?: string): string {
+  if (!sourceName) return 'dine-in'
+  const lower = sourceName.toLowerCase()
+  if (lower.includes('online') || lower.includes('ecommerce')) return 'online'
+  if (lower.includes('delivery') || lower.includes('doordash') || lower.includes('uber')) return 'delivery'
+  if (lower.includes('takeout') || lower.includes('pickup') || lower.includes('takeaway')) return 'takeaway'
+  return 'dine-in'
 }

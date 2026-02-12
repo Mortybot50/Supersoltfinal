@@ -1255,6 +1255,8 @@ export type Database = {
           created_at: string
           customer_name: string | null
           discount_amount: number
+          external_data: Record<string, unknown> | null
+          external_id: string | null
           gross_amount: number
           id: string
           is_refund: boolean
@@ -1266,6 +1268,7 @@ export type Database = {
           payment_method: string | null
           refund_reason: string | null
           service_charge: number
+          source: string | null
           staff_member: string | null
           tax_amount: number
           tip_amount: number
@@ -1277,6 +1280,8 @@ export type Database = {
           created_at?: string
           customer_name?: string | null
           discount_amount?: number
+          external_data?: Record<string, unknown> | null
+          external_id?: string | null
           gross_amount: number
           id?: string
           is_refund?: boolean
@@ -1288,6 +1293,7 @@ export type Database = {
           payment_method?: string | null
           refund_reason?: string | null
           service_charge?: number
+          source?: string | null
           staff_member?: string | null
           tax_amount: number
           tip_amount?: number
@@ -1299,6 +1305,8 @@ export type Database = {
           created_at?: string
           customer_name?: string | null
           discount_amount?: number
+          external_data?: Record<string, unknown> | null
+          external_id?: string | null
           gross_amount?: number
           id?: string
           is_refund?: boolean
@@ -1310,6 +1318,7 @@ export type Database = {
           payment_method?: string | null
           refund_reason?: string | null
           service_charge?: number
+          source?: string | null
           staff_member?: string | null
           tax_amount?: number
           tip_amount?: number
