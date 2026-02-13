@@ -763,8 +763,7 @@ export async function loadShiftSwapRequestsFromDB(venueId?: string): Promise<Shi
       notes: r.notes,
     }))
   } catch (error) {
-    console.error('Failed to load shift swap requests from DB:', dbError(error))
-    toast.error('Failed to load shift swap requests. Please refresh.')
+    console.warn('Failed to load shift swap requests from DB:', dbError(error))
     return []
   }
 }

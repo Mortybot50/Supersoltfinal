@@ -35,8 +35,10 @@ export function getNextDeliveryDate(
   supplier: Supplier,
   orderDate: Date = new Date()
 ): Date {
-  const { delivery_days, cutoff_time, delivery_lead_days } = supplier
-  
+  const delivery_days = supplier.delivery_days ?? [1, 3, 5]
+  const cutoff_time = supplier.cutoff_time || '14:00'
+  const delivery_lead_days = supplier.delivery_lead_days ?? 1
+
   // Parse cutoff time (HH:MM format)
   const [cutoffHour, cutoffMinute] = cutoff_time.split(':').map(Number)
   

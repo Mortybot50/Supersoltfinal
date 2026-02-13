@@ -1448,7 +1448,16 @@ export const useDataStore = create<DataState>()(
       if (error) throw error
       
       if (data) {
-        set({ suppliers: data as Types.Supplier[] })
+        const formatted = data.map(s => ({
+          ...s,
+          delivery_days: s.delivery_days ?? [1, 3, 5],
+          cutoff_time: s.cutoff_time || '14:00',
+          delivery_lead_days: s.delivery_lead_days ?? 1,
+          category: s.category ?? 'other',
+          payment_terms: s.payment_terms ?? 'net-30',
+          active: s.active ?? true,
+        }))
+        set({ suppliers: formatted as Types.Supplier[] })
       }
     } catch (error) {
       console.error('Failed to load suppliers:', dbError(error))
