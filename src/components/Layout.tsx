@@ -48,8 +48,8 @@ const mainGroups: NavGroup[] = [
     icon: BarChart3,
     items: [
       { title: "Sales", url: "/sales" },
-      { title: "Labour Reports", url: "/workforce/reports" },
-      { title: "Inventory Reports", url: "/inventory/reports" },
+      { title: "Labour", url: "/workforce/reports" },
+      { title: "Inventory", url: "/inventory/reports" },
     ],
   },
   {
