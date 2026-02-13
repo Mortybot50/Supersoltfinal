@@ -21,11 +21,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useDataStore } from '@/lib/store/dataStore'
 import { PurchaseOrder } from '@/types'
-import { format, differenceInDays, subDays, startOfMonth, isAfter, isBefore } from 'date-fns'
+import { format, differenceInDays, subDays, startOfMonth, isAfter, isBefore, isValid } from 'date-fns'
 import { PageShell, PageToolbar } from '@/components/shared'
 import { StatCards } from '@/components/ui/StatCards'
 import { SecondaryStats } from '@/components/ui/SecondaryStats'
 import { formatCurrency } from '@/lib/utils/formatters'
+
+/** Safe date formatter — returns fallback instead of throwing on invalid dates */
+function safeFormat(date: unknown, fmt: string, fallback = '—'): string {
+  try {
+    const d = date instanceof Date ? date : new Date(date as string | number)
+    return isValid(d) ? format(d, fmt) : fallback
+  } catch {
+    return fallback
+  }
+}
 
 const STATUS_CONFIG = {
   draft: {
@@ -62,7 +72,12 @@ const STATUS_CONFIG = {
 
 function isOverdue(po: PurchaseOrder): boolean {
   if (po.status === 'delivered' || po.status === 'cancelled' || po.status === 'draft') return false
-  return isBefore(new Date(po.expected_delivery_date), new Date())
+  try {
+    const d = new Date(po.expected_delivery_date)
+    return isValid(d) && isBefore(d, new Date())
+  } catch {
+    return false
+  }
 }
 
 export default function PurchaseOrders() {
@@ -86,8 +101,8 @@ export default function PurchaseOrders() {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(
         (po) =>
-          po.po_number.toLowerCase().includes(query) ||
-          po.supplier_name.toLowerCase().includes(query) ||
+          (po.po_number ?? '').toLowerCase().includes(query) ||
+          (po.supplier_name ?? '').toLowerCase().includes(query) ||
           po.notes?.toLowerCase().includes(query)
       )
     }
@@ -118,11 +133,16 @@ export default function PurchaseOrders() {
         default:
           startDate = new Date(0)
       }
-      filtered = filtered.filter((po) => isAfter(new Date(po.order_date), startDate))
+      filtered = filtered.filter((po) => {
+        try {
+          const d = new Date(po.order_date)
+          return isValid(d) && isAfter(d, startDate)
+        } catch { return true }
+      })
     }
 
     return filtered.sort(
-      (a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime()
+      (a, b) => (new Date(b.order_date).getTime() || 0) - (new Date(a.order_date).getTime() || 0)
     )
   }, [purchaseOrders, searchQuery, statusFilter, supplierFilter, dateFilter])
 
@@ -305,12 +325,12 @@ export default function PurchaseOrders() {
                     </TableCell>
                     <TableCell>{po.supplier_name}</TableCell>
                     <TableCell>
-                      {format(new Date(po.order_date), 'dd MMM yyyy')}
+                      {safeFormat(po.order_date, 'dd MMM yyyy')}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1.5">
                         <span className={overdue ? 'text-red-600 font-semibold' : ''}>
-                          {format(new Date(po.expected_delivery_date), 'dd MMM yyyy')}
+                          {safeFormat(po.expected_delivery_date, 'dd MMM yyyy')}
                         </span>
                         {overdue && (
                           <Badge variant="destructive" className="text-[10px] px-1.5 py-0">

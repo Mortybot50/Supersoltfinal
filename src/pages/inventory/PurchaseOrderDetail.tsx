@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
-  FileText,
   Building2,
   Calendar,
   Package,
@@ -32,11 +31,26 @@ import { PageShell, PageToolbar } from '@/components/shared'
 import { calculateCostPerBaseUnit, calculatePackToBaseFactor } from '@/lib/utils/unitConversions'
 import { getDefaultOrgSettings } from '@/lib/venueSettings'
 import { toast } from 'sonner'
-import { format, isBefore, differenceInDays } from 'date-fns'
+import { format, isBefore, differenceInDays, isValid } from 'date-fns'
+
+/** Safe date formatter — returns fallback instead of throwing on invalid dates */
+function safeFormat(date: unknown, fmt: string, fallback = '—'): string {
+  try {
+    const d = date instanceof Date ? date : new Date(date as string | number)
+    return isValid(d) ? format(d, fmt) : fallback
+  } catch {
+    return fallback
+  }
+}
 
 function isOverdue(po: PurchaseOrder): boolean {
   if (po.status === 'delivered' || po.status === 'cancelled' || po.status === 'draft') return false
-  return isBefore(new Date(po.expected_delivery_date), new Date())
+  try {
+    const d = new Date(po.expected_delivery_date)
+    return isValid(d) && isBefore(d, new Date())
+  } catch {
+    return false
+  }
 }
 
 interface ReceiveLineState {
@@ -130,7 +144,7 @@ export default function PurchaseOrderDetail() {
 
 Please find our purchase order ${po.po_number} attached.
 
-Expected delivery: ${format(new Date(po.expected_delivery_date), 'EEEE, dd MMMM yyyy')}
+Expected delivery: ${safeFormat(po.expected_delivery_date, 'EEEE, dd MMMM yyyy')}
 
 Total: $${(po.total / 100).toFixed(2)} (inc GST)
 
@@ -370,12 +384,12 @@ Team`
           </div>
           {po.submitted_at && (
             <p className="text-sm text-muted-foreground">
-              Submitted: {format(new Date(po.submitted_at), 'dd MMM yyyy HH:mm')}
+              Submitted: {safeFormat(po.submitted_at, 'dd MMM yyyy HH:mm')}
             </p>
           )}
           {po.delivered_at && (
             <p className="text-sm text-muted-foreground">
-              Delivered: {format(new Date(po.delivered_at), 'dd MMM yyyy')}
+              Delivered: {safeFormat(po.delivered_at, 'dd MMM yyyy')}
             </p>
           )}
           {canCancel && (
@@ -420,7 +434,7 @@ Team`
             <p className="text-sm font-medium text-muted-foreground">Delivery</p>
           </div>
           <p className={`font-semibold ${overdue ? 'text-red-600' : ''}`}>
-            {format(new Date(po.expected_delivery_date), 'EEEE, dd MMM yyyy')}
+            {safeFormat(po.expected_delivery_date, 'EEEE, dd MMM yyyy')}
           </p>
           {overdue && (
             <p className="text-sm text-red-600 mt-1 font-medium">
@@ -458,12 +472,12 @@ Team`
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">{item.ingredient_name}</TableCell>
                   <TableCell>{item.unit}</TableCell>
-                  <TableCell className="text-right">{item.quantity_ordered || item.quantity}</TableCell>
+                  <TableCell className="text-right">{item.quantity_ordered}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
                       <span
                         className={
-                          (item.quantity_received || 0) >= (item.quantity_ordered || item.quantity)
+                          (item.quantity_received || 0) >= item.quantity_ordered
                             ? 'text-green-600 font-semibold'
                             : (item.quantity_received || 0) > 0
                             ? 'text-orange-600 font-semibold'
