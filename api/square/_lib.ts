@@ -35,10 +35,9 @@ export function supabaseAdmin() {
 }
 
 // ── Square API base URL ─────────────────────────────────────────────
-export const SQUARE_BASE =
-  process.env.SQUARE_ENVIRONMENT === 'sandbox'
-    ? 'https://connect.squareupsandbox.com'
-    : 'https://connect.squareup.com'
+// Hardcoded to sandbox for now. When going to production, change to:
+// 'https://connect.squareup.com'
+export const SQUARE_BASE = 'https://connect.squareupsandbox.com'
 
 // ── Square OAuth scopes ─────────────────────────────────────────────
 export const SQUARE_SCOPES = [

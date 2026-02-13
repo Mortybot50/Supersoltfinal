@@ -6,16 +6,12 @@
  * `state` parameter so the callback can associate the connection.
  */
 import type { VercelRequest, VercelResponse } from './_lib.js'
-import { env, SQUARE_SCOPES } from './_lib.js'
-
-const SQUARE_BASE = 'https://connect.squareupsandbox.com'
+import { env, SQUARE_BASE, SQUARE_SCOPES } from './_lib.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
-
-  console.log('SQUARE_ENVIRONMENT:', process.env.SQUARE_ENVIRONMENT)
 
   try {
     const orgId = req.query.org_id as string
