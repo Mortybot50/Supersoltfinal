@@ -13,7 +13,7 @@
  *   - Updates last_sync_at / last_sync_status on pos_connections
  */
 import type { VercelRequest, VercelResponse } from './_lib.js'
-import { env, supabaseAdmin, SQUARE_BASE, refreshSquareToken } from './_lib.js'
+import { env, supabaseAdmin, SQUARE_BASE, refreshSquareToken, decrypt, encrypt } from './_lib.js'
 
 interface SquareOrder {
   id: string
@@ -63,8 +63,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ error: 'No active Square connection found' })
     }
 
-    let accessToken = conn.access_token!
-    const refreshToken = conn.refresh_token!
+    let accessToken = decrypt(conn.access_token!)
+    const refreshToken = decrypt(conn.refresh_token!)
 
     // ── Resolve location IDs to sync ────────────────────────────
     const locationQuery = db
@@ -124,12 +124,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const newTokens = await refreshSquareToken(refreshToken)
         accessToken = newTokens.access_token
 
-        // Persist new tokens
+        // Persist new tokens (encrypted)
         await db
           .from('pos_connections')
           .update({
-            access_token: newTokens.access_token,
-            refresh_token: newTokens.refresh_token,
+            access_token: encrypt(newTokens.access_token),
+            refresh_token: encrypt(newTokens.refresh_token),
             token_expires_at: newTokens.expires_at,
           })
           .eq('id', conn.id)

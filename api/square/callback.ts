@@ -10,7 +10,7 @@
  *   5. Redirects the user back to the Integrations page
  */
 import type { VercelRequest, VercelResponse } from './_lib.js'
-import { env, supabaseAdmin, SQUARE_BASE } from './_lib.js'
+import { env, supabaseAdmin, SQUARE_BASE, encrypt } from './_lib.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -82,7 +82,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       merchantName = merchantData.merchant?.business_name ?? merchantName
     }
 
-    // ── Upsert pos_connections ──────────────────────────────────
+    // ── Upsert pos_connections (tokens encrypted at rest) ───────
     const { data: connection, error: connError } = await db
       .from('pos_connections')
       .upsert(
@@ -91,8 +91,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           provider: 'square',
           merchant_id: tokenData.merchant_id,
           merchant_name: merchantName,
-          access_token: tokenData.access_token,
-          refresh_token: tokenData.refresh_token,
+          access_token: encrypt(tokenData.access_token),
+          refresh_token: encrypt(tokenData.refresh_token),
           token_expires_at: tokenData.expires_at,
           is_active: true,
         },

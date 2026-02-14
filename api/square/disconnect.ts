@@ -9,7 +9,7 @@
  *   4. Deactivates all related pos_location_mappings
  */
 import type { VercelRequest, VercelResponse } from './_lib.js'
-import { env, supabaseAdmin, SQUARE_BASE } from './_lib.js'
+import { env, supabaseAdmin, SQUARE_BASE, decrypt } from './_lib.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -39,6 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // ── Revoke token with Square ────────────────────────────────
     if (conn.access_token) {
+      const plainToken = decrypt(conn.access_token)
       const revokeRes = await fetch(`${SQUARE_BASE}/oauth2/revoke`, {
         method: 'POST',
         headers: {
@@ -47,7 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
         body: JSON.stringify({
           client_id: env('SQUARE_APP_ID'),
-          access_token: conn.access_token,
+          access_token: plainToken,
         }),
       })
 
