@@ -13,7 +13,7 @@ interface PrimaryAction {
   icon?: React.ComponentType<{ className?: string }>
   onClick: () => void
   disabled?: boolean
-  variant?: "primary" | "export" | "teal" | "default"
+  variant?: "primary" | "export" | "default"
 }
 
 interface PageToolbarProps {
@@ -84,7 +84,7 @@ export function PageToolbar({
           <Button
             className={cn(
               "h-8",
-              primaryAction.variant === "primary" || primaryAction.variant === "teal"
+              primaryAction.variant === "primary"
                 ? "bg-brand hover:bg-brand-500 text-gray-900 font-semibold"
                 : primaryAction.variant === "export"
                   ? "bg-emerald-600 hover:bg-emerald-700 text-white"
