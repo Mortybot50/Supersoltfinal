@@ -168,7 +168,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const taxAmount = order.total_tax_money?.amount ?? 0
         const discountAmount = order.total_discount_money?.amount ?? 0
         const netAmount = grossAmount - taxAmount
-        const paymentMethod = order.tenders?.[0]?.type?.toLowerCase() ?? 'unknown'
+        const paymentMethod = mapSquareTender(order.tenders?.[0]?.type)
         const isRefund = (order.refunds?.length ?? 0) > 0
         const channel = mapSquareChannel(order.source?.name)
 
@@ -216,7 +216,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const discount = order.total_discount_money?.amount ?? 0
         const subtotal = total - tax
         const itemCount = order.line_items?.reduce((n, li) => n + parseInt(li.quantity || '0', 10), 0) ?? 0
-        const paymentMethod = order.tenders?.[0]?.type?.toLowerCase() ?? 'unknown'
+        const paymentMethod = mapSquareTender(order.tenders?.[0]?.type)
         const isRefund = (order.refunds?.length ?? 0) > 0
         const orderType = order.source?.name ?? 'square'
         const createdAt = new Date(order.created_at)
@@ -298,4 +298,19 @@ function mapSquareChannel(sourceName?: string): string {
   if (lower.includes('delivery') || lower.includes('doordash') || lower.includes('uber')) return 'delivery'
   if (lower.includes('takeout') || lower.includes('pickup') || lower.includes('takeaway')) return 'takeaway'
   return 'dine-in'
+}
+
+/** Map Square tender type to app payment_method values */
+function mapSquareTender(tenderType?: string): string {
+  if (!tenderType) return 'unknown'
+  switch (tenderType) {
+    case 'CASH': return 'cash'
+    case 'CARD': return 'card'
+    case 'WALLET': return 'digital_wallet'
+    case 'SQUARE_GIFT_CARD': return 'gift_card'
+    case 'BUY_NOW_PAY_LATER': return 'bnpl'
+    case 'BANK_ACCOUNT': return 'bank_transfer'
+    case 'NO_SALE': return 'no_sale'
+    default: return tenderType.toLowerCase()
+  }
 }

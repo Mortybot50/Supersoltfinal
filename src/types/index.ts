@@ -763,6 +763,8 @@ export interface Target {
 
 export interface SalesMetrics {
   net_sales: number
+  gross_sales: number
+  total_tax: number
   avg_check: number
   total_orders: number
   total_items: number

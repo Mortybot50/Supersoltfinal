@@ -17,6 +17,8 @@ interface SalesMetricsResult {
   orders: Array<{
     id: string
     order_datetime: string
+    gross_amount: number
+    tax_amount: number
     net_amount: number
     channel: string
     is_void: boolean
@@ -35,7 +37,7 @@ export function useSalesMetrics(filters?: SalesFilters): SalesMetricsResult {
     queryFn: async () => {
       let query = supabase
         .from('orders')
-        .select('id, order_datetime, channel, gross_amount, net_amount, is_void, is_refund, refund_reason, payment_method')
+        .select('id, order_datetime, channel, gross_amount, tax_amount, net_amount, is_void, is_refund, refund_reason, payment_method')
       if (venueId) query = query.eq('venue_id', venueId)
       if (startDate) query = query.gte('order_datetime', startDate)
       if (endDate) query = query.lte('order_datetime', endDate)
@@ -64,9 +66,17 @@ export function useSalesMetrics(filters?: SalesFilters): SalesMetricsResult {
     const validOrders = orders.filter(o => !o.is_void)
     const nonRefundOrders = validOrders.filter(o => !o.is_refund)
 
-    // Net sales (cents) — refunds subtract
+    // Sales totals (cents) — refunds subtract
     const netSales = validOrders.reduce(
       (sum, o) => sum + (o.is_refund ? -o.net_amount : o.net_amount),
+      0
+    )
+    const grossSales = validOrders.reduce(
+      (sum, o) => sum + (o.is_refund ? -o.gross_amount : o.gross_amount),
+      0
+    )
+    const totalTax = validOrders.reduce(
+      (sum, o) => sum + (o.is_refund ? -o.tax_amount : o.tax_amount),
       0
     )
     const totalOrders = nonRefundOrders.length
@@ -131,6 +141,8 @@ export function useSalesMetrics(filters?: SalesFilters): SalesMetricsResult {
 
     const metrics: SalesMetrics = {
       net_sales: netSales,
+      gross_sales: grossSales,
+      total_tax: totalTax,
       avg_check: avgCheck,
       total_orders: totalOrders,
       total_items: 0,
