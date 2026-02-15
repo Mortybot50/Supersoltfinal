@@ -6,7 +6,7 @@
  * `state` parameter so the callback can associate the connection.
  */
 import type { VercelRequest, VercelResponse } from './_lib.js'
-import { env, SQUARE_BASE, SQUARE_SCOPES, extractToken, verifyUser, checkOrgMembership } from './_lib.js'
+import { env, SQUARE_BASE, SQUARE_SCOPES, extractToken, verifyUser, checkOrgAccess } from './_lib.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -32,9 +32,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'org_id and venue_id are required' })
     }
 
-    // ── Verify org membership ──────────────────────────────────
-    const isMember = await checkOrgMembership(authResult.user.id, orgId)
-    if (!isMember) {
+    // ── Verify org membership (via RLS on user's JWT) ─────────
+    const hasAccess = await checkOrgAccess(token!, orgId)
+    if (!hasAccess) {
       return res.status(403).json({ error: 'Forbidden — not a member of this organisation' })
     }
 

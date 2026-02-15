@@ -13,7 +13,7 @@
  *   - Updates last_sync_at / last_sync_status on pos_connections
  */
 import type { VercelRequest, VercelResponse } from './_lib.js'
-import { env, supabaseAdmin, SQUARE_BASE, refreshSquareToken, decrypt, encrypt, extractToken, verifyUser, checkOrgMembership } from './_lib.js'
+import { env, supabaseAdmin, SQUARE_BASE, refreshSquareToken, decrypt, encrypt, extractToken, verifyUser, checkOrgAccess } from './_lib.js'
 
 interface SquareOrder {
   id: string
@@ -61,10 +61,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'org_id is required' })
     }
 
-    // ── Verify org membership ──────────────────────────────────
-    const isMember = await checkOrgMembership(authResult.user.id, org_id)
-    if (!isMember) {
-      console.error('[square/sync] Membership check failed:', { userId: authResult.user.id, org_id })
+    // ── Verify org membership (via RLS on user's JWT) ─────────
+    const hasAccess = await checkOrgAccess(token!, org_id)
+    if (!hasAccess) {
+      console.error('[square/sync] Access check failed:', { userId: authResult.user.id, org_id })
       return res.status(403).json({ error: 'Forbidden — not a member of this organisation' })
     }
 

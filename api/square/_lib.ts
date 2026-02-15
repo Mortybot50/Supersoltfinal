@@ -35,6 +35,20 @@ export function supabaseAdmin() {
   )
 }
 
+// ── Supabase user-scoped client (respects RLS) ──────────────────────
+// Uses service-role key for API gateway auth but the user's JWT in the
+// Authorization header — this makes PostgREST evaluate RLS as that user.
+export function supabaseAsUser(accessToken: string) {
+  return createClient(
+    env('NEXT_PUBLIC_SUPABASE_URL'),
+    env('SUPABASE_SERVICE_ROLE_KEY'),
+    {
+      global: { headers: { Authorization: `Bearer ${accessToken}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    },
+  )
+}
+
 // ── Square API base URL ─────────────────────────────────────────────
 // Hardcoded to sandbox for now. When going to production, change to:
 // 'https://connect.squareup.com'
@@ -112,6 +126,7 @@ export async function verifyUser(token: string): Promise<
 > {
   const db = supabaseAdmin()
   const { data: { user }, error } = await db.auth.getUser(token)
+  console.log('[verifyUser]', JSON.stringify({ userId: user?.id ?? null, email: user?.email ?? null, error: error?.message ?? null }))
   if (!user || error) {
     return { error: 'Unauthorized', status: 401 }
   }
@@ -119,32 +134,31 @@ export async function verifyUser(token: string): Promise<
 }
 
 /**
- * Check that a user belongs to the given org via org_members table.
- * Returns true if they're a member, false otherwise.
+ * Check that the authenticated user belongs to the given org.
+ *
+ * Uses a user-scoped Supabase client (with the caller's JWT) and queries
+ * the `organizations` table. RLS on that table requires the user to be
+ * in org_members — so if the row comes back, membership is proven.
+ *
+ * This approach piggybacks on the same RLS policies that already work
+ * in the frontend, avoiding any service-role edge cases.
  */
-export async function checkOrgMembership(
-  userId: string,
+export async function checkOrgAccess(
+  accessToken: string,
   orgId: string,
 ): Promise<boolean> {
-  const db = supabaseAdmin()
+  const userDb = supabaseAsUser(accessToken)
 
-  // Use count query to avoid .single()/.maybeSingle() edge cases
-  const { count, error } = await db
-    .from('org_members')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('org_id', orgId)
+  const { data, error } = await userDb
+    .from('organizations')
+    .select('id')
+    .eq('id', orgId)
+    .maybeSingle()
 
-  if (error) {
-    console.error('[checkOrgMembership] Query error:', error.message, { userId, orgId })
-    return false
-  }
+  console.log('[checkOrgAccess]', JSON.stringify({ orgId, found: !!data, error: error?.message ?? null }))
 
-  const found = (count ?? 0) > 0
-  if (!found) {
-    console.error('[checkOrgMembership] No membership found:', { userId, orgId, count })
-  }
-  return found
+  if (error || !data) return false
+  return true
 }
 
 // ── Token encryption (AES-256-GCM) ──────────────────────────────────
