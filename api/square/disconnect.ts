@@ -55,25 +55,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ error: 'No active Square connection found' })
     }
 
-    // ── Revoke token with Square ────────────────────────────────
+    // ── Revoke token with Square (best-effort) ─────────────────
+    // Wrapped in its own try/catch so that decryption or network
+    // errors don't prevent the local deactivation below.
     if (conn.access_token) {
-      const plainToken = decrypt(conn.access_token)
-      const revokeRes = await fetch(`${SQUARE_BASE}/oauth2/revoke`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Client ${env('SQUARE_APP_SECRET')}`,
-        },
-        body: JSON.stringify({
-          client_id: env('SQUARE_APP_ID'),
-          access_token: plainToken,
-        }),
-      })
+      try {
+        const plainToken = decrypt(conn.access_token)
+        const revokeRes = await fetch(`${SQUARE_BASE}/oauth2/revoke`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Client ${env('SQUARE_APP_SECRET')}`,
+          },
+          body: JSON.stringify({
+            client_id: env('SQUARE_APP_ID'),
+            access_token: plainToken,
+          }),
+        })
 
-      if (!revokeRes.ok) {
-        const text = await revokeRes.text()
-        console.error('[square/disconnect] Revoke API error:', text)
-        // Continue anyway — we still want to deactivate locally
+        if (!revokeRes.ok) {
+          const text = await revokeRes.text()
+          console.error('[square/disconnect] Revoke API error:', text)
+        }
+      } catch (revokeErr: any) {
+        console.error('[square/disconnect] Token revoke failed (continuing):', revokeErr.message)
       }
     }
 
