@@ -140,12 +140,17 @@ export default function Integrations() {
   }, [searchParams, setSearchParams])
 
   // ── Connect handler ───────────────────────────────────────────
-  const handleConnect = () => {
+  const handleConnect = async () => {
     if (!currentOrg || !currentVenue) {
       toast.error('Please select an organisation and venue first')
       return
     }
-    window.location.href = `/api/square/auth?org_id=${currentOrg.id}&venue_id=${currentVenue.id}`
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) {
+      toast.error('Not logged in — please sign in and try again')
+      return
+    }
+    window.location.href = `/api/square/auth?org_id=${currentOrg.id}&venue_id=${currentVenue.id}&token=${session.access_token}`
   }
 
   // ── Sync handler ──────────────────────────────────────────────
@@ -153,9 +158,13 @@ export default function Integrations() {
     if (!currentOrg || !currentVenue) return
     setSyncing(true)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch('/api/square/sync', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
         body: JSON.stringify({ org_id: currentOrg.id, venue_id: currentVenue.id }),
       })
       const data = await res.json()
@@ -184,9 +193,13 @@ export default function Integrations() {
     if (!currentOrg) return
     setDisconnecting(true)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch('/api/square/disconnect', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
         body: JSON.stringify({ org_id: currentOrg.id }),
       })
       const data = await res.json()

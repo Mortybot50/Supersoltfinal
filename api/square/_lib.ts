@@ -76,7 +76,7 @@ export async function refreshSquareToken(refreshToken: string) {
 // ── Auth helpers ────────────────────────────────────────────────────
 // Used by sync, disconnect, and auth routes to verify the calling user.
 
-/** Extract Supabase access token from Authorization header or cookie */
+/** Extract Supabase access token from Authorization header, cookie, or query param */
 export function extractToken(req: VercelRequest): string | null {
   // 1. Authorization: Bearer <token>
   const authHeader = req.headers.authorization
@@ -89,6 +89,12 @@ export function extractToken(req: VercelRequest): string | null {
   if (typeof cookieHeader === 'string') {
     const match = cookieHeader.match(/(?:^|;\s*)sb-access-token=([^;]+)/)
     if (match) return match[1]
+  }
+
+  // 3. token query param (for GET redirects like /api/square/auth)
+  const queryToken = req.query.token
+  if (typeof queryToken === 'string' && queryToken.length > 0) {
+    return queryToken
   }
 
   return null
