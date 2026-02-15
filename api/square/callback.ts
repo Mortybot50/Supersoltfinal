@@ -35,6 +35,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Invalid state parameter' })
     }
 
+    if (!state.org_id || !state.venue_id) {
+      return res.redirect(`${env('APP_URL')}/integrations?error=invalid_state`)
+    }
+
+    // ── Validate org_id and venue_id exist in DB ──────────────
+    const { data: org, error: orgErr } = await db
+      .from('organizations')
+      .select('id')
+      .eq('id', state.org_id)
+      .single()
+
+    if (orgErr || !org) {
+      return res.redirect(`${env('APP_URL')}/integrations?error=invalid_org`)
+    }
+
+    const { data: venue, error: venueErr } = await db
+      .from('venues')
+      .select('id')
+      .eq('id', state.venue_id)
+      .eq('org_id', state.org_id)
+      .single()
+
+    if (venueErr || !venue) {
+      return res.redirect(`${env('APP_URL')}/integrations?error=invalid_venue`)
+    }
+
     // ── Exchange code for tokens ────────────────────────────────
     const tokenRes = await fetch(`${SQUARE_BASE}/oauth2/token`, {
       method: 'POST',

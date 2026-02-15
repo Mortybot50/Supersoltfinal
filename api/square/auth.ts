@@ -6,11 +6,22 @@
  * `state` parameter so the callback can associate the connection.
  */
 import type { VercelRequest, VercelResponse } from './_lib.js'
-import { env, SQUARE_BASE, SQUARE_SCOPES } from './_lib.js'
+import { env, SQUARE_BASE, SQUARE_SCOPES, extractToken, verifyUser, checkOrgMembership } from './_lib.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  // ── Authenticate caller ──────────────────────────────────────
+  const token = extractToken(req)
+  if (!token) {
+    return res.redirect(`${env('APP_URL')}/login`)
+  }
+
+  const authResult = await verifyUser(token)
+  if (authResult.error) {
+    return res.redirect(`${env('APP_URL')}/login`)
   }
 
   try {
@@ -19,6 +30,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!orgId || !venueId) {
       return res.status(400).json({ error: 'org_id and venue_id are required' })
+    }
+
+    // ── Verify org membership ──────────────────────────────────
+    const isMember = await checkOrgMembership(authResult.user.id, orgId)
+    if (!isMember) {
+      return res.status(403).json({ error: 'Forbidden — not a member of this organisation' })
     }
 
     const state = Buffer.from(JSON.stringify({ org_id: orgId, venue_id: venueId })).toString('base64url')

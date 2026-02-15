@@ -13,7 +13,7 @@
  *   - Updates last_sync_at / last_sync_status on pos_connections
  */
 import type { VercelRequest, VercelResponse } from './_lib.js'
-import { env, supabaseAdmin, SQUARE_BASE, refreshSquareToken, decrypt, encrypt } from './_lib.js'
+import { env, supabaseAdmin, SQUARE_BASE, refreshSquareToken, decrypt, encrypt, extractToken, verifyUser, checkOrgMembership } from './_lib.js'
 
 interface SquareOrder {
   id: string
@@ -42,12 +42,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
+  // ── Authenticate caller ──────────────────────────────────────
+  const token = extractToken(req)
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized — no token provided' })
+  }
+
+  const authResult = await verifyUser(token)
+  if (authResult.error) {
+    return res.status(authResult.status).json({ error: authResult.error })
+  }
+
   const db = supabaseAdmin()
 
   try {
     const { org_id, venue_id } = req.body ?? {}
     if (!org_id) {
       return res.status(400).json({ error: 'org_id is required' })
+    }
+
+    // ── Verify org membership ──────────────────────────────────
+    const isMember = await checkOrgMembership(authResult.user.id, org_id)
+    if (!isMember) {
+      return res.status(403).json({ error: 'Forbidden — not a member of this organisation' })
     }
 
     // ── Load connection ─────────────────────────────────────────

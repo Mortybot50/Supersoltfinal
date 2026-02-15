@@ -73,6 +73,65 @@ export async function refreshSquareToken(refreshToken: string) {
   }>
 }
 
+// ── Auth helpers ────────────────────────────────────────────────────
+// Used by sync, disconnect, and auth routes to verify the calling user.
+
+/** Extract Supabase access token from Authorization header or cookie */
+export function extractToken(req: VercelRequest): string | null {
+  // 1. Authorization: Bearer <token>
+  const authHeader = req.headers.authorization
+  if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+    return authHeader.slice(7)
+  }
+
+  // 2. sb-access-token cookie
+  const cookieHeader = req.headers.cookie
+  if (typeof cookieHeader === 'string') {
+    const match = cookieHeader.match(/(?:^|;\s*)sb-access-token=([^;]+)/)
+    if (match) return match[1]
+  }
+
+  return null
+}
+
+/**
+ * Verify the Supabase auth token and return the user.
+ * Uses the service-role client to validate the JWT — this avoids
+ * needing a separate anon key env var on Vercel.
+ * Returns { user } on success or { error, status } on failure.
+ */
+export async function verifyUser(token: string): Promise<
+  | { user: { id: string; email?: string }; error?: never; status?: never }
+  | { user?: never; error: string; status: number }
+> {
+  const db = supabaseAdmin()
+  const { data: { user }, error } = await db.auth.getUser(token)
+  if (!user || error) {
+    return { error: 'Unauthorized', status: 401 }
+  }
+  return { user: { id: user.id, email: user.email ?? undefined } }
+}
+
+/**
+ * Check that a user belongs to the given org via org_members table.
+ * Returns true if they're a member, false otherwise.
+ */
+export async function checkOrgMembership(
+  userId: string,
+  orgId: string,
+): Promise<boolean> {
+  const db = supabaseAdmin()
+  const { data, error } = await db
+    .from('org_members')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('org_id', orgId)
+    .limit(1)
+    .single()
+
+  return !error && !!data
+}
+
 // ── Token encryption (AES-256-GCM) ──────────────────────────────────
 // ENCRYPTION_KEY must be a 64-char hex string (32 bytes).
 // Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
