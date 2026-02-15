@@ -38,6 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ── Verify org membership ──────────────────────────────────
     const isMember = await checkOrgMembership(authResult.user.id, org_id)
     if (!isMember) {
+      console.error('[square/disconnect] Membership check failed:', { userId: authResult.user.id, org_id })
       return res.status(403).json({ error: 'Forbidden — not a member of this organisation' })
     }
 

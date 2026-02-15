@@ -120,7 +120,7 @@ export async function verifyUser(token: string): Promise<
 
 /**
  * Check that a user belongs to the given org via org_members table.
- * Returns true if they're a member, false otherwise.
+ * Returns true if they're an active member, false otherwise.
  */
 export async function checkOrgMembership(
   userId: string,
@@ -132,10 +132,15 @@ export async function checkOrgMembership(
     .select('id')
     .eq('user_id', userId)
     .eq('org_id', orgId)
+    .eq('is_active', true)
     .limit(1)
-    .single()
+    .maybeSingle()
 
-  return !error && !!data
+  if (error) {
+    console.error('[checkOrgMembership] Query failed:', { userId, orgId, error: error.message })
+    return false
+  }
+  return !!data
 }
 
 // ── Token encryption (AES-256-GCM) ──────────────────────────────────
