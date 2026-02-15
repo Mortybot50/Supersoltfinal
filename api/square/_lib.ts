@@ -120,27 +120,31 @@ export async function verifyUser(token: string): Promise<
 
 /**
  * Check that a user belongs to the given org via org_members table.
- * Returns true if they're an active member, false otherwise.
+ * Returns true if they're a member, false otherwise.
  */
 export async function checkOrgMembership(
   userId: string,
   orgId: string,
 ): Promise<boolean> {
   const db = supabaseAdmin()
-  const { data, error } = await db
+
+  // Use count query to avoid .single()/.maybeSingle() edge cases
+  const { count, error } = await db
     .from('org_members')
-    .select('id')
+    .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
     .eq('org_id', orgId)
-    .eq('is_active', true)
-    .limit(1)
-    .maybeSingle()
 
   if (error) {
-    console.error('[checkOrgMembership] Query failed:', { userId, orgId, error: error.message })
+    console.error('[checkOrgMembership] Query error:', error.message, { userId, orgId })
     return false
   }
-  return !!data
+
+  const found = (count ?? 0) > 0
+  if (!found) {
+    console.error('[checkOrgMembership] No membership found:', { userId, orgId, count })
+  }
+  return found
 }
 
 // ── Token encryption (AES-256-GCM) ──────────────────────────────────
