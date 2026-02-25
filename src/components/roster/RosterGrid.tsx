@@ -1,0 +1,232 @@
+/**
+ * RosterGrid — main grid container.
+ * Renders role-grouped staff rows × date columns for week/fortnight views.
+ * Commit 1: static grid. Commit 2: wraps with DndContext.
+ */
+
+import { useMemo } from 'react'
+import { Staff, RosterShift } from '@/types'
+import { useRosterStore } from '@/stores/useRosterStore'
+import { RosterRow } from './RosterRow'
+import { RoleGroupHeader } from './RoleGroupHeader'
+import { format, isToday, isWeekend, isSameDay } from 'date-fns'
+import { getWeekDates, getFortnightDates } from '@/lib/utils/rosterCalculations'
+import { cn } from '@/lib/utils'
+
+interface RosterGridProps {
+  onAddShift?: (date: Date, staffId: string) => void
+  onSelectShift?: (shift: RosterShift) => void
+  onDeleteShift?: (shift: RosterShift) => void
+}
+
+export function RosterGrid({
+  onAddShift,
+  onSelectShift,
+  onDeleteShift,
+}: RosterGridProps) {
+  const {
+    view,
+    selectedDate,
+    shifts,
+    ghostShifts,
+    staff,
+    availability,
+    roleFilter,
+    searchQuery,
+    expandedRoles,
+    toggleRole,
+  } = useRosterStore()
+
+  // Compute dates for the view
+  const dates = useMemo(() => {
+    if (view === 'fortnight') return getFortnightDates(selectedDate)
+    if (view === 'day') return [selectedDate]
+    return getWeekDates(selectedDate)
+  }, [view, selectedDate])
+
+  // Filter staff
+  const filteredStaff = useMemo(() => {
+    let s = staff.filter(m => m.status === 'active')
+    if (roleFilter) s = s.filter(m => m.role.toLowerCase() === roleFilter.toLowerCase())
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      s = s.filter(m => m.name.toLowerCase().includes(q))
+    }
+    return s
+  }, [staff, roleFilter, searchQuery])
+
+  // Group staff by role
+  const roleGroups = useMemo(() => {
+    const groups: Record<string, Staff[]> = {}
+    filteredStaff.forEach(s => {
+      const r = s.role || 'crew'
+      if (!groups[r]) groups[r] = []
+      groups[r].push(s)
+    })
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))
+  }, [filteredStaff])
+
+  // Weekly hours per staff
+  const weeklyHours = useMemo(() => {
+    const map: Record<string, number> = {}
+    shifts
+      .filter(s => s.status !== 'cancelled' && !s.is_open_shift)
+      .forEach(s => {
+        map[s.staff_id] = (map[s.staff_id] || 0) + s.total_hours
+      })
+    return map
+  }, [shifts])
+
+  const compact = view === 'fortnight'
+  const colCount = dates.length
+
+  // Grid template: sticky name col (180px) + 1fr per date
+  const gridStyle = {
+    display: 'grid',
+    gridTemplateColumns: `180px repeat(${colCount}, minmax(${compact ? '60px' : '100px'}, 1fr))`,
+  }
+
+  return (
+    <div className="flex-1 overflow-auto relative">
+      {/* Weekend/holiday CSS */}
+      <style>{`
+        .roster-weekend-shift {
+          background-image: repeating-linear-gradient(
+            135deg,
+            transparent,
+            transparent 4px,
+            rgba(0,0,0,0.04) 4px,
+            rgba(0,0,0,0.04) 8px
+          );
+        }
+      `}</style>
+
+      <div style={gridStyle} className="min-w-max">
+
+        {/* ── Column headers ── */}
+        {/* Top-left corner cell */}
+        <div className="sticky top-0 left-0 z-30 bg-white border-r border-b px-2 py-1.5 flex items-end">
+          <span className="text-xs text-gray-400 font-medium">Staff</span>
+        </div>
+
+        {/* Date headers */}
+        {dates.map(date => {
+          const today = isToday(date)
+          const weekend = isWeekend(date)
+          return (
+            <div
+              key={format(date, 'yyyy-MM-dd')}
+              className={cn(
+                'sticky top-0 z-20 border-r border-b px-1 py-1.5 text-center',
+                today ? 'bg-blue-50' : weekend ? 'bg-gray-50' : 'bg-white',
+              )}
+            >
+              <div className={cn('text-[10px] font-medium uppercase tracking-wide', today ? 'text-blue-600' : 'text-gray-500')}>
+                {format(date, compact ? 'EEE' : 'EEE')}
+              </div>
+              <div className={cn(
+                'text-sm font-bold leading-tight',
+                today
+                  ? 'text-blue-600 bg-blue-100 rounded-full w-6 h-6 flex items-center justify-center mx-auto'
+                  : 'text-gray-800'
+              )}>
+                {format(date, 'd')}
+              </div>
+              {!compact && (
+                <div className="text-[9px] text-gray-400">{format(date, 'MMM')}</div>
+              )}
+            </div>
+          )
+        })}
+
+        {/* ── Role groups + rows ── */}
+        {roleGroups.map(([role, roleStaff]) => {
+          const isExpanded = expandedRoles.has(role)
+          const roleShifts = shifts.filter(s =>
+            roleStaff.some(m => m.id === s.staff_id)
+          )
+
+          return (
+            <div
+              key={role}
+              className="contents"
+            >
+              {/* Role group header spans all columns */}
+              <div
+                style={{ gridColumn: `1 / span ${colCount + 1}` }}
+                className="contents"
+              >
+                <div style={{ gridColumn: `1 / span ${colCount + 1}` }}>
+                  <RoleGroupHeader
+                    role={role}
+                    staffCount={roleStaff.length}
+                    shifts={roleShifts}
+                    isExpanded={isExpanded}
+                    onToggle={() => toggleRole(role)}
+                    colCount={colCount}
+                  />
+                </div>
+              </div>
+
+              {/* Staff rows (hidden when collapsed) */}
+              {isExpanded && roleStaff.map(member => (
+                <RosterRow
+                  key={member.id}
+                  staff={member}
+                  dates={dates}
+                  shifts={shifts.filter(s => s.staff_id === member.id)}
+                  ghostShifts={ghostShifts.filter(s => s.staff_id === member.id)}
+                  weeklyHours={weeklyHours[member.id] || 0}
+                  compact={compact}
+                  onAddShift={onAddShift}
+                  onSelectShift={onSelectShift}
+                  onDeleteShift={onDeleteShift}
+                />
+              ))}
+            </div>
+          )
+        })}
+
+        {/* Empty state */}
+        {filteredStaff.length === 0 && (
+          <div
+            style={{ gridColumn: `1 / span ${colCount + 1}` }}
+            className="py-16 text-center text-gray-400 text-sm"
+          >
+            {searchQuery
+              ? `No staff matching "${searchQuery}"`
+              : 'No active staff. Add staff members in the People module.'}
+          </div>
+        )}
+
+        {/* ── Day totals footer ── */}
+        <div className="sticky bottom-0 left-0 z-20 bg-gray-50 border-t border-r px-2 py-1 flex items-center">
+          <span className="text-xs font-medium text-gray-500">Total</span>
+        </div>
+        {dates.map(date => {
+          const dayShifts = shifts.filter(s => {
+            const d = s.date instanceof Date ? s.date : new Date(s.date)
+            return isSameDay(d, date) && s.status !== 'cancelled'
+          })
+          const hours = dayShifts.reduce((s, sh) => s + sh.total_hours, 0)
+          const cost = dayShifts.reduce((s, sh) => s + sh.total_cost, 0)
+
+          return (
+            <div
+              key={`footer-${format(date, 'yyyy-MM-dd')}`}
+              className="sticky bottom-0 z-20 bg-gray-50 border-t border-r px-1 py-1 text-center"
+            >
+              <div className="text-xs font-medium tabular-nums">{hours.toFixed(1)}h</div>
+              {cost > 0 && (
+                <div className="text-[10px] text-gray-500 tabular-nums">
+                  ${(cost / 100).toFixed(0)}
+                </div>
+              )}
+            </div>
+          )
+        })}
+
+      </div>
+    </div>
+  )
+}
