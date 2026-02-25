@@ -1,3 +1,4 @@
+import { useAuth } from '@/contexts/AuthContext'
 import { useState, useMemo, useEffect } from 'react'
 import { useDebounce } from '@/lib/hooks/useDebounce'
 import {
@@ -48,6 +49,7 @@ export default function MenuItems() {
     calculateSectionTotals,
     calculateMenuAnalytics,
   } = useDataStore()
+  const { currentOrg } = useAuth()
 
   useEffect(() => {
     loadMenuSectionsFromDB()
@@ -157,7 +159,7 @@ export default function MenuItems() {
     } else {
       const newSection: MenuSection = {
         id: crypto.randomUUID(),
-        organization_id: 'ORG-001',
+        organization_id: currentOrg?.id || '',
         ...sectionForm,
         display_order: menuSections.length,
         created_at: new Date(),
@@ -284,7 +286,7 @@ export default function MenuItems() {
     } else {
       const newItem = {
         id: crypto.randomUUID(),
-        organization_id: 'ORG-001',
+        organization_id: currentOrg?.id || '',
         ...itemData,
         display_order: sectionItems.length,
         created_at: new Date(),
