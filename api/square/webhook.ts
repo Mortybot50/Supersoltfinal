@@ -44,7 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const eventType = event?.type ?? 'unknown'
     const merchantId = event?.merchant_id ?? 'unknown'
 
-    console.log(`[square/webhook] Event received: ${eventType} for merchant ${merchantId}`)
+    console.info(`[square/webhook] Event received: ${eventType} for merchant ${merchantId}`)
 
     // For now, just acknowledge. Future: trigger sync for specific
     // event types like payment.completed or order.updated.

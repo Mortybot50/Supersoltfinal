@@ -15,7 +15,6 @@ import { env, supabaseAdmin, SQUARE_BASE, encrypt, verifyState } from './_lib.js
 const INTEGRATIONS_PATH = '/admin/integrations'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  console.log('[square/callback] Handler invoked', { method: req.method, query: req.query })
 
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -23,7 +22,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Debug: verify which key supabaseAdmin is using
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
-  console.log('[square/callback] supabaseAdmin check:', {
     hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
     hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
     keyPrefix: serviceKey.substring(0, 20),
@@ -48,7 +46,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Invalid state parameter — signature mismatch' })
     }
 
-    console.log('[square/callback] Decoded state:', JSON.stringify(state))
 
     if (!state.org_id || !state.venue_id) {
       return res.redirect(`${env('APP_URL')}${INTEGRATIONS_PATH}?error=invalid_state`)
@@ -79,7 +76,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // ── Exchange code for tokens ────────────────────────────────
-    console.log('[square/callback] Exchanging authorization code for tokens...')
     const tokenRes = await fetch(`${SQUARE_BASE}/oauth2/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -105,7 +101,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       merchant_id: string
     }
 
-    console.log('[square/callback] Token exchange OK:', { merchant_id: tokenData.merchant_id, expires_at: tokenData.expires_at })
 
     // ── Fetch merchant locations ────────────────────────────────
     const locRes = await fetch(`${SQUARE_BASE}/v2/locations`, {
@@ -118,7 +113,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       locations = (locData.locations ?? []).map((l) => ({ id: l.id, name: l.name }))
     }
 
-    console.log('[square/callback] Locations fetched:', locations.length, locations.map((l) => l.name))
 
     // ── Fetch merchant name ─────────────────────────────────────
     let merchantName = tokenData.merchant_id
@@ -130,7 +124,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       merchantName = merchantData.merchant?.business_name ?? merchantName
     }
 
-    console.log('[square/callback] Merchant name:', merchantName)
 
     // ── Upsert pos_connections (tokens encrypted at rest) ───────
     const upsertPayload = {
@@ -144,7 +137,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       is_active: true,
     }
 
-    console.log('[square/callback] Upserting pos_connections:', { org_id: upsertPayload.org_id, provider: upsertPayload.provider, merchant_id: upsertPayload.merchant_id })
 
     const { data: connection, error: connError } = await db
       .from('pos_connections')
@@ -157,7 +149,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.redirect(`${env('APP_URL')}${INTEGRATIONS_PATH}?error=db_error`)
     }
 
-    console.log('[square/callback] Connection upserted:', connection.id)
 
     // ── Upsert pos_location_mappings ────────────────────────────
     if (connection && locations.length > 0) {
@@ -169,7 +160,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         is_active: idx === 0,
       }))
 
-      console.log('[square/callback] Upserting location mappings:', mappings.length)
 
       const { error: mapError } = await db
         .from('pos_location_mappings')
@@ -179,11 +169,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.error('[square/callback] Location mapping error:', JSON.stringify(mapError))
         // Non-fatal — continue to redirect
       } else {
-        console.log('[square/callback] Location mappings saved')
       }
     }
 
-    console.log('[square/callback] Success — redirecting to integrations page')
     return res.redirect(`${env('APP_URL')}${INTEGRATIONS_PATH}?connected=square`)
   } catch (err: any) {
     console.error('[square/callback] Unhandled error:', err)

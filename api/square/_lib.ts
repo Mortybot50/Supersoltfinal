@@ -126,7 +126,6 @@ export async function verifyUser(token: string): Promise<
 > {
   const db = supabaseAdmin()
   const { data: { user }, error } = await db.auth.getUser(token)
-  console.log('[verifyUser]', JSON.stringify({ userId: user?.id ?? null, email: user?.email ?? null, error: error?.message ?? null }))
   if (!user || error) {
     return { error: 'Unauthorized', status: 401 }
   }
@@ -155,7 +154,6 @@ export async function checkOrgAccess(
     .eq('id', orgId)
     .maybeSingle()
 
-  console.log('[checkOrgAccess]', JSON.stringify({ orgId, found: !!data, error: error?.message ?? null }))
 
   if (error || !data) return false
   return true
