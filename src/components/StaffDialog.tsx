@@ -50,7 +50,7 @@ interface StaffDialogProps {
 }
 
 export function StaffDialog({ open, onOpenChange, staff, onSave }: StaffDialogProps) {
-  const { currentVenue } = useAuth()
+  const { currentOrg, currentVenue } = useAuth()
   const form = useForm<StaffFormValues>({
     resolver: zodResolver(staffSchema),
     defaultValues: {
@@ -88,7 +88,7 @@ export function StaffDialog({ open, onOpenChange, staff, onSave }: StaffDialogPr
   const onSubmit = (values: StaffFormValues) => {
     const staffData: Staff = {
       id: staff?.id || `staff-${Date.now()}`,
-      organization_id: staff?.organization_id || 'org-1',
+      organization_id: staff?.organization_id || currentOrg?.id || '',
       venue_id: staff?.venue_id || currentVenue?.id || '',
       name: values.name,
       email: values.email,

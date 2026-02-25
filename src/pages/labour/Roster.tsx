@@ -69,7 +69,7 @@ import { RosterDayView } from "@/components/roster/RosterDayView"
 import { RosterMonthView } from "@/components/roster/RosterMonthView"
 
 export default function Roster() {
-  const { currentVenue } = useAuth()
+  const { currentOrg, currentVenue } = useAuth()
   const navigate = useNavigate()
   const {
     staff,
@@ -361,7 +361,7 @@ export default function Roster() {
     }
     const template: ShiftTemplate = {
       id: `template-${Date.now()}`,
-      organization_id: "org-1",
+      organization_id: currentOrg?.id || '',
       venue_id: currentVenue?.id || "",
       name: templateName,
       start_time: templateStartTime,

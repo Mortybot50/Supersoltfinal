@@ -1,3 +1,4 @@
+import { useAuth } from '@/contexts/AuthContext'
 import { useState, useMemo, useEffect } from 'react'
 import { useDebounce } from '@/lib/hooks/useDebounce'
 import { useNavigate } from 'react-router-dom'
@@ -63,6 +64,7 @@ const DAYS_OF_WEEK = [
 export default function Suppliers() {
   const navigate = useNavigate()
   const { suppliers, ingredients, purchaseOrders, isLoading, addSupplier, updateSupplier, deleteSupplier, loadSuppliersFromDB, loadPurchaseOrdersFromDB } = useDataStore()
+  const { currentOrg } = useAuth()
 
   const [searchQuery, setSearchQuery] = useState('')
   const debouncedSearch = useDebounce(searchQuery, 300)
@@ -239,7 +241,7 @@ export default function Suppliers() {
       } else {
         const newSupplier = {
           id: crypto.randomUUID(),
-          organization_id: 'org-1',
+          organization_id: currentOrg?.id || '',
           category: 'other' as const,
           ...supplierData,
         }
