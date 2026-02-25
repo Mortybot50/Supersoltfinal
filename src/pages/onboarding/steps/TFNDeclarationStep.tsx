@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
-import { isValidTFN } from '@/lib/utils/validation'
+import { tfnDeclarationSchema } from '@/lib/schemas/onboarding'
 import { Info } from 'lucide-react'
 
 interface TFNDeclarationData {
@@ -44,21 +44,17 @@ export default function TFNDeclarationStep({ staffId, initialData, onComplete, o
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const newErrors: Record<string, string> = {}
-
-    if (declarationStatus === 'provided') {
-      if (!formData.tfn_number) {
-        newErrors.tfn_number = 'Tax File Number is required'
-      } else if (!isValidTFN(formData.tfn_number)) {
-        newErrors.tfn_number = 'TFN must be exactly 9 digits'
-      }
-    }
-
-    if (declarationStatus === 'exemption' && !formData.tfn_exemption_reason?.trim()) {
-      newErrors.tfn_exemption_reason = 'Exemption reason is required'
-    }
-
-    if (Object.keys(newErrors).length > 0) {
+    
+    // Validate with Zod schema
+    const payload = { ...formData, tfn_declaration_status: declarationStatus }
+    const result = tfnDeclarationSchema.safeParse(payload)
+    
+    if (!result.success) {
+      const newErrors: Record<string, string> = {}
+      result.error.errors.forEach(err => {
+        const field = err.path[0]?.toString()
+        if (field) newErrors[field] = err.message
+      })
       setErrors(newErrors)
       return
     }
