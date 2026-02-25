@@ -1,3 +1,4 @@
+Initialising login role...
 export type Json =
   | string
   | number
@@ -10,192 +11,35 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.1"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
-      profiles: {
-        Row: {
-          id: string
-          email: string
-          first_name: string | null
-          last_name: string | null
-          avatar_url: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id: string
-          email: string
-          first_name?: string | null
-          last_name?: string | null
-          avatar_url?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          email?: string
-          first_name?: string | null
-          last_name?: string | null
-          avatar_url?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      organizations: {
-        Row: {
-          id: string
-          name: string
-          slug: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          slug?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          slug?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      org_members: {
-        Row: {
-          id: string
-          org_id: string
-          user_id: string
-          role: "owner" | "manager" | "supervisor" | "crew"
-          is_active: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          org_id: string
-          user_id: string
-          role?: "owner" | "manager" | "supervisor" | "crew"
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          org_id?: string
-          user_id?: string
-          role?: "owner" | "manager" | "supervisor" | "crew"
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "org_members_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "org_members_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      venues: {
-        Row: {
-          id: string
-          org_id: string
-          name: string
-          address: string | null
-          timezone: string
-          is_active: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          org_id: string
-          name: string
-          address?: string | null
-          timezone?: string
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          org_id?: string
-          name?: string
-          address?: string | null
-          timezone?: string
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "venues_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      venue_access: {
-        Row: {
-          id: string
-          org_member_id: string
-          venue_id: string
-          can_view: boolean
-          can_edit: boolean
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          org_member_id: string
-          venue_id: string
-          can_view?: boolean
-          can_edit?: boolean
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          org_member_id?: string
-          venue_id?: string
-          can_view?: boolean
-          can_edit?: boolean
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "venue_access_org_member_id_fkey"
-            columns: ["org_member_id"]
-            isOneToOne: false
-            referencedRelation: "org_members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "venue_access_venue_id_fkey"
-            columns: ["venue_id"]
-            isOneToOne: false
-            referencedRelation: "venues"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
       access_audit: {
         Row: {
           action: string
@@ -233,6 +77,13 @@ export type Database = {
             columns: ["actor_member_id"]
             isOneToOne: false
             referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_audit_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -297,69 +148,6 @@ export type Database = {
         }
         Relationships: []
       }
-      audit_log: {
-        Row: {
-          action: string
-          changed_fields: string[] | null
-          created_at: string
-          id: string
-          ip_address: string | null
-          new_data: Json | null
-          old_data: Json | null
-          org_id: string | null
-          record_id: string
-          table_name: string
-          user_agent: string | null
-          user_email: string | null
-          user_id: string | null
-        }
-        Insert: {
-          action: string
-          changed_fields?: string[] | null
-          created_at?: string
-          id?: string
-          ip_address?: string | null
-          new_data?: Json | null
-          old_data?: Json | null
-          org_id?: string | null
-          record_id: string
-          table_name: string
-          user_agent?: string | null
-          user_email?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          action?: string
-          changed_fields?: string[] | null
-          created_at?: string
-          id?: string
-          ip_address?: string | null
-          new_data?: Json | null
-          old_data?: Json | null
-          org_id?: string | null
-          record_id?: string
-          table_name?: string
-          user_agent?: string | null
-          user_email?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "audit_log_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "audit_log_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       assignments: {
         Row: {
           created_at: string | null
@@ -397,127 +185,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "assignments_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "assignments_role_id_fkey"
             columns: ["role_id"]
             isOneToOne: false
             referencedRelation: "role_definitions"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      chart_of_accounts: {
-        Row: {
-          category: string
-          created_at: string
-          external_account_code: string | null
-          external_account_id: string | null
-          external_account_name: string | null
-          external_system: string | null
-          id: string
-          is_active: boolean | null
-          org_id: string
-          subcategory: string | null
-          updated_at: string
-        }
-        Insert: {
-          category: string
-          created_at?: string
-          external_account_code?: string | null
-          external_account_id?: string | null
-          external_account_name?: string | null
-          external_system?: string | null
-          id?: string
-          is_active?: boolean | null
-          org_id: string
-          subcategory?: string | null
-          updated_at?: string
-        }
-        Update: {
-          category?: string
-          created_at?: string
-          external_account_code?: string | null
-          external_account_id?: string | null
-          external_account_name?: string | null
-          external_system?: string | null
-          id?: string
-          is_active?: boolean | null
-          org_id?: string
-          subcategory?: string | null
-          updated_at?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "chart_of_accounts_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      compliance_checks: {
-        Row: {
-          check_date: string
-          check_time: string | null
-          check_type: string
-          created_at: string
-          created_by: string | null
-          id: string
-          notes: string | null
-          org_id: string
-          passed: boolean | null
-          photo_url: string | null
-          value: string | null
-          venue_id: string
-        }
-        Insert: {
-          check_date: string
-          check_time?: string | null
-          check_type: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          notes?: string | null
-          org_id: string
-          passed?: boolean | null
-          photo_url?: string | null
-          value?: string | null
-          venue_id: string
-        }
-        Update: {
-          check_date?: string
-          check_time?: string | null
-          check_type?: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          notes?: string | null
-          org_id?: string
-          passed?: boolean | null
-          photo_url?: string | null
-          value?: string | null
-          venue_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "compliance_checks_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "compliance_checks_venue_id_fkey"
+            foreignKeyName: "assignments_venue_id_fkey"
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "compliance_checks_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -530,6 +215,7 @@ export type Database = {
           frequency: string
           id: string
           location_ids: Json | null
+          org_id: string | null
           schedule_name: string
           updated_at: string
           venue_id: string | null
@@ -541,6 +227,7 @@ export type Database = {
           frequency: string
           id?: string
           location_ids?: Json | null
+          org_id?: string | null
           schedule_name: string
           updated_at?: string
           venue_id?: string | null
@@ -552,11 +239,27 @@ export type Database = {
           frequency?: string
           id?: string
           location_ids?: Json | null
+          org_id?: string | null
           schedule_name?: string
           updated_at?: string
           venue_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "count_schedules_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "count_schedules_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       daybook_entries: {
         Row: {
@@ -615,20 +318,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "daybook_entries_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "daybook_entries_venue_id_fkey"
-            columns: ["venue_id"]
-            isOneToOne: false
-            referencedRelation: "venues"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "daybook_entries_approved_by_fkey"
             columns: ["approved_by"]
             isOneToOne: false
@@ -642,6 +331,20 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "daybook_entries_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daybook_entries_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
         ]
       }
       device_assignments: {
@@ -651,6 +354,7 @@ export type Database = {
           device_type: string
           id: string
           location_id: string | null
+          org_id: string | null
           updated_at: string
           venue_id: string | null
         }
@@ -660,6 +364,7 @@ export type Database = {
           device_type: string
           id?: string
           location_id?: string | null
+          org_id?: string | null
           updated_at?: string
           venue_id?: string | null
         }
@@ -669,6 +374,7 @@ export type Database = {
           device_type?: string
           id?: string
           location_id?: string | null
+          org_id?: string | null
           updated_at?: string
           venue_id?: string | null
         }
@@ -678,6 +384,55 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "inv_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_assignments_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_assignments_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ingredient_price_history: {
+        Row: {
+          changed_at: string
+          id: string
+          ingredient_id: string
+          new_cost_cents: number
+          old_cost_cents: number | null
+          source: string
+        }
+        Insert: {
+          changed_at?: string
+          id?: string
+          ingredient_id: string
+          new_cost_cents: number
+          old_cost_cents?: number | null
+          source?: string
+        }
+        Update: {
+          changed_at?: string
+          id?: string
+          ingredient_id?: string
+          new_cost_cents?: number
+          old_cost_cents?: number | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingredient_price_history_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
             referencedColumns: ["id"]
           },
         ]
@@ -695,6 +450,7 @@ export type Database = {
           last_cost_update: string | null
           name: string
           notes: string | null
+          org_id: string | null
           pack_size: number | null
           pack_size_text: string | null
           pack_to_base_factor: number | null
@@ -722,6 +478,7 @@ export type Database = {
           last_cost_update?: string | null
           name: string
           notes?: string | null
+          org_id?: string | null
           pack_size?: number | null
           pack_size_text?: string | null
           pack_to_base_factor?: number | null
@@ -749,6 +506,7 @@ export type Database = {
           last_cost_update?: string | null
           name?: string
           notes?: string | null
+          org_id?: string | null
           pack_size?: number | null
           pack_size_text?: string | null
           pack_to_base_factor?: number | null
@@ -766,10 +524,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "ingredients_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "ingredients_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ingredients_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -874,6 +646,20 @@ export type Database = {
             referencedRelation: "inv_locations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "inv_location_assignments_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_location_assignments_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
         ]
       }
       inv_locations: {
@@ -925,7 +711,22 @@ export type Database = {
           updated_at?: string
           venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "inv_locations_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inv_locations_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invites: {
         Row: {
@@ -976,10 +777,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "invites_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "invites_role_id_fkey"
             columns: ["role_id"]
             isOneToOne: false
             referencedRelation: "role_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invites_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -1038,6 +853,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "labor_budgets_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "labor_budgets_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
@@ -1049,80 +871,6 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "labor_budgets_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      leave_requests: {
-        Row: {
-          approved_at: string | null
-          approved_by: string | null
-          created_at: string
-          created_by: string | null
-          end_date: string
-          id: string
-          leave_type: string
-          reason: string | null
-          rejection_reason: string | null
-          staff_id: string
-          start_date: string
-          status: string
-        }
-        Insert: {
-          approved_at?: string | null
-          approved_by?: string | null
-          created_at?: string
-          created_by?: string | null
-          end_date: string
-          id?: string
-          leave_type: string
-          reason?: string | null
-          rejection_reason?: string | null
-          staff_id: string
-          start_date: string
-          status?: string
-        }
-        Update: {
-          approved_at?: string | null
-          approved_by?: string | null
-          created_at?: string
-          created_by?: string | null
-          end_date?: string
-          id?: string
-          leave_type?: string
-          reason?: string | null
-          rejection_reason?: string | null
-          staff_id?: string
-          start_date?: string
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "leave_requests_staff_id_fkey"
-            columns: ["staff_id"]
-            isOneToOne: false
-            referencedRelation: "staff"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leave_requests_approved_by_fkey"
-            columns: ["approved_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leave_requests_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1158,7 +906,15 @@ export type Database = {
           updated_at?: string | null
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "members_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       menu_items: {
         Row: {
@@ -1172,6 +928,7 @@ export type Database = {
           margin_percent: number
           menu_group: string
           name: string
+          org_id: string | null
           selling_price: number
           updated_at: string
           venue_id: string
@@ -1187,6 +944,7 @@ export type Database = {
           margin_percent?: number
           menu_group: string
           name: string
+          org_id?: string | null
           selling_price: number
           updated_at?: string
           venue_id: string
@@ -1202,11 +960,27 @@ export type Database = {
           margin_percent?: number
           menu_group?: string
           name?: string
+          org_id?: string | null
           selling_price?: number
           updated_at?: string
           venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "menu_items_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_items_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       menu_sections: {
         Row: {
@@ -1255,8 +1029,6 @@ export type Database = {
           created_at: string
           customer_name: string | null
           discount_amount: number
-          external_data: Record<string, unknown> | null
-          external_id: string | null
           gross_amount: number
           id: string
           is_refund: boolean
@@ -1265,10 +1037,10 @@ export type Database = {
           notes: string | null
           order_datetime: string
           order_number: string
+          org_id: string | null
           payment_method: string | null
           refund_reason: string | null
           service_charge: number
-          source: string | null
           staff_member: string | null
           tax_amount: number
           tip_amount: number
@@ -1280,8 +1052,6 @@ export type Database = {
           created_at?: string
           customer_name?: string | null
           discount_amount?: number
-          external_data?: Record<string, unknown> | null
-          external_id?: string | null
           gross_amount: number
           id?: string
           is_refund?: boolean
@@ -1290,10 +1060,10 @@ export type Database = {
           notes?: string | null
           order_datetime: string
           order_number: string
+          org_id?: string | null
           payment_method?: string | null
           refund_reason?: string | null
           service_charge?: number
-          source?: string | null
           staff_member?: string | null
           tax_amount: number
           tip_amount?: number
@@ -1305,8 +1075,6 @@ export type Database = {
           created_at?: string
           customer_name?: string | null
           discount_amount?: number
-          external_data?: Record<string, unknown> | null
-          external_id?: string | null
           gross_amount?: number
           id?: string
           is_refund?: boolean
@@ -1315,109 +1083,98 @@ export type Database = {
           notes?: string | null
           order_datetime?: string
           order_number?: string
+          org_id?: string | null
           payment_method?: string | null
           refund_reason?: string | null
           service_charge?: number
-          source?: string | null
           staff_member?: string | null
           tax_amount?: number
           tip_amount?: number
           updated_at?: string
           venue_id?: string
         }
-        Relationships: []
-      }
-      onboarding_invites: {
-        Row: {
-          base_hourly_rate: number | null
-          completed_at: string | null
-          created_at: string
-          created_by: string | null
-          email: string
-          employment_type: string | null
-          expires_at: string
-          first_name: string | null
-          id: string
-          last_name: string | null
-          opened_at: string | null
-          org_id: string
-          planned_start_date: string | null
-          position: string | null
-          staff_id: string | null
-          status: string
-          token: string
-          venue_id: string
-        }
-        Insert: {
-          base_hourly_rate?: number | null
-          completed_at?: string | null
-          created_at?: string
-          created_by?: string | null
-          email: string
-          employment_type?: string | null
-          expires_at: string
-          first_name?: string | null
-          id?: string
-          last_name?: string | null
-          opened_at?: string | null
-          org_id: string
-          planned_start_date?: string | null
-          position?: string | null
-          staff_id?: string | null
-          status?: string
-          token: string
-          venue_id: string
-        }
-        Update: {
-          base_hourly_rate?: number | null
-          completed_at?: string | null
-          created_at?: string
-          created_by?: string | null
-          email?: string
-          employment_type?: string | null
-          expires_at?: string
-          first_name?: string | null
-          id?: string
-          last_name?: string | null
-          opened_at?: string | null
-          org_id?: string
-          planned_start_date?: string | null
-          position?: string | null
-          staff_id?: string | null
-          status?: string
-          token?: string
-          venue_id?: string
-        }
         Relationships: [
           {
-            foreignKeyName: "onboarding_invites_org_id_fkey"
+            foreignKeyName: "orders_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "onboarding_invites_venue_id_fkey"
+            foreignKeyName: "orders_venue_id_fkey"
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      org_members: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean
+          org_id: string
+          role: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          org_id: string
+          role?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          org_id?: string
+          role?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "onboarding_invites_staff_id_fkey"
-            columns: ["staff_id"]
+            foreignKeyName: "org_members_org_id_fkey"
+            columns: ["org_id"]
             isOneToOne: false
-            referencedRelation: "staff"
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "onboarding_invites_created_by_fkey"
-            columns: ["created_by"]
+            foreignKeyName: "org_members_user_id_profiles_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
+      }
+      organizations: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       pins: {
         Row: {
@@ -1459,6 +1216,13 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pins_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -1520,17 +1284,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "pos_connections_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "pos_connections_connected_by_fkey"
             columns: ["connected_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_connections_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -1579,6 +1343,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       purchase_order_items: {
         Row: {
@@ -1647,6 +1444,7 @@ export type Database = {
           id: string
           notes: string | null
           order_date: string
+          org_id: string | null
           po_number: string
           status: string
           submitted_at: string | null
@@ -1671,6 +1469,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_date?: string
+          org_id?: string | null
           po_number: string
           status?: string
           submitted_at?: string | null
@@ -1695,6 +1494,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_date?: string
+          org_id?: string | null
           po_number?: string
           status?: string
           submitted_at?: string | null
@@ -1709,10 +1509,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "purchase_orders_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "purchase_orders_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -1759,17 +1573,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "recipe_ingredients_recipe_id_fkey"
-            columns: ["recipe_id"]
-            isOneToOne: false
-            referencedRelation: "recipes"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "recipe_ingredients_ingredient_id_fkey"
             columns: ["ingredient_id"]
             isOneToOne: false
             referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recipe_ingredients_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
             referencedColumns: ["id"]
           },
           {
@@ -1862,6 +1676,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "recipes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "recipes_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
@@ -1907,7 +1728,15 @@ export type Database = {
           permissions?: Json | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "role_definitions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       roster_shifts: {
         Row: {
@@ -1990,17 +1819,17 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "roster_shifts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "roster_shifts_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "roster_shifts_venue_id_fkey"
-            columns: ["venue_id"]
-            isOneToOne: false
-            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
           {
@@ -2018,242 +1847,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "roster_shifts_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      roster_warnings: {
-        Row: {
-          acknowledged: boolean | null
-          acknowledged_at: string | null
-          acknowledged_by: string | null
-          created_at: string
-          details: Json | null
-          id: string
-          message: string
-          org_id: string
-          severity: string
-          shift_id: string | null
-          staff_id: string
-          venue_id: string
-          warning_type: string
-        }
-        Insert: {
-          acknowledged?: boolean | null
-          acknowledged_at?: string | null
-          acknowledged_by?: string | null
-          created_at?: string
-          details?: Json | null
-          id?: string
-          message: string
-          org_id: string
-          severity?: string
-          shift_id?: string | null
-          staff_id: string
-          venue_id: string
-          warning_type: string
-        }
-        Update: {
-          acknowledged?: boolean | null
-          acknowledged_at?: string | null
-          acknowledged_by?: string | null
-          created_at?: string
-          details?: Json | null
-          id?: string
-          message?: string
-          org_id?: string
-          severity?: string
-          shift_id?: string | null
-          staff_id?: string
-          venue_id?: string
-          warning_type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "roster_warnings_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "roster_warnings_venue_id_fkey"
+            foreignKeyName: "roster_shifts_venue_id_fkey"
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "roster_warnings_shift_id_fkey"
-            columns: ["shift_id"]
-            isOneToOne: false
-            referencedRelation: "roster_shifts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "roster_warnings_staff_id_fkey"
-            columns: ["staff_id"]
-            isOneToOne: false
-            referencedRelation: "staff"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "roster_warnings_acknowledged_by_fkey"
-            columns: ["acknowledged_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      sales_transaction_items: {
-        Row: {
-          cost_per_unit: number | null
-          created_at: string
-          discount_amount: number | null
-          id: string
-          line_total: number | null
-          menu_item_id: string | null
-          modifiers: Json | null
-          name: string
-          pos_item_id: string | null
-          quantity: number
-          transaction_id: string
-          unit_price: number
-        }
-        Insert: {
-          cost_per_unit?: number | null
-          created_at?: string
-          discount_amount?: number | null
-          id?: string
-          line_total?: number | null
-          menu_item_id?: string | null
-          modifiers?: Json | null
-          name: string
-          pos_item_id?: string | null
-          quantity?: number
-          transaction_id: string
-          unit_price: number
-        }
-        Update: {
-          cost_per_unit?: number | null
-          created_at?: string
-          discount_amount?: number | null
-          id?: string
-          line_total?: number | null
-          menu_item_id?: string | null
-          modifiers?: Json | null
-          name?: string
-          pos_item_id?: string | null
-          quantity?: number
-          transaction_id?: string
-          unit_price?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sales_transaction_items_transaction_id_fkey"
-            columns: ["transaction_id"]
-            isOneToOne: false
-            referencedRelation: "sales_transactions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sales_transaction_items_menu_item_id_fkey"
-            columns: ["menu_item_id"]
-            isOneToOne: false
-            referencedRelation: "menu_items"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      sales_transactions: {
-        Row: {
-          created_at: string
-          customer_name: string | null
-          discount_amount: number | null
-          gst_amount: number | null
-          id: string
-          item_count: number | null
-          order_type: string | null
-          org_id: string
-          payment_method: string | null
-          pos_connection_id: string | null
-          pos_transaction_id: string | null
-          subtotal: number | null
-          synced_at: string | null
-          total: number | null
-          transaction_at: string
-          transaction_date: string
-          transaction_time: string
-          transaction_type: string
-          venue_id: string
-        }
-        Insert: {
-          created_at?: string
-          customer_name?: string | null
-          discount_amount?: number | null
-          gst_amount?: number | null
-          id?: string
-          item_count?: number | null
-          order_type?: string | null
-          org_id: string
-          payment_method?: string | null
-          pos_connection_id?: string | null
-          pos_transaction_id?: string | null
-          subtotal?: number | null
-          synced_at?: string | null
-          total?: number | null
-          transaction_at: string
-          transaction_date: string
-          transaction_time: string
-          transaction_type?: string
-          venue_id: string
-        }
-        Update: {
-          created_at?: string
-          customer_name?: string | null
-          discount_amount?: number | null
-          gst_amount?: number | null
-          id?: string
-          item_count?: number | null
-          order_type?: string | null
-          org_id?: string
-          payment_method?: string | null
-          pos_connection_id?: string | null
-          pos_transaction_id?: string | null
-          subtotal?: number | null
-          synced_at?: string | null
-          total?: number | null
-          transaction_at?: string
-          transaction_date?: string
-          transaction_time?: string
-          transaction_type?: string
-          venue_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sales_transactions_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sales_transactions_venue_id_fkey"
-            columns: ["venue_id"]
-            isOneToOne: false
-            referencedRelation: "venues"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sales_transactions_pos_connection_id_fkey"
-            columns: ["pos_connection_id"]
-            isOneToOne: false
-            referencedRelation: "pos_connections"
             referencedColumns: ["id"]
           },
         ]
@@ -2316,13 +1913,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "shift_swap_requests_venue_id_fkey"
-            columns: ["venue_id"]
-            isOneToOne: false
-            referencedRelation: "venues"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "shift_swap_requests_original_shift_id_fkey"
             columns: ["original_shift_id"]
             isOneToOne: false
@@ -2337,6 +1927,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "shift_swap_requests_responded_by_fkey"
+            columns: ["responded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "shift_swap_requests_target_staff_id_fkey"
             columns: ["target_staff_id"]
             isOneToOne: false
@@ -2344,10 +1941,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "shift_swap_requests_responded_by_fkey"
-            columns: ["responded_by"]
+            foreignKeyName: "shift_swap_requests_venue_id_fkey"
+            columns: ["venue_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -2409,6 +2006,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "shift_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "shift_templates_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
@@ -2420,13 +2024,6 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "shift_templates_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2598,87 +2195,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "staff_availability_staff_id_fkey"
-            columns: ["staff_id"]
-            isOneToOne: false
-            referencedRelation: "staff"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "staff_availability_approved_by_fkey"
             columns: ["approved_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      staff_documents: {
-        Row: {
-          created_at: string
-          document_type: string
-          expires_at: string | null
-          expiry_reminded: boolean | null
-          file_name: string
-          file_size: number | null
-          file_url: string
-          id: string
-          mime_type: string | null
-          staff_id: string
-          uploaded_by: string | null
-          verified_at: string | null
-          verified_by: string | null
-        }
-        Insert: {
-          created_at?: string
-          document_type: string
-          expires_at?: string | null
-          expiry_reminded?: boolean | null
-          file_name: string
-          file_size?: number | null
-          file_url: string
-          id?: string
-          mime_type?: string | null
-          staff_id: string
-          uploaded_by?: string | null
-          verified_at?: string | null
-          verified_by?: string | null
-        }
-        Update: {
-          created_at?: string
-          document_type?: string
-          expires_at?: string | null
-          expiry_reminded?: boolean | null
-          file_name?: string
-          file_size?: number | null
-          file_url?: string
-          id?: string
-          mime_type?: string | null
-          staff_id?: string
-          uploaded_by?: string | null
-          verified_at?: string | null
-          verified_by?: string | null
-        }
-        Relationships: [
           {
-            foreignKeyName: "staff_documents_staff_id_fkey"
+            foreignKeyName: "staff_availability_staff_id_fkey"
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "staff_documents_verified_by_fkey"
-            columns: ["verified_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "staff_documents_uploaded_by_fkey"
-            columns: ["uploaded_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2743,6 +2270,7 @@ export type Database = {
           created_at: string
           id: string
           notes: string | null
+          org_id: string | null
           status: string
           total_variance_value: number
           updated_at: string
@@ -2756,6 +2284,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          org_id?: string | null
           status?: string
           total_variance_value?: number
           updated_at?: string
@@ -2769,57 +2298,25 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          org_id?: string | null
           status?: string
           total_variance_value?: number
           updated_at?: string
           venue_id?: string
         }
-        Relationships: []
-      }
-      stock_levels: {
-        Row: {
-          id: string
-          ingredient_id: string
-          last_count_date: string | null
-          last_count_qty: number | null
-          quantity_on_hand: number
-          unit: string
-          updated_at: string
-          venue_id: string
-        }
-        Insert: {
-          id?: string
-          ingredient_id: string
-          last_count_date?: string | null
-          last_count_qty?: number | null
-          quantity_on_hand?: number
-          unit: string
-          updated_at?: string
-          venue_id: string
-        }
-        Update: {
-          id?: string
-          ingredient_id?: string
-          last_count_date?: string | null
-          last_count_qty?: number | null
-          quantity_on_hand?: number
-          unit?: string
-          updated_at?: string
-          venue_id?: string
-        }
         Relationships: [
           {
-            foreignKeyName: "stock_levels_venue_id_fkey"
-            columns: ["venue_id"]
+            foreignKeyName: "stock_counts_org_id_fkey"
+            columns: ["org_id"]
             isOneToOne: false
-            referencedRelation: "venues"
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "stock_levels_ingredient_id_fkey"
-            columns: ["ingredient_id"]
+            foreignKeyName: "stock_counts_venue_id_fkey"
+            columns: ["venue_id"]
             isOneToOne: false
-            referencedRelation: "ingredients"
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -2894,7 +2391,15 @@ export type Database = {
           suburb?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_org_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       timesheets: {
         Row: {
@@ -2995,24 +2500,17 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "timesheets_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "timesheets_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "timesheets_venue_id_fkey"
-            columns: ["venue_id"]
-            isOneToOne: false
-            referencedRelation: "venues"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "timesheets_staff_id_fkey"
-            columns: ["staff_id"]
-            isOneToOne: false
-            referencedRelation: "staff"
             referencedColumns: ["id"]
           },
           {
@@ -3023,10 +2521,17 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "timesheets_approved_by_fkey"
-            columns: ["approved_by"]
+            foreignKeyName: "timesheets_staff_id_fkey"
+            columns: ["staff_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timesheets_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -3052,6 +2557,48 @@ export type Database = {
         }
         Relationships: []
       }
+      venue_access: {
+        Row: {
+          can_edit: boolean
+          can_view: boolean
+          created_at: string
+          id: string
+          org_member_id: string
+          venue_id: string
+        }
+        Insert: {
+          can_edit?: boolean
+          can_view?: boolean
+          created_at?: string
+          id?: string
+          org_member_id: string
+          venue_id: string
+        }
+        Update: {
+          can_edit?: boolean
+          can_view?: boolean
+          created_at?: string
+          id?: string
+          org_member_id?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_access_org_member_id_fkey"
+            columns: ["org_member_id"]
+            isOneToOne: false
+            referencedRelation: "org_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_access_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       venue_settings: {
         Row: {
           award_region: string | null
@@ -3066,6 +2613,7 @@ export type Database = {
           last_published_snapshot: Json | null
           menu_sections: Json | null
           order_cutoffs: Json | null
+          org_id: string | null
           payroll_cycle: string | null
           po_amount_over_requires_owner: number | null
           pos_provider: string | null
@@ -3097,6 +2645,7 @@ export type Database = {
           last_published_snapshot?: Json | null
           menu_sections?: Json | null
           order_cutoffs?: Json | null
+          org_id?: string | null
           payroll_cycle?: string | null
           po_amount_over_requires_owner?: number | null
           pos_provider?: string | null
@@ -3128,6 +2677,7 @@ export type Database = {
           last_published_snapshot?: Json | null
           menu_sections?: Json | null
           order_cutoffs?: Json | null
+          org_id?: string | null
           payroll_cycle?: string | null
           po_amount_over_requires_owner?: number | null
           pos_provider?: string | null
@@ -3146,7 +2696,22 @@ export type Database = {
           venue_id?: string
           week_starts_on?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "venue_settings_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_settings_venue_id_fkey2"
+            columns: ["venue_id"]
+            isOneToOne: true
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       venue_settings_audit: {
         Row: {
@@ -3157,6 +2722,7 @@ export type Database = {
           created_at: string
           diff_summary: string | null
           id: string
+          org_id: string | null
           venue_id: string
         }
         Insert: {
@@ -3167,6 +2733,7 @@ export type Database = {
           created_at?: string
           diff_summary?: string | null
           id?: string
+          org_id?: string | null
           venue_id: string
         }
         Update: {
@@ -3177,9 +2744,60 @@ export type Database = {
           created_at?: string
           diff_summary?: string | null
           id?: string
+          org_id?: string | null
           venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "venue_settings_audit_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_settings_audit_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      venues: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean
+          name: string
+          org_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          org_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          org_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venues_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       waste_logs: {
         Row: {
@@ -3188,6 +2806,7 @@ export type Database = {
           ingredient_id: string
           ingredient_name: string
           notes: string | null
+          org_id: string | null
           quantity: number
           reason: string
           recorded_by_name: string | null
@@ -3204,6 +2823,7 @@ export type Database = {
           ingredient_id: string
           ingredient_name: string
           notes?: string | null
+          org_id?: string | null
           quantity: number
           reason: string
           recorded_by_name?: string | null
@@ -3220,6 +2840,7 @@ export type Database = {
           ingredient_id?: string
           ingredient_name?: string
           notes?: string | null
+          org_id?: string | null
           quantity?: number
           reason?: string
           recorded_by_name?: string | null
@@ -3238,6 +2859,20 @@ export type Database = {
             referencedRelation: "ingredients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "waste_logs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waste_logs_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -3245,26 +2880,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      calculate_recipe_cost: {
-        Args: {
-          p_recipe_id: string
-        }
-        Returns: undefined
-      }
-      get_user_org_ids: {
-        Args: Record<PropertyKey, never>
-        Returns: string[]
-      }
+      get_user_org_ids: { Args: never; Returns: string[] }
+      get_user_venue_ids: { Args: never; Returns: string[] }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
-        }
-        Returns: boolean
-      }
-      is_org_admin: {
-        Args: {
-          p_org_id: string
         }
         Returns: boolean
       }
@@ -3398,6 +3019,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
