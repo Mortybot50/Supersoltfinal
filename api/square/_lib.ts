@@ -3,7 +3,7 @@
  * Used by all /api/square/* serverless functions.
  */
 import { createClient } from '@supabase/supabase-js'
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
+import { createCipheriv, createDecipheriv, randomBytes, createHmac } from 'crypto'
 
 // ── Vercel handler types (avoids @vercel/node install) ──────────────
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -195,4 +195,24 @@ export function decrypt(ciphertext: string): string {
   const decipher = createDecipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH })
   decipher.setAuthTag(authTag)
   return decipher.update(encrypted) + decipher.final('utf8')
+}
+
+// ── OAuth state HMAC signing ──────────────────────────────────────
+
+function getStateSecret() { return env('SQUARE_ENCRYPTION_KEY') }
+
+export function signState(payload: object): string {
+  const json = JSON.stringify(payload)
+  const sig = createHmac('sha256', getStateSecret()).update(json).digest('base64url')
+  const data = Buffer.from(json).toString('base64url')
+  return `${data}.${sig}`
+}
+
+export function verifyState(signed: string): { org_id: string; venue_id: string } | null {
+  const [data, sig] = signed.split('.')
+  if (!data || !sig) return null
+  const json = Buffer.from(data, 'base64url').toString()
+  const expected = createHmac('sha256', getStateSecret()).update(json).digest('base64url')
+  if (sig !== expected) return null
+  return JSON.parse(json)
 }

@@ -10,7 +10,7 @@
  *   5. Redirects the user back to the Integrations page
  */
 import type { VercelRequest, VercelResponse } from './_lib.js'
-import { env, supabaseAdmin, SQUARE_BASE, encrypt } from './_lib.js'
+import { env, supabaseAdmin, SQUARE_BASE, encrypt, verifyState } from './_lib.js'
 
 const INTEGRATIONS_PATH = '/admin/integrations'
 
@@ -41,13 +41,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Missing code or state parameter' })
     }
 
-    // ── Decode state ────────────────────────────────────────────
-    let state: { org_id: string; venue_id: string }
-    try {
-      state = JSON.parse(Buffer.from(stateRaw, 'base64url').toString())
-    } catch {
-      console.error('[square/callback] Invalid state parameter:', stateRaw)
-      return res.status(400).json({ error: 'Invalid state parameter' })
+    // ── Verify & decode HMAC-signed state ──────────────────────
+    const state = verifyState(stateRaw)
+    if (!state) {
+      console.error('[square/callback] Invalid or tampered state parameter')
+      return res.status(400).json({ error: 'Invalid state parameter — signature mismatch' })
     }
 
     console.log('[square/callback] Decoded state:', JSON.stringify(state))
