@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useDebounce } from '@/lib/hooks/useDebounce'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Search, Building2, Edit, Trash2, ChevronRight, DollarSign, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -64,6 +65,7 @@ export default function Suppliers() {
   const { suppliers, ingredients, purchaseOrders, isLoading, addSupplier, updateSupplier, deleteSupplier, loadSuppliersFromDB, loadPurchaseOrdersFromDB } = useDataStore()
 
   const [searchQuery, setSearchQuery] = useState('')
+  const debouncedSearch = useDebounce(searchQuery, 300)
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -118,7 +120,7 @@ export default function Suppliers() {
       if (statusFilter === 'inactive' && supplier.active) return false
       if (categoryFilter !== 'all' && supplier.category !== categoryFilter) return false
 
-      const query = searchQuery.toLowerCase()
+      const query = debouncedSearch.toLowerCase()
       if (!query) return true
       return (
         supplier.name.toLowerCase().includes(query) ||
@@ -128,7 +130,7 @@ export default function Suppliers() {
         supplier.abn?.includes(query)
       )
     })
-  }, [suppliers, searchQuery, categoryFilter, statusFilter])
+  }, [suppliers, debouncedSearch, categoryFilter, statusFilter])
   
   const getProductCount = (supplierId: string) => {
     return ingredients.filter((i) => i.supplier_id === supplierId && i.active).length
@@ -353,7 +355,7 @@ export default function Suppliers() {
           <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin opacity-50" />
           <p className="text-muted-foreground">Loading suppliers...</p>
         </Card>
-      ) : filteredSuppliers.length === 0 && !searchQuery ? (
+      ) : filteredSuppliers.length === 0 && !debouncedSearch ? (
         <Card className="p-12 text-center">
           <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">No Suppliers Yet</h3>
@@ -454,7 +456,7 @@ export default function Suppliers() {
           {filteredSuppliers.length === 0 && searchQuery && (
             <div className="p-12 text-center">
               <p className="text-muted-foreground">
-                No suppliers found matching "{searchQuery}"
+                No suppliers found matching {debouncedSearch}
               </p>
             </div>
           )}

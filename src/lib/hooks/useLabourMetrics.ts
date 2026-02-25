@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
+import { useOrdersQuery } from './useOrdersQuery'
 import { useMemo } from 'react'
 import type { LabourMetrics } from '@/types'
 
@@ -35,22 +36,8 @@ export function useLabourMetrics(filters?: LabourFilters): LabourMetricsResult {
     enabled: !!venueId,
   })
 
-  // Fetch orders for labour % calculation
-  const { data: orders, isLoading: ordersLoading } = useQuery({
-    queryKey: ['labourOrders', venueId, startDate, endDate],
-    queryFn: async () => {
-      let query = supabase
-        .from('orders')
-        .select('id, net_amount, is_void, is_refund')
-      if (venueId) query = query.eq('venue_id', venueId)
-      if (startDate) query = query.gte('order_datetime', startDate)
-      if (endDate) query = query.lte('order_datetime', endDate)
-      const { data, error } = await query
-      if (error) throw error
-      return data || []
-    },
-    enabled: !!venueId,
-  })
+  // Fetch orders for labour % calculation (shared cache)
+  const { data: orders, isLoading: ordersLoading } = useOrdersQuery(venueId, startDate, endDate)
 
   const isLoading = tsLoading || ordersLoading
 

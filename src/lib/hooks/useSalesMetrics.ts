@@ -1,5 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
-import { supabase } from '@/integrations/supabase/client'
+import { useOrdersQuery } from './useOrdersQuery'
 import { useMemo } from 'react'
 import type { SalesMetrics, RefundMetrics, ChannelMetrics, PaymentMix } from '@/types'
 
@@ -32,21 +31,7 @@ interface SalesMetricsResult {
 export function useSalesMetrics(filters?: SalesFilters): SalesMetricsResult {
   const { venueId, startDate, endDate } = filters || {}
 
-  const { data: rawOrders, isLoading } = useQuery({
-    queryKey: ['salesMetrics', venueId, startDate, endDate],
-    queryFn: async () => {
-      let query = supabase
-        .from('orders')
-        .select('id, order_datetime, channel, gross_amount, tax_amount, net_amount, is_void, is_refund, refund_reason, payment_method')
-      if (venueId) query = query.eq('venue_id', venueId)
-      if (startDate) query = query.gte('order_datetime', startDate)
-      if (endDate) query = query.lte('order_datetime', endDate)
-      const { data, error } = await query.order('order_datetime')
-      if (error) throw error
-      return data || []
-    },
-    enabled: !!venueId,
-  })
+  const { data: rawOrders, isLoading } = useOrdersQuery(venueId, startDate, endDate)
 
   return useMemo(() => {
     const orders = rawOrders || []

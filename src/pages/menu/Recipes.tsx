@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useDebounce } from '@/lib/hooks/useDebounce'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Search, ChefHat, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -27,6 +28,7 @@ export default function Recipes() {
   const [loading, setLoading] = useState(true)
 
   const [searchQuery, setSearchQuery] = useState('')
+  const debouncedSearch = useDebounce(searchQuery, 300)
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
@@ -38,8 +40,8 @@ export default function Recipes() {
   const filteredRecipes = useMemo(() => {
     let filtered = recipes
     
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
+    if (debouncedSearch) {
+      const query = debouncedSearch.toLowerCase()
       filtered = filtered.filter((r) => r.name.toLowerCase().includes(query))
     }
     
@@ -54,7 +56,7 @@ export default function Recipes() {
     return filtered.sort(
       (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
     )
-  }, [recipes, searchQuery, categoryFilter, statusFilter])
+  }, [recipes, debouncedSearch, categoryFilter, statusFilter])
   
   const toolbar = (
     <PageToolbar

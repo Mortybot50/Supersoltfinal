@@ -4,10 +4,18 @@ import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  requiredRole?: "owner" | "admin" | "manager" | "staff";
 }
 
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, loading } = useAuth();
+const ROLE_HIERARCHY: Record<string, number> = {
+  owner: 4,
+  admin: 3,
+  manager: 2,
+  staff: 1,
+};
+
+export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
+  const { user, loading, orgMember } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -19,8 +27,16 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (!user) {
-    // Redirect to login, but save the attempted location
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (requiredRole) {
+    const userRole = orgMember?.role ?? "staff";
+    const userLevel = ROLE_HIERARCHY[userRole] ?? 0;
+    const requiredLevel = ROLE_HIERARCHY[requiredRole] ?? 0;
+    if (userLevel < requiredLevel) {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   return <>{children}</>;

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useDebounce } from '@/lib/hooks/useDebounce'
 import {
   Plus,
   Search,
@@ -56,6 +57,7 @@ export default function MenuItems() {
 
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const debouncedSearch = useDebounce(searchQuery, 300)
   const [sectionDialogOpen, setSectionDialogOpen] = useState(false)
   const [itemDialogOpen, setItemDialogOpen] = useState(false)
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
@@ -111,9 +113,9 @@ export default function MenuItems() {
   
   // Filter items by search
   const filteredItems = useMemo(() => {
-    if (!searchQuery) return sectionItems
+    if (!debouncedSearch) return sectionItems
     
-    const query = searchQuery.toLowerCase()
+    const query = debouncedSearch.toLowerCase()
     return sectionItems.filter(
       (item) =>
         item.name.toLowerCase().includes(query) ||
@@ -121,7 +123,7 @@ export default function MenuItems() {
         item.plu_code?.toLowerCase().includes(query) ||
         item.tags.some((tag) => tag.toLowerCase().includes(query))
     )
-  }, [sectionItems, searchQuery])
+  }, [sectionItems, debouncedSearch])
   
   // Section Dialog Handlers
   const handleOpenSectionDialog = (section?: MenuSection) => {

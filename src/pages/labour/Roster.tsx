@@ -1,3 +1,4 @@
+import { useAuth } from "@/contexts/AuthContext"
 import { useState, useMemo, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
@@ -68,6 +69,7 @@ import { RosterDayView } from "@/components/roster/RosterDayView"
 import { RosterMonthView } from "@/components/roster/RosterMonthView"
 
 export default function Roster() {
+  const { currentVenue } = useAuth()
   const navigate = useNavigate()
   const {
     staff,
@@ -334,7 +336,7 @@ export default function Roster() {
     } else {
       const newBudget: LaborBudget = {
         id: `budget-${Date.now()}`,
-        venue_id: "venue-1",
+        venue_id: currentVenue?.id || "",
         period_type: "weekly",
         period_start: currentWeekStart,
         period_end: weekEnd,
@@ -360,7 +362,7 @@ export default function Roster() {
     const template: ShiftTemplate = {
       id: `template-${Date.now()}`,
       organization_id: "org-1",
-      venue_id: "venue-1",
+      venue_id: currentVenue?.id || "",
       name: templateName,
       start_time: templateStartTime,
       end_time: templateEndTime,
