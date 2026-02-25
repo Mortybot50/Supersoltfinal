@@ -1,3 +1,4 @@
+import { useAuth } from "@/contexts/AuthContext"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -56,6 +57,7 @@ interface ShiftDialogProps {
 }
 
 export function ShiftDialog({ open, onOpenChange, shift, defaultDate, onSave }: ShiftDialogProps) {
+  const { currentVenue } = useAuth()
   const { staff, rosterShifts, staffAvailability } = useDataStore()
   const activeStaff = staff.filter((s) => s.status === "active")
 
@@ -237,7 +239,7 @@ export function ShiftDialog({ open, onOpenChange, shift, defaultDate, onSave }: 
 
     const shiftData: RosterShift = {
       id: shift?.id || `shift-${Date.now()}`,
-      venue_id: shift?.venue_id || "venue-1",
+      venue_id: shift?.venue_id || currentVenue?.id || "",
       staff_id: values.staff_id,
       staff_name: staffMember.name,
       date: shiftDate,

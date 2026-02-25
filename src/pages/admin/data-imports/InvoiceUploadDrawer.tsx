@@ -21,7 +21,7 @@ import { Upload, X, FileText, Image as ImageIcon, Plus, Trash2, Link2 } from 'lu
 import { useInvoiceIntakeStore } from '@/stores/useInvoiceIntakeStore'
 import { useDataStore } from '@/lib/store/dataStore'
 import { toast } from 'sonner'
-import { GSTMode } from '@/types'
+import { GSTMode, InvoiceIntakeJob } from '@/types'
 
 interface ManualLine {
   description: string
@@ -135,7 +135,7 @@ export function InvoiceUploadDrawer() {
     const supplier = suppliers.find((s) => s.id === manualSupplierId)
     if (!supplier) return
 
-    const newJob = {
+    const newJob: InvoiceIntakeJob = {
       id: `intake-manual-${Date.now()}`,
       org_id: 'DEMO-ORG',
       venue_id: venueId,
@@ -172,7 +172,7 @@ export function InvoiceUploadDrawer() {
     }
 
     useInvoiceIntakeStore.setState((state) => ({
-      jobs: [newJob as any, ...state.jobs],
+      jobs: [newJob, ...state.jobs],
       uploadDrawerOpen: false,
     }))
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react"
+import { useDebounce } from '@/lib/hooks/useDebounce'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -63,6 +64,7 @@ export default function Ingredients() {
     setIngredients: setStoreIngredients, setRecipes, setRecipeIngredients: setStoreRecipeIngredients, setMenuItems,
   } = useDataStore()
   const [search, setSearch] = useState("")
+  const debouncedSearch = useDebounce(search, 300)
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -116,7 +118,7 @@ export default function Ingredients() {
     const wastePercent = parseFloat(formData.wastePercent) || 0
 
     const data: Partial<Ingredient> & { venue_id: string } = {
-      venue_id: currentVenue?.id || "venue-1",
+      venue_id: currentVenue?.id || "",
       name: formData.name.trim(),
       category: formData.category as Ingredient["category"],
       unit: formData.unit as Ingredient["unit"],
@@ -186,12 +188,12 @@ export default function Ingredients() {
   const filtered = useMemo(() => {
     return ingredients
       .filter((item) => {
-        const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase())
+        const matchesSearch = item.name.toLowerCase().includes(debouncedSearch.toLowerCase())
         const matchesCategory = categoryFilter === "all" || item.category === categoryFilter
         return matchesSearch && matchesCategory && item.active
       })
       .sort((a, b) => a.name.localeCompare(b.name))
-  }, [ingredients, search, categoryFilter])
+  }, [ingredients, debouncedSearch, categoryFilter])
 
   const lowStockCount = useMemo(() => {
     return ingredients.filter((i) => i.current_stock <= i.reorder_point && i.active).length
@@ -286,7 +288,7 @@ export default function Ingredients() {
               <TableRow>
                 <TableCell colSpan={9} className="text-center text-muted-foreground h-32">
                   <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>{search || categoryFilter !== "all" ? "No ingredients match your filters" : "No ingredients yet. Click 'Add Ingredient' to get started."}</p>
+                  <p>{debouncedSearch || categoryFilter !== "all" ? "No ingredients match your filters" : "No ingredients yet. Click 'Add Ingredient' to get started."}</p>
                 </TableCell>
               </TableRow>
             ) : (

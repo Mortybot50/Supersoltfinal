@@ -55,7 +55,7 @@ export function RosterStaffView({
     const groups = new Map<string, Staff[]>()
 
     activeStaff.forEach((s) => {
-      const key = (s as any)[groupField] || "Other"
+      const key = s[groupField] || "Other"
       if (!groups.has(key)) groups.set(key, [])
       groups.get(key)!.push(s)
     })

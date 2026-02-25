@@ -1,4 +1,6 @@
+import { useAuth } from "@/contexts/AuthContext"
 import { useState, useMemo } from "react"
+import { useDebounce } from '@/lib/hooks/useDebounce'
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -35,10 +37,12 @@ import { generateSecureToken, generateInviteUrl } from "@/lib/utils/tokenGenerat
 import { ONBOARDING_STEPS, INVITE_EXPIRY_DAYS } from "@/lib/constants/onboarding"
 
 export default function People() {
+  const { currentVenue } = useAuth()
   const navigate = useNavigate()
   const { staff: staffList, setStaff: setStaffList, onboardingInvites, addOnboardingInvite, updateStaffOnboarding, setOnboardingSteps, onboardingSteps } = useDataStore()
   const rosterMetrics = useRosterMetrics()
   const [searchQuery, setSearchQuery] = useState("")
+  const debouncedSearch = useDebounce(searchQuery, 300)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingStaff, setEditingStaff] = useState<Staff | undefined>()
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
@@ -72,9 +76,9 @@ export default function People() {
 
   const filteredActiveStaff = activeStaff.filter(staff => {
     const name = staff.name.toLowerCase()
-    return name.includes(searchQuery.toLowerCase()) ||
-      staff.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      staff.role.toLowerCase().includes(searchQuery.toLowerCase())
+    return name.includes(debouncedSearch.toLowerCase()) ||
+      staff.email.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      staff.role.toLowerCase().includes(debouncedSearch.toLowerCase())
   })
 
   const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").toUpperCase()
@@ -94,7 +98,7 @@ export default function People() {
       }
     } else {
       // Add new — update store (DB insert requires auth user + org_member flow)
-      setStaffList([...staffList, { ...staff, id: `staff-${Date.now()}`, organization_id: 'org-1', venue_id: 'venue-1' }])
+      setStaffList([...staffList, { ...staff, id: `staff-${Date.now()}`, organization_id: 'org-1', venue_id: currentVenue?.id || '' }])
       toast.success(`${staff.name} added`)
     }
     setDialogOpen(false)
@@ -150,7 +154,7 @@ export default function People() {
     const newStaff: Staff = {
       id: staffId,
       organization_id: "org-1",
-      venue_id: "venue-1",
+      venue_id: currentVenue?.id || "",
       name: staffName,
       email: inviteForm.email,
       role: inviteForm.role,

@@ -1,3 +1,4 @@
+import { useAuth } from "@/contexts/AuthContext"
 import { useState, useMemo, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
@@ -45,6 +46,7 @@ const UNITS = ['kg', 'g', 'L', 'mL', 'ea', 'case', 'dozen', 'box', 'bag', 'bunch
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export default function SupplierDetail() {
+  const { currentVenue } = useAuth()
   const { supplierId } = useParams()
   const navigate = useNavigate()
   const { suppliers, ingredients, purchaseOrders, addIngredient, updateIngredient, deleteIngredient, loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB } = useDataStore()
@@ -262,7 +264,7 @@ export default function SupplierDetail() {
       } else {
         const newIngredient = {
           id: crypto.randomUUID(),
-          venue_id: 'venue-1',
+          venue_id: currentVenue?.id || '',
           supplier_id: supplierId!,
           supplier_name: supplier.name,
           ...productData,

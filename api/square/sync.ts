@@ -81,6 +81,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ error: 'No active Square connection found' })
     }
 
+    // ── Rate limit: max once per 5 minutes ────────────────────────
+    if (conn.last_sync_at) {
+      const lastSync = new Date(conn.last_sync_at).getTime()
+      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000
+      if (lastSync > fiveMinutesAgo) {
+        const waitSeconds = Math.ceil((lastSync - fiveMinutesAgo) / 1000)
+        return res.status(429).json({
+          error: `Sync rate limited. Please wait ${waitSeconds}s before syncing again.`,
+          retry_after_seconds: waitSeconds,
+        })
+      }
+    }
+
     let accessToken = decrypt(conn.access_token!)
     const refreshToken = decrypt(conn.refresh_token!)
 

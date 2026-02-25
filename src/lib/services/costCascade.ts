@@ -241,3 +241,65 @@ export function applyCascadeToState(
     menuItems: updatedMenuItems,
   }
 }
+
+/**
+ * Persist cascade results to Supabase.
+ * Batch-updates affected recipes and menu items after in-memory cascade.
+ * Call AFTER applyCascadeToState() to sync DB with store.
+ */
+export async function persistCascadeResults(
+  cascadeResult: CascadeResult,
+  updatedRecipes: Recipe[],
+  updatedMenuItems: MenuItem[]
+): Promise<{ errors: string[] }> {
+  const errors: string[] = []
+
+  // Batch-update affected recipes
+  const affectedRecipeIds = cascadeResult.affectedRecipes.map((ar) => ar.recipeId)
+  for (const recipeId of affectedRecipeIds) {
+    const recipe = updatedRecipes.find((r) => r.id === recipeId)
+    if (!recipe) continue
+
+    const { error } = await supabase
+      .from('recipes')
+      .update({
+        total_cost: recipe.total_cost,
+        cost_per_serve: recipe.cost_per_serve,
+        suggested_price: recipe.suggested_price,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', recipeId)
+
+    if (error) {
+      console.error(`[costCascade] Failed to persist recipe ${recipeId}:`, error)
+      errors.push(`Recipe ${recipe.name}: ${error.message}`)
+    }
+  }
+
+  // Update all menu items linked to affected recipes (not just GP alert ones)
+  const allAffectedMenuItems = updatedMenuItems.filter((mi) =>
+    affectedRecipeIds.includes(mi.recipe_id || '')
+  )
+
+  for (const mi of allAffectedMenuItems) {
+    const { error } = await supabase
+      .from('menu_items')
+      .update({
+        cost_per_serve: mi.cost_per_serve,
+        gp_percent: mi.gp_percent,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', mi.id)
+
+    if (error) {
+      console.error(`[costCascade] Failed to persist menu item ${mi.id}:`, error)
+      errors.push(`Menu item ${mi.name}: ${error.message}`)
+    }
+  }
+
+  if (errors.length > 0) {
+    console.warn(`[costCascade] Persisted with ${errors.length} error(s)`)
+  }
+
+  return { errors }
+}

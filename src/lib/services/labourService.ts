@@ -64,7 +64,7 @@ export async function loadStaffFromDB(): Promise<Staff[]> {
     return data.map((s) => ({
       id: s.id,
       organization_id: s.org_members?.org_id || '',
-      venue_id: 'venue-1', // Default venue
+      venue_id: s.venue_id || '',
       name: `${s.org_members?.profiles?.first_name || ''} ${s.org_members?.profiles?.last_name || ''}`.trim() || 'Unknown',
       email: s.org_members?.profiles?.email || '',
       phone: s.org_members?.profiles?.phone,
@@ -688,7 +688,7 @@ export async function loadStaffAvailabilityFromDB(staffId?: string): Promise<Sta
     return data.map((a) => ({
       id: a.id,
       staff_id: a.staff_id,
-      venue_id: 'venue-1', // Default
+      venue_id: '',
       type: a.is_available ? 'available' : 'unavailable',
       is_recurring: true, // DB schema is for recurring only
       day_of_week: a.day_of_week,

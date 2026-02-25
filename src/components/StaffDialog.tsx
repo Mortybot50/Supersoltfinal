@@ -1,3 +1,4 @@
+import { useAuth } from "@/contexts/AuthContext"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -49,6 +50,7 @@ interface StaffDialogProps {
 }
 
 export function StaffDialog({ open, onOpenChange, staff, onSave }: StaffDialogProps) {
+  const { currentVenue } = useAuth()
   const form = useForm<StaffFormValues>({
     resolver: zodResolver(staffSchema),
     defaultValues: {
@@ -87,7 +89,7 @@ export function StaffDialog({ open, onOpenChange, staff, onSave }: StaffDialogPr
     const staffData: Staff = {
       id: staff?.id || `staff-${Date.now()}`,
       organization_id: staff?.organization_id || 'org-1',
-      venue_id: staff?.venue_id || 'venue-1',
+      venue_id: staff?.venue_id || currentVenue?.id || '',
       name: values.name,
       email: values.email,
       phone: values.phone || undefined,

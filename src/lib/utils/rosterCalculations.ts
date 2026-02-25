@@ -27,6 +27,7 @@ export function calculateShiftCostBreakdown(
   endTime: string,
   breakMinutes: number,
   hourlyRateCents: number,
+  venueId: string,
   date?: Date,
   employmentType: 'full-time' | 'part-time' | 'casual' = 'casual',
   state: string = 'VIC',
@@ -129,6 +130,7 @@ export function calculateShiftHoursAndCost(
   endTime: string,
   breakMinutes: number,
   hourlyRateCents: number,
+  venueId: string,
   date?: Date,
   isCasual: boolean = false,
   state: string = 'VIC'
@@ -178,8 +180,14 @@ export function calculatePenaltyRate(
     return { penaltyType: 'none', penaltyMultiplier: 1 }
   }
 
-  const dateStr = date.toISOString().split('T')[0]
-  const dayOfWeek = date.getDay()
+  // Coerce string/null to Date (DB often returns ISO strings)
+  const safeDate = date instanceof Date ? date : new Date(date)
+  if (isNaN(safeDate.getTime())) {
+    return { penaltyType: 'none', penaltyMultiplier: 1 }
+  }
+
+  const dateStr = safeDate.toISOString().split('T')[0]
+  const dayOfWeek = safeDate.getDay()
 
   // Check public holidays first (highest rate)
   const allHolidays = [
@@ -860,14 +868,15 @@ export function applyShiftTemplate(
   staffId: string,
   staffName: string,
   date: Date,
-  hourlyRateCents: number
+  hourlyRateCents: number,
+  venueId: string
 ): Omit<RosterShift, 'id'> {
   const calc = calculateShiftHoursAndCost(
     template.start_time, template.end_time, template.break_minutes, hourlyRateCents, date
   )
 
   return {
-    venue_id: 'venue-1',
+    venue_id: venueId,
     staff_id: staffId,
     staff_name: staffName,
     date,

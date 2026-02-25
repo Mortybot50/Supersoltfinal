@@ -1,3 +1,4 @@
+import { useAuth } from "@/contexts/AuthContext"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -68,6 +69,7 @@ export function AvailabilityDialog({
   availability,
   staffId,
 }: AvailabilityDialogProps) {
+  const { currentVenue } = useAuth()
   const { staff, addStaffAvailability, updateStaffAvailability } = useDataStore()
   const activeStaff = staff.filter((s) => s.status === "active")
 
@@ -119,7 +121,7 @@ export function AvailabilityDialog({
     const data: StaffAvailability = {
       id: availability?.id || `avail-${Date.now()}`,
       staff_id: values.staff_id,
-      venue_id: "venue-1",
+      venue_id: currentVenue?.id || "",
       type: values.type,
       is_recurring: values.is_recurring,
       day_of_week: values.is_recurring ? parseInt(values.day_of_week || "1") : undefined,
