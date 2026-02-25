@@ -21,10 +21,20 @@ export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
-/** TFN: exactly 9 digits */
+/** TFN: exactly 9 digits with ATO check digit algorithm
+ * Weights: 1, 4, 3, 7, 5, 8, 6, 9, 10
+ * Sum of (digit × weight) must be divisible by 11
+ */
 export function isValidTFN(tfn: string): boolean {
   const cleaned = tfn.replace(/\s/g, '')
-  return /^\d{9}$/.test(cleaned)
+  if (!/^\d{9}$/.test(cleaned)) return false
+  
+  const weights = [1, 4, 3, 7, 5, 8, 6, 9, 10]
+  const sum = cleaned
+    .split('')
+    .reduce((acc, digit, i) => acc + parseInt(digit) * weights[i], 0)
+  
+  return sum % 11 === 0
 }
 
 /** BSB: exactly 6 digits */

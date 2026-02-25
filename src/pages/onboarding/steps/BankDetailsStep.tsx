@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
 import { validateBSB, lookupBank, formatBSB } from '@/lib/utils/bsbLookup'
 import { isValidAccountNumber } from '@/lib/utils/validation'
+import { bankDetailsSchema } from '@/lib/schemas/onboarding'
 import { CheckCircle, AlertCircle } from 'lucide-react'
 
 interface BankDetailsData {
@@ -65,18 +66,36 @@ export default function BankDetailsStep({ staffId, initialData, onComplete, onBa
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const newErrors: Record<string, string> = {}
-
-    if (!formData.bank_account_name.trim()) newErrors.bank_account_name = 'Account name is required'
-    if (!bsbValid) newErrors.bank_bsb = 'Enter a valid 6-digit BSB number'
-    if (!formData.bank_account_number) {
-      newErrors.bank_account_number = 'Account number is required'
-    } else if (!isValidAccountNumber(formData.bank_account_number)) {
-      newErrors.bank_account_number = 'Account number must be 6-10 digits'
-    }
-
-    if (Object.keys(newErrors).length > 0) {
+    
+    // Validate with Zod schema
+    const result = bankDetailsSchema.safeParse({
+      bank_name: formData.bank_institution_name || formData.bank_account_name,
+      bsb: formData.bank_bsb,
+      account_number: formData.bank_account_number,
+      account_name: formData.bank_account_name,
+    })
+    
+    if (!result.success) {
+      const newErrors: Record<string, string> = {}
+      result.error.errors.forEach(err => {
+        const field = err.path[0]?.toString()
+        // Map Zod field names to form field names
+        const fieldMap: Record<string, string> = {
+          bsb: 'bank_bsb',
+          account_number: 'bank_account_number',
+          account_name: 'bank_account_name',
+          bank_name: 'bank_institution_name',
+        }
+        const formField = fieldMap[field ?? ''] || field
+        if (formField) newErrors[formField] = err.message
+      })
       setErrors(newErrors)
+      return
+    }
+    
+    // Also check BSB lookup validation (beyond format)
+    if (!bsbValid) {
+      setErrors({ bank_bsb: 'Enter a valid 6-digit BSB number' })
       return
     }
 
