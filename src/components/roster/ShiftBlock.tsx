@@ -11,7 +11,9 @@ import { getDaypartColor } from './DayPartBands'
 import { formatCurrency } from '@/lib/utils/formatters'
 import { formatTimeCompact } from '@/lib/utils/rosterCalculations'
 import { cn } from '@/lib/utils'
-import { X, AlertTriangle, GripVertical } from 'lucide-react'
+import { X, GripVertical } from 'lucide-react'
+import { ComplianceIcon } from './ComplianceIcon'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 export const DRAGGABLE_SHIFT_TYPE = 'shift-block'
 
@@ -52,6 +54,7 @@ export function ShiftBlock({
   const isPublicHoliday = shift.penalty_type === 'public_holiday'
 
   return (
+    <TooltipProvider>
     <div
       ref={setNodeRef}
       className={cn(
@@ -96,9 +99,7 @@ export function ShiftBlock({
           <span className="font-medium truncate leading-tight">
             {formatTimeCompact(shift.start_time)}–{formatTimeCompact(shift.end_time)}
           </span>
-          {shift.warnings && shift.warnings.length > 0 && (
-            <AlertTriangle className="h-3 w-3 text-orange-500 shrink-0" />
-          )}
+          <ComplianceIcon shiftId={shift.id} />
           {shift.penalty_type && shift.penalty_type !== 'none' && shift.penalty_multiplier && shift.penalty_multiplier > 1 && (
             <span className="ml-auto text-[10px] font-medium opacity-70 shrink-0">
               {(shift.penalty_multiplier * 100).toFixed(0)}%
@@ -127,5 +128,6 @@ export function ShiftBlock({
         </button>
       )}
     </div>
+    </TooltipProvider>
   )
 }

@@ -27,6 +27,8 @@ import { DRAGGABLE_STAFF_TYPE } from './StaffCard'
 import { format, isToday, isWeekend, isSameDay, parse } from 'date-fns'
 import { getWeekDates, getFortnightDates, calculateShiftCostBreakdown } from '@/lib/utils/rosterCalculations'
 import { cn } from '@/lib/utils'
+import { CoverageHeatmap } from './CoverageHeatmap'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 interface RosterGridProps {
   onAddShift?: (date: Date, staffId: string) => void
@@ -158,6 +160,7 @@ export function RosterGrid({
   }
 
   return (
+    <TooltipProvider>
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
@@ -208,6 +211,8 @@ export function RosterGrid({
                 {!compact && (
                   <div className="text-[9px] text-gray-400">{format(date, 'MMM')}</div>
                 )}
+                {/* Coverage heatmap strip */}
+                <CoverageHeatmap date={date} shifts={shifts} />
               </div>
             )
           })}
@@ -297,5 +302,6 @@ export function RosterGrid({
         )}
       </DragOverlay>
     </DndContext>
+    </TooltipProvider>
   )
 }
