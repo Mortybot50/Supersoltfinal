@@ -28,6 +28,7 @@ import { format, isToday, isWeekend, isSameDay, parse } from 'date-fns'
 import { getWeekDates, getFortnightDates, calculateShiftCostBreakdown } from '@/lib/utils/rosterCalculations'
 import { cn } from '@/lib/utils'
 import { CoverageHeatmap } from './CoverageHeatmap'
+import { SalesForecastOverlay, PrepLoadBadge } from './SalesForecastOverlay'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 interface RosterGridProps {
@@ -213,6 +214,10 @@ export function RosterGrid({
                 )}
                 {/* Coverage heatmap strip */}
                 <CoverageHeatmap date={date} shifts={shifts} />
+                {/* Prep load badge */}
+                <div className="flex justify-center mt-0.5">
+                  <PrepLoadBadge date={date} dates={dates} />
+                </div>
               </div>
             )
           })}

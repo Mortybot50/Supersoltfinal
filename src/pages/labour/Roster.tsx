@@ -1,6 +1,6 @@
 /**
  * Roster page — new redesign.
- * Commit 5: publish flow, templates, open shifts, auto-fill.
+ * Commit 6: sales forecast overlay, prep load, real-time Supabase subscriptions.
  */
 
 import { useEffect, useState } from 'react'
@@ -19,7 +19,7 @@ import { ShiftTemplateDialog } from '@/components/roster/ShiftTemplateDialog'
 import { AutoFillDialog } from '@/components/roster/AutoFillDialog'
 import { RosterShift } from '@/types'
 import { toast } from 'sonner'
-import { AlertTriangle, Wand2, BookTemplate } from 'lucide-react'
+import { AlertTriangle, Wand2, BookTemplate, Radio } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getAllRosterWarnings } from '@/lib/utils/rosterCalculations'
 
@@ -29,12 +29,14 @@ export default function Roster() {
     init, deleteShift, selectShift, selectedDate, loadWeek,
     sidebarOpen, selectedShiftId,
     shifts, availability, openShifts,
+    subscribeToChanges,
   } = useRosterStore()
 
   const [showCompliance, setShowCompliance] = useState(false)
   const [showPublish, setShowPublish] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
   const [showAutoFill, setShowAutoFill] = useState(false)
+  const [isLive, setIsLive] = useState(false)
 
   useEffect(() => {
     if (currentVenue?.id && currentOrg?.id) {
@@ -48,8 +50,19 @@ export default function Roster() {
     }
   }, [selectedDate])
 
+  // Real-time subscription
+  useEffect(() => {
+    if (!currentVenue?.id) return
+    const unsubscribe = subscribeToChanges()
+    setIsLive(true)
+    return () => {
+      unsubscribe()
+      setIsLive(false)
+    }
+  }, [currentVenue?.id])
+
   const handleAddShift = (_date: Date, _staffId: string) => {
-    toast.info('Drag a staff card from the sidebar to schedule, or open Templates')
+    toast.info('Drag a staff card from the sidebar to schedule, or use Auto-fill')
   }
 
   const handleSelectShift = (shift: RosterShift) => {
@@ -136,6 +149,16 @@ export default function Roster() {
           <Wand2 className="h-3.5 w-3.5 text-purple-500" />
           Auto-fill
         </Button>
+
+        <div className="flex-1" />
+
+        {/* Live indicator */}
+        {isLive && (
+          <div className="flex items-center gap-1 text-[10px] text-green-600">
+            <Radio className="h-3 w-3" />
+            <span>Live</span>
+          </div>
+        )}
       </div>
 
       {/* Cost bar */}
