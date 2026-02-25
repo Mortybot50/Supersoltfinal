@@ -1,7 +1,6 @@
 /**
  * Roster page — new redesign.
- * Replaces the legacy Roster.tsx (moved to RosterLegacy.tsx).
- * Commit 1: static grid with store.
+ * Commit 2: DnD + StaffSidebar.
  */
 
 import { useEffect } from 'react'
@@ -9,21 +8,20 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRosterStore } from '@/stores/useRosterStore'
 import { RosterHeader } from '@/components/roster/RosterHeader'
 import { RosterGrid } from '@/components/roster/RosterGrid'
+import { StaffSidebar } from '@/components/roster/StaffSidebar'
 import { RosterShift } from '@/types'
 import { toast } from 'sonner'
 
 export default function Roster() {
   const { currentVenue, currentOrg } = useAuth()
-  const { init, deleteShift, selectShift, selectedDate, loadWeek } = useRosterStore()
+  const { init, deleteShift, selectShift, selectedDate, loadWeek, sidebarOpen } = useRosterStore()
 
-  // Initialise store when venue/org are available
   useEffect(() => {
     if (currentVenue?.id && currentOrg?.id) {
       init(currentVenue.id, currentOrg.id)
     }
   }, [currentVenue?.id, currentOrg?.id])
 
-  // Reload when selectedDate changes externally (navigateWeek updates it)
   useEffect(() => {
     if (currentVenue?.id) {
       loadWeek(selectedDate)
@@ -31,8 +29,8 @@ export default function Roster() {
   }, [selectedDate])
 
   const handleAddShift = (date: Date, staffId: string) => {
-    // TODO commit 2: open shift dialog / drag-create
-    toast.info(`Add shift for ${date.toDateString()} — drag-to-add coming in next commit`)
+    // TODO commit 3: open ShiftDetailPanel in create mode
+    toast.info('Click a date cell to add — or drag a staff card from the sidebar')
   }
 
   const handleSelectShift = (shift: RosterShift) => {
@@ -41,14 +39,15 @@ export default function Roster() {
   }
 
   const handleDeleteShift = async (shift: RosterShift) => {
-    if (window.confirm(`Delete shift for ${shift.staff_name} on ${new Date(shift.date).toDateString()}?`)) {
+    const d = shift.date instanceof Date ? shift.date : new Date(shift.date)
+    if (window.confirm(`Delete shift for ${shift.staff_name} on ${d.toDateString()}?`)) {
       await deleteShift(shift.id)
       toast.success('Shift deleted')
     }
   }
 
   const handlePublish = () => {
-    // TODO commit 5: open PublishDialog
+    // TODO commit 5: PublishDialog
     toast.info('Publish dialog — coming in commit 5')
   }
 
@@ -57,6 +56,9 @@ export default function Roster() {
       <RosterHeader onPublish={handlePublish} />
 
       <div className="flex flex-1 overflow-hidden">
+        {/* Left staff sidebar */}
+        {sidebarOpen && <StaffSidebar />}
+
         {/* Main grid */}
         <RosterGrid
           onAddShift={handleAddShift}
