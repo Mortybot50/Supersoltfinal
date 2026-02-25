@@ -1,3 +1,4 @@
+import { useAuth } from '@/contexts/AuthContext'
 import { useState, useMemo, useEffect } from 'react'
 import {
   Trash2,
@@ -55,6 +56,7 @@ const REASON_LABEL = Object.fromEntries(WASTE_REASONS.map((r) => [r.value, r.lab
 
 export default function Waste() {
   const { wasteLogs, ingredients, isLoading, addWasteEntry, deleteWasteEntry, loadWasteLogsFromDB, loadIngredientsFromDB } = useDataStore()
+  const { currentVenue } = useAuth()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -207,7 +209,7 @@ export default function Waste() {
 
     const wasteEntry: WasteEntry = {
       id: crypto.randomUUID(),
-      venue_id: 'VENUE-001',
+      venue_id: currentVenue?.id || '',
       waste_date: new Date(),
       waste_time: format(new Date(), 'HH:mm'),
       ingredient_id: wasteForm.ingredient_id,
