@@ -6,7 +6,7 @@
  * `state` parameter so the callback can associate the connection.
  */
 import type { VercelRequest, VercelResponse } from './_lib.js'
-import { env, SQUARE_BASE, SQUARE_SCOPES, extractToken, verifyUser, checkOrgAccess } from './_lib.js'
+import { env, SQUARE_BASE, SQUARE_SCOPES, extractToken, verifyUser, checkOrgAccess, signState } from './_lib.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -38,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ error: 'Forbidden — not a member of this organisation' })
     }
 
-    const state = Buffer.from(JSON.stringify({ org_id: orgId, venue_id: venueId })).toString('base64url')
+    const state = signState({ org_id: orgId, venue_id: venueId })
     const redirectUri = `${env('APP_URL')}/api/square/callback`
 
     const authorizeUrl = [
