@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { AuthProvider } from "@/contexts/AuthContext"
 import ProtectedRoute from "@/components/ProtectedRoute"
+import { ErrorBoundary, PageErrorBoundary } from "@/components/ErrorBoundary"
 import Layout from "./components/Layout"
 import Dashboard from "./pages/Dashboard"
 import NotFound from "./pages/NotFound"
@@ -71,6 +72,7 @@ const App = () => (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
     <TooltipProvider>
       <BrowserRouter>
+        <PageErrorBoundary>
         <AuthProvider>
           <Routes>
             {/* Public Auth Routes */}
@@ -146,7 +148,8 @@ const App = () => (
             <Route path="onboarding/portal/:token/step:stepNumber" element={<InviteStep />} />
           </Routes>
         </AuthProvider>
-      </BrowserRouter>
+      </PageErrorBoundary>
+        </BrowserRouter>
       <Toaster />
       <Sonner />
     </TooltipProvider>
