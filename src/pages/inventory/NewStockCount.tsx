@@ -29,7 +29,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 export default function NewStockCount() {
   const navigate = useNavigate()
-  const { profile } = useAuth()
+  const { profile, currentVenue } = useAuth()
   const { suppliers, ingredients, stockCounts, wasteLogs, purchaseOrders, addStockCount, completeStockCount, loadIngredientsFromDB } = useDataStore()
 
   const [countType, setCountType] = useState<'full' | 'cycle'>('full')
@@ -174,7 +174,7 @@ export default function NewStockCount() {
 
     const stockCount: StockCount = {
       id: crypto.randomUUID(),
-      venue_id: 'VENUE-001',
+      venue_id: currentVenue?.id || '',
       count_number: countNumber,
       count_date: new Date(),
       count_type: countType,

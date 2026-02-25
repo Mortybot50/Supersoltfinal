@@ -1000,7 +1000,7 @@ export const useDataStore = create<DataState>()(
       
       const itemData: Partial<MenuItemRow> = {
         id: item.id,
-        venue_id: item.venue_id || 'VENUE-001',
+        venue_id: item.venue_id || '',
         name: item.name,
         description: item.description,
         category: item.category,
@@ -1767,7 +1767,7 @@ export const useDataStore = create<DataState>()(
         
         return {
           order_number: po.order_number,
-          venue_id: 'VENUE-001',
+          venue_id: get().currentVenueId || '',
           order_datetime: orderDatetime,
           channel: po.channel,
           payment_method: (po.payment_method || 'card') as 'card' | 'cash' | 'digital_wallet',
@@ -1991,7 +1991,7 @@ export const useDataStore = create<DataState>()(
     }))
     
     get().addAuditLog({
-      org_id: get().organization?.id || 'ORG-001',
+      org_id: get().organization?.id || '',
       actor_user_id: 'current-user',
       actor_name: 'Admin User',
       action: 'organization.update',
@@ -2009,7 +2009,7 @@ export const useDataStore = create<DataState>()(
     }))
     
     get().addAuditLog({
-      org_id: get().organization?.id || 'ORG-001',
+      org_id: get().organization?.id || '',
       actor_user_id: 'current-user',
       actor_name: 'Admin User',
       action: 'branding.update',
@@ -2027,7 +2027,7 @@ export const useDataStore = create<DataState>()(
     }))
     
     get().addAuditLog({
-      org_id: get().organization?.id || 'ORG-001',
+      org_id: get().organization?.id || '',
       actor_user_id: 'current-user',
       actor_name: 'Admin User',
       action: 'menu_defaults.update',
@@ -2045,7 +2045,7 @@ export const useDataStore = create<DataState>()(
     }))
     
     get().addAuditLog({
-      org_id: get().organization?.id || 'ORG-001',
+      org_id: get().organization?.id || '',
       actor_user_id: 'current-user',
       actor_name: 'Admin User',
       action: 'approvals.update',
@@ -2088,7 +2088,7 @@ export const useDataStore = create<DataState>()(
   },
   
   initializeOrgDefaults: () => {
-    const orgId = get().organization?.id || 'ORG-001'
+    const orgId = get().organization?.id || ''
     const now = new Date()
     
     if (!get().organization) {
@@ -2199,7 +2199,7 @@ export const useDataStore = create<DataState>()(
     })
     
     get().addAuditLog({
-      org_id: get().organization?.id || 'ORG-001',
+      org_id: get().organization?.id || '',
       actor_user_id: 'current-user',
       actor_name: 'Admin User',
       action: 'settings.publish_to_venues',
