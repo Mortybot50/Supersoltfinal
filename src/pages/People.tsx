@@ -37,7 +37,7 @@ import { generateSecureToken, generateInviteUrl } from "@/lib/utils/tokenGenerat
 import { ONBOARDING_STEPS, INVITE_EXPIRY_DAYS } from "@/lib/constants/onboarding"
 
 export default function People() {
-  const { currentVenue } = useAuth()
+  const { currentOrg, currentVenue } = useAuth()
   const navigate = useNavigate()
   const { staff: staffList, setStaff: setStaffList, onboardingInvites, addOnboardingInvite, updateStaffOnboarding, setOnboardingSteps, onboardingSteps } = useDataStore()
   const rosterMetrics = useRosterMetrics()
@@ -98,7 +98,7 @@ export default function People() {
       }
     } else {
       // Add new — update store (DB insert requires auth user + org_member flow)
-      setStaffList([...staffList, { ...staff, id: `staff-${Date.now()}`, organization_id: 'org-1', venue_id: currentVenue?.id || '' }])
+      setStaffList([...staffList, { ...staff, id: `staff-${Date.now()}`, organization_id: currentOrg?.id || '', venue_id: currentVenue?.id || '' }])
       toast.success(`${staff.name} added`)
     }
     setDialogOpen(false)
@@ -153,7 +153,7 @@ export default function People() {
     // Create staff record with onboarding_status = invited
     const newStaff: Staff = {
       id: staffId,
-      organization_id: "org-1",
+      organization_id: currentOrg?.id || '',
       venue_id: currentVenue?.id || "",
       name: staffName,
       email: inviteForm.email,
