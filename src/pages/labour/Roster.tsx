@@ -1,6 +1,6 @@
 /**
  * Roster page — new redesign.
- * Commit 2: DnD + StaffSidebar.
+ * Commit 3: live CostBar + ShiftDetailPanel.
  */
 
 import { useEffect } from 'react'
@@ -9,12 +9,18 @@ import { useRosterStore } from '@/stores/useRosterStore'
 import { RosterHeader } from '@/components/roster/RosterHeader'
 import { RosterGrid } from '@/components/roster/RosterGrid'
 import { StaffSidebar } from '@/components/roster/StaffSidebar'
+import { CostBar } from '@/components/roster/CostBar'
+import { CostBarExpanded } from '@/components/roster/CostBarExpanded'
+import { ShiftDetailPanel } from '@/components/roster/ShiftDetailPanel'
 import { RosterShift } from '@/types'
 import { toast } from 'sonner'
 
 export default function Roster() {
   const { currentVenue, currentOrg } = useAuth()
-  const { init, deleteShift, selectShift, selectedDate, loadWeek, sidebarOpen } = useRosterStore()
+  const {
+    init, deleteShift, selectShift, selectedDate, loadWeek,
+    sidebarOpen, selectedShiftId,
+  } = useRosterStore()
 
   useEffect(() => {
     if (currentVenue?.id && currentOrg?.id) {
@@ -28,14 +34,13 @@ export default function Roster() {
     }
   }, [selectedDate])
 
-  const handleAddShift = (date: Date, staffId: string) => {
-    // TODO commit 3: open ShiftDetailPanel in create mode
-    toast.info('Click a date cell to add — or drag a staff card from the sidebar')
+  const handleAddShift = (_date: Date, _staffId: string) => {
+    // Drag a staff card from the sidebar, or click the + button
+    toast.info('Drag a staff card from the sidebar to schedule')
   }
 
   const handleSelectShift = (shift: RosterShift) => {
     selectShift(shift.id)
-    // TODO commit 3: open ShiftDetailPanel
   }
 
   const handleDeleteShift = async (shift: RosterShift) => {
@@ -65,7 +70,14 @@ export default function Roster() {
           onSelectShift={handleSelectShift}
           onDeleteShift={handleDeleteShift}
         />
+
+        {/* Right detail panel */}
+        {selectedShiftId && <ShiftDetailPanel />}
       </div>
+
+      {/* Bottom cost bar */}
+      <CostBar />
+      <CostBarExpanded />
     </div>
   )
 }
