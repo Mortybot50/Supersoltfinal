@@ -86,8 +86,7 @@ export default function InviteTeamStep({ orgId, onNext, onBack }: Props) {
           sent_to_email: formData.email,
           expires_at: expiresAt,
           invited_by: user?.id ?? null,
-          invited_by: user?.id,
-        } as Record<string, unknown>)
+        })
         .select("id, sent_to_email, role, sent_at")
         .single();
 
