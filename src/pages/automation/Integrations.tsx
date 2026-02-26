@@ -80,7 +80,7 @@ export default function Integrations() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
       {/* Status Banner */}
       <Card className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
         <div className="flex items-start gap-4">

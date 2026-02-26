@@ -312,7 +312,7 @@ export default function LabourReports() {
           { label: "Avg Rate", value: `$${metrics.avgHourlyRate.toFixed(2)}/hr` },
         ]} />
       </div>
-      <div className="p-4 space-y-4">
+      <div className="p-4 md:p-6 space-y-6">
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

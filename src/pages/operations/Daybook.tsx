@@ -250,7 +250,7 @@ export default function Daybook() {
             .map(cat => ({ label: cat.label, value: cat.count }))} />
         )}
       </div>
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
 
       {/* Entries List */}
       {filteredEntries.length === 0 ? (

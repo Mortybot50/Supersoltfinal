@@ -315,7 +315,7 @@ export default function Waste() {
           { label: "This Month", value: formatCurrency(dashboardData.monthTotal) },
         ]} />
       </div>
-      <div className="p-4 space-y-4">
+      <div className="p-4 md:p-6 space-y-6">
 
       {/* Waste Dashboard */}
       {showDashboard && wasteLogs.length > 0 && (
