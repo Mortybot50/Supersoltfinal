@@ -50,6 +50,9 @@ import StaffDetail from "./pages/onboarding/StaffDetail"
 import InvitePortal from "./pages/onboarding/InvitePortal"
 import InviteStep from "./pages/onboarding/InviteStep"
 
+// Setup Wizard
+import SetupWizard from "./pages/setup/SetupWizard"
+
 // Operations
 import Daybook from "./pages/operations/Daybook"
 import Imports from "./pages/operations/Imports"
@@ -143,6 +146,8 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Route>
 
+            {/* Setup Wizard (protected but outside Layout) */}
+            <Route path="/setup" element={<ProtectedRoute><SetupWizard /></ProtectedRoute>} />
             {/* Public Onboarding Portal (outside Layout) */}
             <Route path="onboarding/portal/:token" element={<InvitePortal />} />
             <Route path="onboarding/portal/:token/step:stepNumber" element={<InviteStep />} />
