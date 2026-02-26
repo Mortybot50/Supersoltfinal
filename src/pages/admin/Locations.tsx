@@ -683,15 +683,12 @@ export default function Locations() {
             {loading ? (
               <div className="text-center py-8 text-muted-foreground">Loading...</div>
             ) : filteredLocations.length === 0 ? (
-              <div className="text-center py-12">
-                <Warehouse className="mx-auto h-12 w-12 text-muted-foreground opacity-50" />
-                <h3 className="mt-4 text-lg font-semibold">No locations yet</h3>
-                <p className="text-muted-foreground mt-2">Add your first storage area to get started.</p>
-                <Button onClick={() => handleOpenLocationDialog()} className="mt-4">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Location
-                </Button>
-              </div>
+              <EmptyState
+                icon={Warehouse}
+                title="No locations yet"
+                description="Add your first storage area to get started."
+                action={{ label: "Add Location", onClick: () => handleOpenLocationDialog(), icon: Plus }}
+              />
             ) : (
               <Table>
                 <TableHeader>

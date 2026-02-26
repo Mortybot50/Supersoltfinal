@@ -456,15 +456,12 @@ export default function People() {
           <TabsContent value="active"><StaffTable staff={filteredActiveStaff} /></TabsContent>
           <TabsContent value="invitations">
             {invitedStaff.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <UserPlus className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p className="font-medium">No pending invitations</p>
-                <p className="text-sm mt-1">Click "Invite Staff" to send onboarding invitations</p>
-                <Button variant="outline" className="mt-4" onClick={() => { setCopiedUrl(""); setInviteDialogOpen(true) }}>
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Invite Staff
-                </Button>
-              </div>
+              <EmptyState
+                icon={UserPlus}
+                title="No pending invitations"
+                description='Click "Invite Staff" to send onboarding invitations'
+                action={{ label: "Invite Staff", onClick: () => { setCopiedUrl(""); setInviteDialogOpen(true) }, icon: UserPlus }}
+              />
             ) : (
               <Table>
                 <TableHeader>
