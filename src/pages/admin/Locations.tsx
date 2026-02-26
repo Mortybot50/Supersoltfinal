@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { PageShell, PageToolbar } from '@/components/shared'
+import { PageShell, PageToolbar, EmptyState } from '@/components/shared'
 import { Label } from '@/components/ui/label'
 import {
   Select,
