@@ -14,8 +14,17 @@ export function useOnboardingRedirect() {
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    if (loading || !currentOrg || location.pathname === "/setup") {
+    // Skip if still loading auth or already on setup page
+    if (loading) return;
+
+    if (location.pathname === "/setup") {
       setChecked(true);
+      return;
+    }
+
+    // If no org at all after loading, redirect to setup
+    if (!currentOrg) {
+      navigate("/setup", { replace: true });
       return;
     }
 

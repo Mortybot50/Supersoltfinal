@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { Loader2 } from "lucide-react";
 
 export default function Signup() {
   const navigate = useNavigate();
+  const { refreshProfile } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -125,8 +127,11 @@ export default function Signup() {
         });
       }
 
-      // Success - redirect to dashboard
-      navigate("/dashboard");
+      // Refresh auth context so it picks up the new org/venue/member
+      await refreshProfile();
+
+      // Success - redirect to setup wizard (onboarding not yet complete)
+      navigate("/setup");
     } catch (err) {
       console.error("Signup error:", err);
       setError(err instanceof Error ? err.message : "An error occurred during signup");
