@@ -32,7 +32,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { RosterShift, Staff, StaffAvailability } from "@/types"
 import { useDataStore } from "@/lib/store/dataStore"
 import { calculateShiftHoursAndCost, hasShiftConflict, getRoleColor, formatLabourCost } from "@/lib/utils/rosterCalculations"
-import { toast } from "@/hooks/use-toast"
+import { toast } from 'sonner'
 import { AlertCircle, AlertTriangle, UserX } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
@@ -211,20 +211,14 @@ export function ShiftDialog({ open, onOpenChange, shift, defaultDate, onSave }: 
   const onSubmit = (values: ShiftFormValues) => {
     const staffMember = activeStaff.find((s) => s.id === values.staff_id)
     if (!staffMember) {
-      toast({
-        title: "Error",
-        description: "Selected staff member not found",
-        variant: "destructive",
-      })
+      toast.error("Error", { description: "Selected staff member not found",
+        variant: "destructive", })
       return
     }
 
     if (hasConflict) {
-      toast({
-        title: "Shift Conflict",
-        description: "This shift overlaps with an existing shift for this staff member",
-        variant: "destructive",
-      })
+      toast.success("Shift Conflict", { description: "This shift overlaps with an existing shift for this staff member",
+        variant: "destructive", })
       return
     }
 
@@ -260,10 +254,7 @@ export function ShiftDialog({ open, onOpenChange, shift, defaultDate, onSave }: 
 
     onSave(shiftData)
 
-    toast({
-      title: shift ? "Shift updated" : "Shift added",
-      description: `${staffMember.name}'s shift on ${values.date} has been ${shift ? "updated" : "added"}.`,
-    })
+    toast.success(shift ? "Shift updated" : "Shift added", { description: `${staffMember.name}'s shift on ${values.date} has been ${shift ? "updated" : "added"}.`, })
 
     form.reset()
     onOpenChange(false)

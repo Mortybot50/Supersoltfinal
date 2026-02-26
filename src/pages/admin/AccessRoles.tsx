@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,7 +34,7 @@ interface OrgMember {
 }
 
 export default function AccessRoles() {
-  const { toast } = useToast();
+;
   const { currentOrg } = useAuth();
   const [activeTab, setActiveTab] = useState('members');
   const orgId = currentOrg?.id || '';
@@ -70,7 +70,7 @@ export default function AccessRoles() {
       .order('created_at', { ascending: false });
 
     if (error) {
-      toast({ title: 'Error loading members', description: error.message, variant: 'destructive' });
+      toast.error('Error loading members', { description: error.message });
     } else {
       setMembers((data || []) as OrgMember[]);
     }
@@ -127,10 +127,7 @@ export default function AccessRoles() {
     setInviteErrors({});
 
     // For now, show a message that full invite flow requires Supabase Edge Functions
-    toast({
-      title: 'Invite flow coming soon',
-      description: `Team member invitations require email sending (Supabase Edge Function). For now, ask ${inviteForm.email} to sign up directly.`,
-    });
+    toast.success('Invite flow coming soon', { description: `Team member invitations require email sending (Supabase Edge Function). For now, ask ${inviteForm.email} to sign up directly.`, });
     setShowInviteDialog(false);
     setInviteForm({ email: '', full_name: '', role: 'crew' });
     setInviteErrors({});
@@ -143,11 +140,11 @@ export default function AccessRoles() {
       .eq('id', memberId);
 
     if (error) {
-      toast({ title: 'Error updating member', description: error.message, variant: 'destructive' });
+      toast.error('Error updating member', { description: error.message });
       return;
     }
 
-    toast({ title: 'Success', description: `Member ${currentlyActive ? 'deactivated' : 'activated'}` });
+    toast.success('Success', { description: `Member ${currentlyActive ? 'deactivated' : 'activated'}` });
     loadMembers();
   };
 
@@ -158,11 +155,11 @@ export default function AccessRoles() {
       .eq('id', memberId);
 
     if (error) {
-      toast({ title: 'Error updating role', description: error.message, variant: 'destructive' });
+      toast.error('Error updating role', { description: error.message });
       return;
     }
 
-    toast({ title: 'Success', description: `Role updated to ${newRole}` });
+    toast.success('Success', { description: `Role updated to ${newRole}` });
     loadMembers();
   };
 

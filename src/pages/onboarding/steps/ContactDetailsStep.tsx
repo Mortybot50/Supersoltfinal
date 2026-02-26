@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { isValidEmail, isValidAUPhone } from '@/lib/utils/validation'
 
 interface ContactDetailsData {
@@ -22,8 +22,7 @@ interface ContactDetailsStepProps {
 }
 
 export default function ContactDetailsStep({ staffId, initialData, onComplete, onBack }: ContactDetailsStepProps) {
-  const { toast } = useToast()
-  const [formData, setFormData] = useState({
+const [formData, setFormData] = useState({
     phone: initialData?.phone || '',
     email: initialData?.email || '',
     emergency_contact_name: initialData?.emergency_contact_name || '',
@@ -70,10 +69,7 @@ export default function ContactDetailsStep({ staffId, initialData, onComplete, o
     if (!validate()) return
 
     onComplete(formData)
-    toast({
-      title: 'Contact details saved',
-      description: 'Your contact information has been updated.'
-    })
+    toast.success('Contact details saved', { description: 'Your contact information has been updated.' })
   }
 
   return (

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { validateBSB, lookupBank, formatBSB } from '@/lib/utils/bsbLookup'
 import { isValidAccountNumber } from '@/lib/utils/validation'
 import { bankDetailsSchema } from '@/lib/schemas/onboarding'
@@ -27,8 +27,7 @@ interface BankDetailsStepProps {
 }
 
 export default function BankDetailsStep({ staffId, initialData, onComplete, onBack }: BankDetailsStepProps) {
-  const { toast } = useToast()
-  const [formData, setFormData] = useState({
+const [formData, setFormData] = useState({
     bank_account_name: initialData?.bank_account_name || '',
     bank_bsb: initialData?.bank_bsb || '',
     bank_account_number: initialData?.bank_account_number || '',
@@ -104,10 +103,7 @@ export default function BankDetailsStep({ staffId, initialData, onComplete, onBa
       bank_bsb: formatBSB(formData.bank_bsb)
     })
     
-    toast({
-      title: 'Bank details saved',
-      description: 'Your payment information has been securely stored.'
-    })
+    toast.success('Bank details saved', { description: 'Your payment information has been securely stored.' })
   }
 
   return (

@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { FileText, AlertCircle } from 'lucide-react'
 
 interface PoliciesStepProps {
@@ -54,8 +54,7 @@ const WORKPLACE_POLICIES = [
 ]
 
 export default function PoliciesStep({ staffId, onComplete, onBack }: PoliciesStepProps) {
-  const { toast } = useToast()
-  const [acknowledged, setAcknowledged] = useState<Record<string, boolean>>({})
+const [acknowledged, setAcknowledged] = useState<Record<string, boolean>>({})
   const [selectedPolicy, setSelectedPolicy] = useState<string | null>(null)
 
   const allMandatoryAcknowledged = WORKPLACE_POLICIES
@@ -64,19 +63,12 @@ export default function PoliciesStep({ staffId, onComplete, onBack }: PoliciesSt
 
   const handleContinue = () => {
     if (!allMandatoryAcknowledged) {
-      toast({
-        title: 'Acknowledgment Required',
-        description: 'Please read and acknowledge all mandatory policies.',
-        variant: 'destructive'
-      })
+      toast.error('Acknowledgment Required', { description: 'Please read and acknowledge all mandatory policies.' })
       return
     }
 
     // In real app, save acknowledgments to store
-    toast({
-      title: 'Policies acknowledged',
-      description: 'You have acknowledged all workplace policies.'
-    })
+    toast.success('Policies acknowledged', { description: 'You have acknowledged all workplace policies.' })
     
     onComplete()
   }

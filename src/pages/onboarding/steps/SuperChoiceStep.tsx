@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { AUSTRALIAN_SUPER_FUNDS } from '@/lib/data/superFunds'
 import { Check, ChevronsUpDown, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -28,8 +28,7 @@ interface SuperChoiceStepProps {
 }
 
 export default function SuperChoiceStep({ staffId, initialData, onComplete, onBack }: SuperChoiceStepProps) {
-  const { toast } = useToast()
-  const [choiceStatus, setChoiceStatus] = useState(initialData?.super_choice_status || 'provided')
+const [choiceStatus, setChoiceStatus] = useState(initialData?.super_choice_status || 'provided')
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [formData, setFormData] = useState({
@@ -60,11 +59,7 @@ export default function SuperChoiceStep({ staffId, initialData, onComplete, onBa
     
     if (choiceStatus === 'provided') {
       if (!formData.super_fund_name || !formData.super_member_number) {
-        toast({
-          title: 'Missing Information',
-          description: 'Please select a super fund and provide your member number.',
-          variant: 'destructive'
-        })
+        toast.error('Missing Information', { description: 'Please select a super fund and provide your member number.' })
         return
       }
     }
@@ -75,10 +70,7 @@ export default function SuperChoiceStep({ staffId, initialData, onComplete, onBa
       super_choice_signed_at: new Date()
     })
     
-    toast({
-      title: 'Super choice saved',
-      description: 'Your superannuation selection has been recorded.'
-    })
+    toast.success('Super choice saved', { description: 'Your superannuation selection has been recorded.' })
   }
 
   return (

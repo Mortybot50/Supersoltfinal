@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from 'sonner'
 import { CheckCircle, Loader2, ShoppingCart } from "lucide-react";
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
 }
 
 export default function ConnectPosStep({ orgId, onNext, onBack }: Props) {
-  const { toast } = useToast();
+;
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
   const [merchantName, setMerchantName] = useState<string | null>(null);
@@ -36,10 +36,7 @@ export default function ConnectPosStep({ orgId, onNext, onBack }: Props) {
   }, [orgId]);
 
   const handleConnect = () => {
-    toast({
-      title: "Square POS",
-      description: "POS connection will be available after setup. You can connect later from Settings > Integrations.",
-    });
+    toast.success("Square POS", { description: "POS connection will be available after setup. You can connect later from Settings > Integrations.", });
   };
 
   if (loading) {

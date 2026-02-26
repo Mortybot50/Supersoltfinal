@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Textarea } from '@/components/ui/textarea'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { tfnDeclarationSchema } from '@/lib/schemas/onboarding'
 import { Info } from 'lucide-react'
 
@@ -29,8 +29,7 @@ interface TFNDeclarationStepProps {
 }
 
 export default function TFNDeclarationStep({ staffId, initialData, onComplete, onBack }: TFNDeclarationStepProps) {
-  const { toast } = useToast()
-  const [declarationStatus, setDeclarationStatus] = useState(initialData?.tfn_declaration_status || 'provided')
+const [declarationStatus, setDeclarationStatus] = useState(initialData?.tfn_declaration_status || 'provided')
   const [formData, setFormData] = useState({
     tfn_number: initialData?.tfn_number || '',
     tfn_exemption_reason: initialData?.tfn_exemption_reason || '',
@@ -65,10 +64,7 @@ export default function TFNDeclarationStep({ staffId, initialData, onComplete, o
       tfn_declaration_signed_at: new Date()
     })
     
-    toast({
-      title: 'TFN declaration saved',
-      description: 'Your tax information has been recorded.'
-    })
+    toast.success('TFN declaration saved', { description: 'Your tax information has been recorded.' })
   }
 
   return (

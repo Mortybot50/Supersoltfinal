@@ -5,8 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { toast } from '@/hooks/use-toast';
-
+import { toast } from 'sonner'
 const cloneSchema = z.object({
   name: z.string().min(1, 'Venue name is required').max(100),
   address: z.string().min(1, 'Address is required'),
@@ -69,14 +68,14 @@ export default function CloneVenueDialog({ open, onOpenChange, sourceVenue }: Pr
 
       if (insertErr) throw insertErr;
 
-      toast({ title: 'Venue cloned', description: `${name} created from ${sourceVenue.name}. Refresh to see it.` });
+      toast.success('Venue cloned', { description: `${name} created from ${sourceVenue.name}. Refresh to see it.` });
       onOpenChange(false);
       setName('');
       setAddress('');
       window.location.reload();
     } catch (err) {
       console.error('Clone venue error:', err);
-      toast({ title: 'Error', description: 'Failed to clone venue', variant: 'destructive' });
+      toast.error('Error', { description: 'Failed to clone venue' });
     } finally {
       setSaving(false);
     }

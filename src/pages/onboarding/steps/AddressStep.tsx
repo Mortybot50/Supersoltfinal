@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { isValidPostcode } from '@/lib/utils/validation'
 import { AUSTRALIAN_STATES } from '@/lib/data/awards'
 
@@ -24,8 +24,7 @@ interface AddressStepProps {
 }
 
 export default function AddressStep({ staffId, initialData, onComplete, onBack }: AddressStepProps) {
-  const { toast } = useToast()
-  const [formData, setFormData] = useState({
+const [formData, setFormData] = useState({
     address_line1: initialData?.address_line1 || '',
     address_line2: initialData?.address_line2 || '',
     suburb: initialData?.suburb || '',
@@ -53,10 +52,7 @@ export default function AddressStep({ staffId, initialData, onComplete, onBack }
     e.preventDefault()
     if (!validate()) return
     onComplete(formData)
-    toast({
-      title: 'Address saved',
-      description: 'Your residential address has been updated.'
-    })
+    toast.success('Address saved', { description: 'Your residential address has been updated.' })
   }
 
   return (
