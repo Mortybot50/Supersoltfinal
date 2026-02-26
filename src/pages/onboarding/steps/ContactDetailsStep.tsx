@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Card } from '@/components/ui/card'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -22,7 +23,8 @@ interface ContactDetailsStepProps {
 }
 
 export default function ContactDetailsStep({ staffId, initialData, onComplete, onBack }: ContactDetailsStepProps) {
-const [formData, setFormData] = useState({
+const [submitting, setSubmitting] = useState(false)
+  const [formData, setFormData] = useState({
     phone: initialData?.phone || '',
     email: initialData?.email || '',
     emergency_contact_name: initialData?.emergency_contact_name || '',
@@ -157,7 +159,10 @@ const [formData, setFormData] = useState({
               Back
             </Button>
           )}
-          <Button type="submit">Save & Continue</Button>
+          <Button type="submit" disabled={submitting}>
+              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save & Continue
+            </Button>
         </div>
       </form>
     </Card>

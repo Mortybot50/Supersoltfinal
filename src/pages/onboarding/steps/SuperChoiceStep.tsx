@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Card } from '@/components/ui/card'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -28,7 +29,8 @@ interface SuperChoiceStepProps {
 }
 
 export default function SuperChoiceStep({ staffId, initialData, onComplete, onBack }: SuperChoiceStepProps) {
-const [choiceStatus, setChoiceStatus] = useState(initialData?.super_choice_status || 'provided')
+const [submitting, setSubmitting] = useState(false)
+  const [choiceStatus, setChoiceStatus] = useState(initialData?.super_choice_status || 'provided')
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [formData, setFormData] = useState({
@@ -213,7 +215,10 @@ const [choiceStatus, setChoiceStatus] = useState(initialData?.super_choice_statu
               Back
             </Button>
           )}
-          <Button type="submit">Save & Continue</Button>
+          <Button type="submit" disabled={submitting}>
+              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save & Continue
+            </Button>
         </div>
       </form>
     </Card>

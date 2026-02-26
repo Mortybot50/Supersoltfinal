@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Card } from '@/components/ui/card'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -29,7 +30,8 @@ interface TFNDeclarationStepProps {
 }
 
 export default function TFNDeclarationStep({ staffId, initialData, onComplete, onBack }: TFNDeclarationStepProps) {
-const [declarationStatus, setDeclarationStatus] = useState(initialData?.tfn_declaration_status || 'provided')
+const [submitting, setSubmitting] = useState(false)
+  const [declarationStatus, setDeclarationStatus] = useState(initialData?.tfn_declaration_status || 'provided')
   const [formData, setFormData] = useState({
     tfn_number: initialData?.tfn_number || '',
     tfn_exemption_reason: initialData?.tfn_exemption_reason || '',
@@ -225,7 +227,10 @@ const [declarationStatus, setDeclarationStatus] = useState(initialData?.tfn_decl
               Back
             </Button>
           )}
-          <Button type="submit">Save & Continue</Button>
+          <Button type="submit" disabled={submitting}>
+              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save & Continue
+            </Button>
         </div>
       </form>
     </Card>
