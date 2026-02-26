@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner'
 import { createVenueTemplate } from '@/lib/venueTemplates';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -57,12 +57,12 @@ export default function SaveAsTemplateDialog({ open, onOpenChange, venueId, venu
         createdBy: userId,
       });
 
-      toast({ title: 'Template saved', description: `"${name}" can now be applied when creating new venues.` });
+      toast.success('Template saved', { description: `"${name}" can now be applied when creating new venues.` });
       onOpenChange(false);
       setName('');
     } catch (err) {
       console.error('Save template error:', err);
-      toast({ title: 'Error', description: 'Failed to save template', variant: 'destructive' });
+      toast.error('Error', { description: 'Failed to save template' });
     } finally {
       setSaving(false);
     }

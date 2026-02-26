@@ -69,13 +69,13 @@ export function RosterHeader({ onPublish }: RosterHeaderProps) {
 
       {/* Date navigation */}
       <div className="flex items-center gap-1">
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigateWeek(-1)}>
+        <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Previous week" onClick={() => navigateWeek(-1)}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <span className="text-sm font-medium tabular-nums min-w-[160px] text-center">
           {dateLabel}
         </span>
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigateWeek(1)}>
+        <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Next week" onClick={() => navigateWeek(1)}>
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
@@ -145,7 +145,7 @@ export function RosterHeader({ onPublish }: RosterHeaderProps) {
         onClick={onPublish}
         disabled={draftCount === 0}
         size="sm"
-        className="h-8 bg-teal-500 hover:bg-teal-600 shrink-0"
+        className="h-8 shrink-0"
       >
         <Send className="h-3.5 w-3.5 mr-1.5" />
         Publish

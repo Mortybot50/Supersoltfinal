@@ -1,7 +1,6 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { ThemeProvider } from "next-themes"
-import { Toaster } from "@/components/ui/toaster"
 import { Toaster as Sonner } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
@@ -55,7 +54,6 @@ import SetupWizard from "./pages/setup/SetupWizard"
 
 // Operations
 import Daybook from "./pages/operations/Daybook"
-import Imports from "./pages/operations/Imports"
 import Compliance from "./pages/operations/Compliance"
 
 // Integrations
@@ -128,7 +126,6 @@ const App = () => (
 
               {/* Operations */}
               <Route path="operations/daybook" element={<Daybook />} />
-              <Route path="operations/imports" element={<Imports />} />
               <Route path="operations/compliance" element={<Compliance />} />
 
               {/* Admin */}
@@ -156,7 +153,6 @@ const App = () => (
         </AuthProvider>
       </PageErrorBoundary>
         </BrowserRouter>
-      <Toaster />
       <Sonner />
     </TooltipProvider>
     </ThemeProvider>

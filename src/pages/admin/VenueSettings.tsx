@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "@/hooks/use-toast";
+import { toast } from 'sonner'
 import { Save, UploadCloud, RotateCcw, Plus, Copy, FileDown } from "lucide-react";
 import CloneVenueDialog from "@/components/venues/CloneVenueDialog";
 import SaveAsTemplateDialog from "@/components/venues/SaveAsTemplateDialog";
@@ -104,7 +104,7 @@ export default function VenueSettings() {
 
     const orgId = currentVenue?.org_id || venues[0]?.org_id;
     if (!orgId) {
-      toast({ title: 'Error', description: 'No organization found', variant: 'destructive' });
+      toast.error('Error', { description: 'No organization found' });
       setNewVenueSaving(false);
       return;
     }
@@ -127,7 +127,7 @@ export default function VenueSettings() {
       if (error) throw error;
 
       // Refresh venues in auth context
-      toast({ title: 'Venue created', description: `${newVenueForm.name} has been created. Refresh the page to see it in the venue list.` });
+      toast.success('Venue created', { description: `${newVenueForm.name} has been created. Refresh the page to see it in the venue list.` });
       setNewVenueOpen(false);
       setNewVenueForm({ name: '', address: '', timezone: 'Australia/Melbourne', trading_hours: '' });
 
@@ -135,7 +135,7 @@ export default function VenueSettings() {
       window.location.reload();
     } catch (err) {
       console.error('Create venue error:', err);
-      toast({ title: 'Error', description: 'Failed to create venue', variant: 'destructive' });
+      toast.error('Error', { description: 'Failed to create venue' });
     } finally {
       setNewVenueSaving(false);
     }
@@ -191,11 +191,8 @@ export default function VenueSettings() {
       setHasUnsavedChanges(false);
     } catch (error) {
       console.error('Error loading venue settings:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load venue settings",
-        variant: "destructive",
-      });
+      toast.error("Error", { description: "Failed to load venue settings",
+        variant: "destructive", });
     } finally {
       setIsLoading(false);
     }
@@ -238,19 +235,13 @@ export default function VenueSettings() {
 
       if (error) throw error;
 
-      toast({
-        title: "Settings Saved",
-        description: "Settings saved (not published)",
-      });
+      toast.success("Settings Saved", { description: "Settings saved (not published)", });
       setHasUnsavedChanges(false);
       setOriginalSettings(settings);
     } catch (error) {
       console.error('Error saving settings:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save settings",
-        variant: "destructive",
-      });
+      toast.error("Error", { description: "Failed to save settings",
+        variant: "destructive", });
     } finally {
       setIsLoading(false);
     }
@@ -281,19 +272,13 @@ export default function VenueSettings() {
 
       if (error) throw error;
 
-      toast({
-        title: "Settings Published",
-        description: `Settings published to ${selectedVenue}`,
-      });
+      toast.success("Settings Published", { description: `Settings published to ${selectedVenue}`, });
       setHasUnsavedChanges(false);
       await loadVenueSettings();
     } catch (error) {
       console.error('Error publishing settings:', error);
-      toast({
-        title: "Error",
-        description: "Failed to publish settings",
-        variant: "destructive",
-      });
+      toast.error("Error", { description: "Failed to publish settings",
+        variant: "destructive", });
     } finally {
       setIsLoading(false);
     }
@@ -302,10 +287,7 @@ export default function VenueSettings() {
   const handleReset = () => {
     setSettings(originalSettings);
     setHasUnsavedChanges(false);
-    toast({
-      title: "Changes Discarded",
-      description: "Reverted to last saved settings",
-    });
+    toast.success("Changes Discarded", { description: "Reverted to last saved settings", });
   };
 
   const toolbar = (
@@ -341,7 +323,7 @@ export default function VenueSettings() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
       {/* Venue Selector */}
       <div className="flex items-center gap-4">
         <Label className="text-sm font-medium">Venue:</Label>

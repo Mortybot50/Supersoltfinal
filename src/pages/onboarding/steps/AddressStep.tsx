@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Card } from '@/components/ui/card'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { isValidPostcode } from '@/lib/utils/validation'
 import { AUSTRALIAN_STATES } from '@/lib/data/awards'
 
@@ -24,7 +25,7 @@ interface AddressStepProps {
 }
 
 export default function AddressStep({ staffId, initialData, onComplete, onBack }: AddressStepProps) {
-  const { toast } = useToast()
+const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     address_line1: initialData?.address_line1 || '',
     address_line2: initialData?.address_line2 || '',
@@ -53,10 +54,7 @@ export default function AddressStep({ staffId, initialData, onComplete, onBack }
     e.preventDefault()
     if (!validate()) return
     onComplete(formData)
-    toast({
-      title: 'Address saved',
-      description: 'Your residential address has been updated.'
-    })
+    toast.success('Address saved', { description: 'Your residential address has been updated.' })
   }
 
   return (
@@ -136,7 +134,10 @@ export default function AddressStep({ staffId, initialData, onComplete, onBack }
               Back
             </Button>
           )}
-          <Button type="submit">Save & Continue</Button>
+          <Button type="submit" disabled={submitting}>
+              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save & Continue
+            </Button>
         </div>
       </form>
     </Card>

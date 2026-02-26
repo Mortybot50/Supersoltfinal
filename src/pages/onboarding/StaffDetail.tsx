@@ -1,4 +1,5 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
+import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb'
 import { useDataStore } from '@/lib/store/dataStore'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -157,18 +158,19 @@ export default function StaffDetail() {
   }
   
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={() => navigate('/workforce/people')}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to People
-        </Button>
-      </div>
+    <div className="p-4 md:p-6 space-y-6">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem><BreadcrumbLink asChild><Link to="/workforce/people">People</Link></BreadcrumbLink></BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem><BreadcrumbPage>{member.first_name} {member.last_name}</BreadcrumbPage></BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
       
       <Card className="p-6">
         <div className="flex justify-between items-start mb-6">
           <div>
-            <h1 className="text-3xl font-bold mb-2">{member.name}</h1>
+            <h1 className="text-lg font-semibold mb-2">{member.name}</h1>
             <p className="text-muted-foreground mb-3">Staff Profile & Onboarding</p>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">

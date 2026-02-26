@@ -53,6 +53,7 @@ export function PageToolbar({
             size="icon"
             className="h-8 w-8"
             onClick={dateNavigation.onBack}
+            aria-label="Previous period"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -64,6 +65,7 @@ export function PageToolbar({
             size="icon"
             className="h-8 w-8"
             onClick={dateNavigation.onForward}
+            aria-label="Next period"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -85,7 +87,7 @@ export function PageToolbar({
             className={cn(
               "h-8",
               primaryAction.variant === "primary"
-                ? "bg-brand hover:bg-brand-500 text-gray-900 font-semibold"
+                ? ""
                 : primaryAction.variant === "export"
                   ? "bg-emerald-600 hover:bg-emerald-700 text-white"
                   : ""

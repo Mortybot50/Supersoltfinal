@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle, Users, Shield, Trash2, AlertTriangle, History, Clock } from 'lucide-react'
 import { PageShell, PageToolbar } from '@/components/shared'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { parseOrdersExcel, downloadTemplate, type ParseResult } from '@/lib/utils/excelParser'
 import { parseMenuItemsExcel, downloadMenuItemsTemplate, type ParseResult as MenuItemsParseResult } from '@/lib/utils/menuItemsParser'
 import { parseStaffExcel, downloadStaffTemplate, type ParseResult as StaffParseResult } from '@/lib/utils/staffParser'
@@ -14,7 +14,6 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useDataStore } from '@/lib/store/dataStore'
 import { useLoadOrders } from '@/hooks/useLoadOrders'
-import { toast as sonnerToast } from 'sonner'
 import { Separator } from '@/components/ui/separator'
 import { InvoicesTab } from './data-imports/InvoicesTab'
 
@@ -58,9 +57,7 @@ export default function DataImports() {
       date: new Date(),
     }, ...prev])
   }
-
-  const { toast } = useToast()
-  const {
+const {
     orders,
     ingredients,
     suppliers,
@@ -89,7 +86,7 @@ export default function DataImports() {
     a.click()
     URL.revokeObjectURL(url)
     
-    sonnerToast.success('Full backup downloaded')
+    toast.success('Full backup downloaded')
   }
   
   const handleRestoreBackup = () => {
@@ -125,23 +122,12 @@ export default function DataImports() {
       setParseResult(result)
       
       if (result.summary.valid_rows > 0) {
-        toast({
-          title: result.errors.length > 0 ? 'File parsed with errors' : 'File parsed successfully',
-          description: `${result.summary.valid_rows} valid orders found${result.errors.length > 0 ? `, ${result.errors.length} rows have errors` : ''}`,
-        })
+        toast.success(result.errors.length > 0 ? 'File parsed with errors' : 'File parsed successfully', { description: `${result.summary.valid_rows} valid orders found${result.errors.length > 0 ? `, ${result.errors.length} rows have errors` : ''}`, })
       } else {
-        toast({
-          title: 'No valid data found',
-          description: `${result.errors.length} errors found. Please fix your file.`,
-          variant: 'destructive'
-        })
+        toast.error('No valid data found', { description: `${result.errors.length} errors found. Please fix your file.` })
       }
     } catch (error) {
-      toast({
-        title: 'Failed to parse file',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive'
-      })
+      toast.error('Failed to parse file', { description: error instanceof Error ? error.message : 'Unknown error' })
       setParseResult(null)
     } finally {
       setIsProcessing(false)
@@ -171,10 +157,7 @@ export default function DataImports() {
         status: parseResult.errors.length > 0 ? 'partial' : 'success',
       })
 
-      toast({
-        title: 'Import successful!',
-        description: `Imported ${storeOrderCount} orders. Go to Insights to see your data.`,
-      })
+      toast.success('Import successful!', { description: `Imported ${storeOrderCount} orders. Go to Insights to see your data.`, })
 
       setSelectedFile(null)
       setParseResult(null)
@@ -189,11 +172,7 @@ export default function DataImports() {
         records_errored: parseResult?.summary.total_rows || 0,
         status: 'failed',
       })
-      toast({
-        title: 'Import failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive'
-      })
+      toast.error('Import failed', { description: error instanceof Error ? error.message : 'Unknown error' })
     } finally {
       setIsImporting(false)
     }
@@ -212,23 +191,12 @@ export default function DataImports() {
       setMenuItemsResult(result)
       
       if (result.summary.valid_rows > 0) {
-        toast({
-          title: result.errors.length > 0 ? 'File parsed with errors' : 'File parsed successfully',
-          description: `${result.summary.valid_rows} valid menu items found${result.errors.length > 0 ? `, ${result.errors.length} rows have errors` : ''}`,
-        })
+        toast.success(result.errors.length > 0 ? 'File parsed with errors' : 'File parsed successfully', { description: `${result.summary.valid_rows} valid menu items found${result.errors.length > 0 ? `, ${result.errors.length} rows have errors` : ''}`, })
       } else {
-        toast({
-          title: 'No valid data found',
-          description: `${result.errors.length} errors found. Please fix your file.`,
-          variant: 'destructive'
-        })
+        toast.error('No valid data found', { description: `${result.errors.length} errors found. Please fix your file.` })
       }
     } catch (error) {
-      toast({
-        title: 'Failed to parse file',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive'
-      })
+      toast.error('Failed to parse file', { description: error instanceof Error ? error.message : 'Unknown error' })
       setMenuItemsResult(null)
     } finally {
       setIsProcessingMenuItems(false)
@@ -250,21 +218,14 @@ export default function DataImports() {
         status: menuItemsResult.errors.length > 0 ? 'partial' : 'success',
       })
 
-      toast({
-        title: 'Import successful!',
-        description: `Imported ${menuItemsResult.summary.valid_rows} menu items.`,
-      })
+      toast.success('Import successful!', { description: `Imported ${menuItemsResult.summary.valid_rows} menu items.`, })
 
       setMenuItemsFile(null)
       setMenuItemsResult(null)
 
     } catch (error) {
       console.error('Import error:', error)
-      toast({
-        title: 'Import failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive'
-      })
+      toast.error('Import failed', { description: error instanceof Error ? error.message : 'Unknown error' })
     } finally {
       setIsImportingMenuItems(false)
     }
@@ -283,23 +244,12 @@ export default function DataImports() {
       setStaffResult(result)
       
       if (result.summary.valid_rows > 0) {
-        toast({
-          title: result.errors.length > 0 ? 'File parsed with errors' : 'File parsed successfully',
-          description: `${result.summary.valid_rows} valid staff members found${result.errors.length > 0 ? `, ${result.errors.length} rows have errors` : ''}`,
-        })
+        toast.success(result.errors.length > 0 ? 'File parsed with errors' : 'File parsed successfully', { description: `${result.summary.valid_rows} valid staff members found${result.errors.length > 0 ? `, ${result.errors.length} rows have errors` : ''}`, })
       } else {
-        toast({
-          title: 'No valid data found',
-          description: `${result.errors.length} errors found. Please fix your file.`,
-          variant: 'destructive'
-        })
+        toast.error('No valid data found', { description: `${result.errors.length} errors found. Please fix your file.` })
       }
     } catch (error) {
-      toast({
-        title: 'Failed to parse file',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive'
-      })
+      toast.error('Failed to parse file', { description: error instanceof Error ? error.message : 'Unknown error' })
       setStaffResult(null)
     } finally {
       setIsProcessingStaff(false)
@@ -321,21 +271,14 @@ export default function DataImports() {
         status: staffResult.errors.length > 0 ? 'partial' : 'success',
       })
 
-      toast({
-        title: 'Import successful!',
-        description: `Imported ${staffResult.summary.valid_rows} staff members.`,
-      })
+      toast.success('Import successful!', { description: `Imported ${staffResult.summary.valid_rows} staff members.`, })
 
       setStaffFile(null)
       setStaffResult(null)
 
     } catch (error) {
       console.error('Import error:', error)
-      toast({
-        title: 'Import failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive'
-      })
+      toast.error('Import failed', { description: error instanceof Error ? error.message : 'Unknown error' })
     } finally {
       setIsImportingStaff(false)
     }
@@ -347,7 +290,7 @@ export default function DataImports() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
       
       {/* Data Status & Backup Section */}
       <Card className="p-6">
@@ -525,7 +468,7 @@ export default function DataImports() {
                     variant="outline"
                     onClick={() => {
                       downloadTemplate()
-                      toast({ title: 'Template downloaded' })
+                      toast.success('Template downloaded')
                     }}
                     className="gap-2"
                   >
@@ -815,7 +758,7 @@ export default function DataImports() {
                     variant="outline"
                     onClick={() => {
                       downloadMenuItemsTemplate()
-                      toast({ title: 'Template downloaded' })
+                      toast.success('Template downloaded')
                     }}
                     className="gap-2"
                   >
@@ -1057,7 +1000,7 @@ export default function DataImports() {
                     variant="outline"
                     onClick={() => {
                       downloadStaffTemplate()
-                      toast({ title: 'Template downloaded' })
+                      toast.success('Template downloaded')
                     }}
                     className="gap-2"
                   >

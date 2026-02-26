@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { useDataStore } from '@/lib/store/dataStore'
 import { DOCUMENT_TYPES } from '@/lib/constants/onboarding'
 import { Upload, FileText, CheckCircle, X } from 'lucide-react'
@@ -16,8 +16,7 @@ interface DocumentsStepProps {
 }
 
 export default function DocumentsStep({ staffId, onComplete, onBack }: DocumentsStepProps) {
-  const { toast } = useToast()
-  const { onboardingDocuments, addOnboardingDocument } = useDataStore()
+const { onboardingDocuments, addOnboardingDocument } = useDataStore()
   const [uploading, setUploading] = useState(false)
 
   const staffDocuments = onboardingDocuments.filter(doc => doc.staff_id === staffId)
@@ -43,19 +42,13 @@ export default function DocumentsStep({ staffId, onComplete, onBack }: Documents
       addOnboardingDocument(newDoc)
       setUploading(false)
       
-      toast({
-        title: 'Document uploaded',
-        description: `${file.name} has been uploaded successfully.`
-      })
+      toast.success('Document uploaded', { description: `${file.name} has been uploaded successfully.` })
     }, 1000)
   }
 
   const handleRemoveDocument = (docId: string) => {
     // In real app, remove from store
-    toast({
-      title: 'Document removed',
-      description: 'The document has been removed.'
-    })
+    toast.success('Document removed', { description: 'The document has been removed.' })
   }
 
   const requiredDocsUploaded = DOCUMENT_TYPES.filter(dt => dt.required).every(dt =>
@@ -64,11 +57,7 @@ export default function DocumentsStep({ staffId, onComplete, onBack }: Documents
 
   const handleContinue = () => {
     if (!requiredDocsUploaded) {
-      toast({
-        title: 'Missing Required Documents',
-        description: 'Please upload all required documents before continuing.',
-        variant: 'destructive'
-      })
+      toast.error('Missing Required Documents', { description: 'Please upload all required documents before continuing.' })
       return
     }
     onComplete()

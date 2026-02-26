@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Card } from '@/components/ui/card'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -7,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Textarea } from '@/components/ui/textarea'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { tfnDeclarationSchema } from '@/lib/schemas/onboarding'
 import { Info } from 'lucide-react'
 
@@ -29,7 +30,7 @@ interface TFNDeclarationStepProps {
 }
 
 export default function TFNDeclarationStep({ staffId, initialData, onComplete, onBack }: TFNDeclarationStepProps) {
-  const { toast } = useToast()
+const [submitting, setSubmitting] = useState(false)
   const [declarationStatus, setDeclarationStatus] = useState(initialData?.tfn_declaration_status || 'provided')
   const [formData, setFormData] = useState({
     tfn_number: initialData?.tfn_number || '',
@@ -65,10 +66,7 @@ export default function TFNDeclarationStep({ staffId, initialData, onComplete, o
       tfn_declaration_signed_at: new Date()
     })
     
-    toast({
-      title: 'TFN declaration saved',
-      description: 'Your tax information has been recorded.'
-    })
+    toast.success('TFN declaration saved', { description: 'Your tax information has been recorded.' })
   }
 
   return (
@@ -229,7 +227,10 @@ export default function TFNDeclarationStep({ staffId, initialData, onComplete, o
               Back
             </Button>
           )}
-          <Button type="submit">Save & Continue</Button>
+          <Button type="submit" disabled={submitting}>
+              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save & Continue
+            </Button>
         </div>
       </form>
     </Card>

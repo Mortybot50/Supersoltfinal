@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from 'sonner'
 import { Loader2 } from "lucide-react";
 
 const businessSchema = z.object({
@@ -30,7 +30,7 @@ interface Props {
 }
 
 export default function BusinessDetailsStep({ orgId, onNext }: Props) {
-  const { toast } = useToast();
+;
   const [saving, setSaving] = useState(false);
 
   const {
@@ -101,14 +101,11 @@ export default function BusinessDetailsStep({ orgId, onNext }: Props) {
 
       if (error) throw error;
 
-      toast({ title: "Business details saved" });
+      toast.success("Business details saved");
       onNext();
     } catch (err) {
-      toast({
-        title: "Error saving",
-        description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive",
-      });
+      toast.success("Error saving", { description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive", });
     } finally {
       setSaving(false);
     }

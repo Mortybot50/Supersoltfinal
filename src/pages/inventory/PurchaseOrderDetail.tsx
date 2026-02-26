@@ -28,6 +28,7 @@ import { useDataStore } from '@/lib/store/dataStore'
 import { PurchaseOrder, PurchaseOrderItem } from '@/types'
 import { logPriceChange, runCostCascade, applyCascadeToState } from '@/lib/services/costCascade'
 import { PageShell, PageToolbar } from '@/components/shared'
+import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb'
 import { calculateCostPerBaseUnit, calculatePackToBaseFactor } from '@/lib/utils/unitConversions'
 import { getDefaultOrgSettings } from '@/lib/venueSettings'
 import { toast } from 'sonner'
@@ -370,7 +371,14 @@ Team`
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem><BreadcrumbLink asChild><Link to="/inventory/purchase-orders">Purchase Orders</Link></BreadcrumbLink></BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem><BreadcrumbPage>{po.po_number}</BreadcrumbPage></BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-6">

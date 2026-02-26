@@ -7,7 +7,7 @@ import { processImport } from '@/lib/services/importProcessor'
 import { downloadTemplate } from '@/lib/utils/excelImport'
 import { importMappings } from '@/lib/config/importMappings'
 import { z } from 'zod'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { ImportResult, ImportError, ImportWarning } from '@/lib/utils/excelImport'
 
 interface ImportWizardProps {
@@ -27,9 +27,7 @@ export function ImportWizard({
   const [importing, setImporting] = useState(false)
   const [result, setResult] = useState<ImportResult<unknown> | null>(null)
   const [step, setStep] = useState<'upload' | 'preview' | 'complete'>('upload')
-  const { toast } = useToast()
-  
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
       setFile(e.target.files[0])
       setResult(null)
@@ -47,17 +45,10 @@ export function ImportWizard({
       setStep('preview')
       
       if (importResult.success) {
-        toast({
-          title: "File processed successfully",
-          description: `${importResult.validRows} records ready to import`,
-        })
+        toast.success("File processed successfully", { description: `${importResult.validRows} records ready to import`, })
       }
     } catch (error) {
-      toast({
-        title: "Import failed",
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: "destructive"
-      })
+      toast.error("Import failed", { description: error instanceof Error ? error.message : 'Unknown error' })
     } finally {
       setImporting(false)
     }
@@ -67,20 +58,14 @@ export function ImportWizard({
     if (result?.data) {
       onImportComplete(result.data)
       setStep('complete')
-      toast({
-        title: "Import complete!",
-        description: `Successfully imported ${result.validRows} ${entityLabel.toLowerCase()}`,
-      })
+      toast.success("Import complete!", { description: `Successfully imported ${result.validRows} ${entityLabel.toLowerCase()}`, })
     }
   }
   
   const handleDownloadTemplate = () => {
     const mappings = importMappings[entityType]
     downloadTemplate(entityType, mappings)
-    toast({
-      title: "Template downloaded",
-      description: `Check your downloads folder for ${entityType}-import-template.xlsx`,
-    })
+    toast.success("Template downloaded", { description: `Check your downloads folder for ${entityType}-import-template.xlsx`, })
   }
   
   return (

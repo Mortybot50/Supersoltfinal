@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from 'sonner'
 import { Loader2, Plus, Trash2, MapPin } from "lucide-react";
 import { fetchVenueTemplates, type VenueTemplate } from "@/lib/venueTemplates";
 
@@ -47,7 +47,7 @@ interface Props {
 }
 
 export default function AddVenuesStep({ orgId, userId, onNext, onBack }: Props) {
-  const { toast } = useToast();
+;
   const [saving, setSaving] = useState(false);
   const [venues, setVenues] = useState<ExistingVenue[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,13 +132,10 @@ export default function AddVenuesStep({ orgId, userId, onNext, onBack }: Props) 
 
       reset({ name: "", address: "", timezone: "Australia/Melbourne" });
       setTradingHours(Object.fromEntries(DAYS.map((d) => [d, { open: "09:00", close: "22:00" }])));
-      toast({ title: "Venue added" });
+      toast.success("Venue added");
     } catch (err) {
-      toast({
-        title: "Error adding venue",
-        description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive",
-      });
+      toast.success("Error adding venue", { description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive", });
     } finally {
       setSaving(false);
     }
@@ -152,7 +149,7 @@ export default function AddVenuesStep({ orgId, userId, onNext, onBack }: Props) 
 
     if (!error) {
       setVenues((prev) => prev.filter((v) => v.id !== venueId));
-      toast({ title: "Venue removed" });
+      toast.success("Venue removed");
     }
   };
 

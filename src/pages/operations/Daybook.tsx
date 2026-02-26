@@ -250,7 +250,7 @@ export default function Daybook() {
             .map(cat => ({ label: cat.label, value: cat.count }))} />
         )}
       </div>
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
 
       {/* Entries List */}
       {filteredEntries.length === 0 ? (
@@ -299,7 +299,7 @@ export default function Daybook() {
                         <div className="text-xs text-muted-foreground mt-0.5">{entry.time}</div>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(entry)}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Edit entry" onClick={() => handleEdit(entry)}>
                           <Pencil className="h-3 w-3" />
                         </Button>
                         <Button

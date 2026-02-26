@@ -72,6 +72,7 @@ import { useState, useMemo, useEffect } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { formatDistanceToNow } from "date-fns"
 import { PageShell, PageToolbar } from "@/components/shared"
+import { Skeleton } from "@/components/ui/skeleton"
 
 // ============================================
 // DATE RANGE UTILITIES
@@ -516,6 +517,11 @@ export default function Dashboard() {
     <PageShell toolbar={toolbar}>
       <div className="p-4 space-y-4 max-w-[1400px] mx-auto">
         {/* ====== ROW 1: KPI CARDS ====== */}
+        {isLoading ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => <KPICardSkeleton key={i} />)}
+          </div>
+        ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {/* Net Revenue */}
           <KPICard
@@ -574,6 +580,7 @@ export default function Dashboard() {
           />
         </div>
 
+        )}
         {/* ====== ROW 2: CHARTS ====== */}
         <div className="grid gap-4 lg:grid-cols-3">
           {/* Revenue Trend */}
@@ -592,7 +599,9 @@ export default function Dashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              {!hasData ? (
+              {isLoading ? (
+                <ChartSkeleton height={260} />
+              ) : !hasData ? (
                 <EmptyChart message="No sales data for this period" />
               ) : (
                 <ResponsiveContainer width="100%" height={260}>
@@ -640,7 +649,9 @@ export default function Dashboard() {
               <CardTitle className="text-sm font-medium">Channel Mix</CardTitle>
             </CardHeader>
             <CardContent>
-              {channelData.length === 0 ? (
+              {isLoading ? (
+                <ChartSkeleton height={260} />
+              ) : channelData.length === 0 ? (
                 <EmptyChart message="No channel data" height={260} />
               ) : (
                 <div>
@@ -918,6 +929,30 @@ export default function Dashboard() {
 // SUB-COMPONENTS
 // ============================================
 
+function KPICardSkeleton() {
+  return (
+    <Card>
+      <CardContent className="pt-4 pb-3">
+        <Skeleton className="h-3 w-20 mb-3" />
+        <Skeleton className="h-8 w-28 mb-3" />
+        <Skeleton className="h-4 w-16" />
+      </CardContent>
+    </Card>
+  )
+}
+
+function ChartSkeleton({ height = 260 }: { height?: number }) {
+  return (
+    <div className="space-y-3 p-2" style={{ height }}>
+      <div className="flex items-end gap-2 h-full">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <Skeleton key={i} className="flex-1 rounded" style={{ height: `${30 + Math.random() * 60}%` }} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function KPICard({
   title,
   value,
@@ -959,7 +994,7 @@ function KPICard({
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               {title}
             </p>
-            <p className="text-2xl font-bold mt-1">{loading ? "—" : value}</p>
+            <p className="text-2xl font-bold mt-1">{loading ? <Skeleton className="h-8 w-24" /> : value}</p>
           </div>
           {sparkline && sparkline.length > 0 && (
             <div className="w-20 ml-2">

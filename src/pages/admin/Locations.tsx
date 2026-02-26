@@ -38,7 +38,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { toast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import {
   Plus,
   MoreHorizontal,
@@ -171,11 +171,8 @@ export default function Locations() {
       setLocations((data || []) as Location[])
     } catch (error) {
       console.error('Error loading locations:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to load locations',
-        variant: 'destructive',
-      })
+      toast.error('Error', { description: 'Failed to load locations',
+        variant: 'destructive', })
     } finally {
       setLoading(false)
     }
@@ -272,29 +269,20 @@ export default function Locations() {
     try {
       // Validation
       if (!locationForm.name || locationForm.name.trim() === '') {
-        toast({
-          title: 'Validation Error',
-          description: 'Name is required',
-          variant: 'destructive',
-        })
+        toast.error('Validation Error', { description: 'Name is required',
+          variant: 'destructive', })
         return
       }
 
       if (!locationForm.type) {
-        toast({
-          title: 'Validation Error',
-          description: 'Type is required',
-          variant: 'destructive',
-        })
+        toast.error('Validation Error', { description: 'Type is required',
+          variant: 'destructive', })
         return
       }
 
       if ((locationForm.type === 'Fridge' || locationForm.type === 'Freezer') && !locationForm.temperature_target_c) {
-        toast({
-          title: 'Validation Error',
-          description: 'Temperature target (°C) is required for fridges and freezers',
-          variant: 'destructive',
-        })
+        toast.error('Validation Error', { description: 'Temperature target (°C) is required for fridges and freezers',
+          variant: 'destructive', })
         return
       }
 
@@ -312,25 +300,22 @@ export default function Locations() {
           .eq('id', editingLocation.id)
 
         if (error) throw error
-        toast({ title: 'Success', description: 'Location updated' })
+        toast.success('Success', { description: 'Location updated' })
       } else {
         const { error } = await supabase
           .from('inv_locations')
           .insert([payload])
 
         if (error) throw error
-        toast({ title: 'Success', description: 'Location created' })
+        toast.success('Success', { description: 'Location created' })
       }
 
       setLocationDialogOpen(false)
       loadLocations()
     } catch (error) {
       console.error('Error saving location:', error)
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to save location',
-        variant: 'destructive',
-      })
+      toast.error('Error', { description: error instanceof Error ? error.message : 'Failed to save location',
+        variant: 'destructive', })
     }
   }
 
@@ -369,15 +354,12 @@ export default function Locations() {
         }
       }
 
-      toast({ title: 'Success', description: 'Location duplicated' })
+      toast.success('Success', { description: 'Location duplicated' })
       loadLocations()
     } catch (error) {
       console.error('Error duplicating location:', error)
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to duplicate location',
-        variant: 'destructive',
-      })
+      toast.error('Error', { description: error instanceof Error ? error.message : 'Failed to duplicate location',
+        variant: 'destructive', })
     }
   }
 
@@ -389,18 +371,12 @@ export default function Locations() {
         .eq('id', location.id)
 
       if (error) throw error
-      toast({
-        title: 'Success',
-        description: location.is_active ? 'Location deactivated' : 'Location activated',
-      })
+      toast.success('Success', { description: location.is_active ? 'Location deactivated' : 'Location activated', })
       loadLocations()
     } catch (error) {
       console.error('Error toggling location:', error)
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to update location',
-        variant: 'destructive',
-      })
+      toast.error('Error', { description: error instanceof Error ? error.message : 'Failed to update location',
+        variant: 'destructive', })
     }
   }
 
@@ -418,11 +394,8 @@ export default function Locations() {
         .eq('location_id', location.id)
 
       if ((binsData && binsData.length > 0) || (assignmentsData && assignmentsData.length > 0)) {
-        toast({
-          title: 'Cannot Delete',
-          description: 'This location has bins or assignments. Remove them first.',
-          variant: 'destructive',
-        })
+        toast.error('Cannot Delete', { description: 'This location has bins or assignments. Remove them first.',
+          variant: 'destructive', })
         return
       }
 
@@ -434,22 +407,19 @@ export default function Locations() {
         .eq('id', location.id)
 
       if (error) throw error
-      toast({ title: 'Success', description: 'Location deleted' })
+      toast.success('Success', { description: 'Location deleted' })
       loadLocations()
     } catch (error) {
       console.error('Error deleting location:', error)
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to delete location',
-        variant: 'destructive',
-      })
+      toast.error('Error', { description: error instanceof Error ? error.message : 'Failed to delete location',
+        variant: 'destructive', })
     }
   }
 
   const handleAddBin = async () => {
     if (!editingLocation) return
     if (!newBinName.trim()) {
-      toast({ title: 'Validation Error', description: 'Bin name is required', variant: 'destructive' })
+      toast.error('Validation Error', { description: 'Bin name is required' })
       return
     }
 
@@ -463,18 +433,15 @@ export default function Locations() {
         }])
 
       if (error) throw error
-      toast({ title: 'Success', description: 'Bin added' })
+      toast.success('Success', { description: 'Bin added' })
       setNewBinName('')
       setNewBinBarcode('')
       setShowBinForm(false)
       loadBins(editingLocation.id)
     } catch (error) {
       console.error('Error adding bin:', error)
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to add bin',
-        variant: 'destructive',
-      })
+      toast.error('Error', { description: error instanceof Error ? error.message : 'Failed to add bin',
+        variant: 'destructive', })
     }
   }
 
@@ -488,15 +455,12 @@ export default function Locations() {
         .eq('id', binId)
 
       if (error) throw error
-      toast({ title: 'Success', description: 'Bin deleted' })
+      toast.success('Success', { description: 'Bin deleted' })
       if (editingLocation) loadBins(editingLocation.id)
     } catch (error) {
       console.error('Error deleting bin:', error)
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to delete bin',
-        variant: 'destructive',
-      })
+      toast.error('Error', { description: error instanceof Error ? error.message : 'Failed to delete bin',
+        variant: 'destructive', })
     }
   }
 
@@ -510,15 +474,12 @@ export default function Locations() {
         .eq('id', assignmentId)
 
       if (error) throw error
-      toast({ title: 'Success', description: 'Assignment removed' })
+      toast.success('Success', { description: 'Assignment removed' })
       if (editingLocation) loadAssignments(editingLocation.id)
     } catch (error) {
       console.error('Error deleting assignment:', error)
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to remove assignment',
-        variant: 'destructive',
-      })
+      toast.error('Error', { description: error instanceof Error ? error.message : 'Failed to remove assignment',
+        variant: 'destructive', })
     }
   }
 
@@ -532,32 +493,29 @@ export default function Locations() {
         .eq('id', deviceId)
 
       if (error) throw error
-      toast({ title: 'Success', description: 'Device removed' })
+      toast.success('Success', { description: 'Device removed' })
       if (editingLocation) loadDevices(editingLocation.id)
     } catch (error) {
       console.error('Error deleting device:', error)
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to remove device',
-        variant: 'destructive',
-      })
+      toast.error('Error', { description: error instanceof Error ? error.message : 'Failed to remove device',
+        variant: 'destructive', })
     }
   }
 
   const handleSaveSchedule = async () => {
     try {
       if (!scheduleForm.schedule_name || scheduleForm.schedule_name.trim() === '') {
-        toast({ title: 'Validation Error', description: 'Schedule name is required', variant: 'destructive' })
+        toast.error('Validation Error', { description: 'Schedule name is required' })
         return
       }
 
       if (!scheduleForm.frequency) {
-        toast({ title: 'Validation Error', description: 'Frequency is required', variant: 'destructive' })
+        toast.error('Validation Error', { description: 'Frequency is required' })
         return
       }
 
       if (!scheduleForm.location_ids || scheduleForm.location_ids.length === 0) {
-        toast({ title: 'Validation Error', description: 'Select at least one location', variant: 'destructive' })
+        toast.error('Validation Error', { description: 'Select at least one location' })
         return
       }
 
@@ -575,25 +533,22 @@ export default function Locations() {
           .eq('id', editingSchedule.id)
 
         if (error) throw error
-        toast({ title: 'Success', description: 'Schedule updated' })
+        toast.success('Success', { description: 'Schedule updated' })
       } else {
         const { error } = await supabase
           .from('count_schedules')
           .insert([payload])
 
         if (error) throw error
-        toast({ title: 'Success', description: 'Schedule created' })
+        toast.success('Success', { description: 'Schedule created' })
       }
 
       setScheduleDialogOpen(false)
       loadSchedules()
     } catch (error) {
       console.error('Error saving schedule:', error)
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to save schedule',
-        variant: 'destructive',
-      })
+      toast.error('Error', { description: error instanceof Error ? error.message : 'Failed to save schedule',
+        variant: 'destructive', })
     }
   }
 
@@ -607,15 +562,12 @@ export default function Locations() {
         .eq('id', scheduleId)
 
       if (error) throw error
-      toast({ title: 'Success', description: 'Schedule deleted' })
+      toast.success('Success', { description: 'Schedule deleted' })
       loadSchedules()
     } catch (error) {
       console.error('Error deleting schedule:', error)
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to delete schedule',
-        variant: 'destructive',
-      })
+      toast.error('Error', { description: error instanceof Error ? error.message : 'Failed to delete schedule',
+        variant: 'destructive', })
     }
   }
 
@@ -648,7 +600,7 @@ export default function Locations() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -731,15 +683,12 @@ export default function Locations() {
             {loading ? (
               <div className="text-center py-8 text-muted-foreground">Loading...</div>
             ) : filteredLocations.length === 0 ? (
-              <div className="text-center py-12">
-                <Warehouse className="mx-auto h-12 w-12 text-muted-foreground opacity-50" />
-                <h3 className="mt-4 text-lg font-semibold">No locations yet</h3>
-                <p className="text-muted-foreground mt-2">Add your first storage area to get started.</p>
-                <Button onClick={() => handleOpenLocationDialog()} className="mt-4">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Location
-                </Button>
-              </div>
+              <EmptyState
+                icon={Warehouse}
+                title="No locations yet"
+                description="Add your first storage area to get started."
+                action={{ label: "Add Location", onClick: () => handleOpenLocationDialog(), icon: Plus }}
+              />
             ) : (
               <Table>
                 <TableHeader>
@@ -788,7 +737,7 @@ export default function Locations() {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" aria-label="More actions">
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>

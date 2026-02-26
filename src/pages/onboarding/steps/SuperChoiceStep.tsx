@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Card } from '@/components/ui/card'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -7,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { AUSTRALIAN_SUPER_FUNDS } from '@/lib/data/superFunds'
 import { Check, ChevronsUpDown, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -28,7 +29,7 @@ interface SuperChoiceStepProps {
 }
 
 export default function SuperChoiceStep({ staffId, initialData, onComplete, onBack }: SuperChoiceStepProps) {
-  const { toast } = useToast()
+const [submitting, setSubmitting] = useState(false)
   const [choiceStatus, setChoiceStatus] = useState(initialData?.super_choice_status || 'provided')
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -60,11 +61,7 @@ export default function SuperChoiceStep({ staffId, initialData, onComplete, onBa
     
     if (choiceStatus === 'provided') {
       if (!formData.super_fund_name || !formData.super_member_number) {
-        toast({
-          title: 'Missing Information',
-          description: 'Please select a super fund and provide your member number.',
-          variant: 'destructive'
-        })
+        toast.error('Missing Information', { description: 'Please select a super fund and provide your member number.' })
         return
       }
     }
@@ -75,10 +72,7 @@ export default function SuperChoiceStep({ staffId, initialData, onComplete, onBa
       super_choice_signed_at: new Date()
     })
     
-    toast({
-      title: 'Super choice saved',
-      description: 'Your superannuation selection has been recorded.'
-    })
+    toast.success('Super choice saved', { description: 'Your superannuation selection has been recorded.' })
   }
 
   return (
@@ -221,7 +215,10 @@ export default function SuperChoiceStep({ staffId, initialData, onComplete, onBa
               Back
             </Button>
           )}
-          <Button type="submit">Save & Continue</Button>
+          <Button type="submit" disabled={submitting}>
+              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save & Continue
+            </Button>
         </div>
       </form>
     </Card>

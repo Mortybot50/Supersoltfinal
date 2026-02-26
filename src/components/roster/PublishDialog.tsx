@@ -157,7 +157,7 @@ export function PublishDialog({ open, onOpenChange }: PublishDialogProps) {
           <Button
             onClick={handlePublish}
             disabled={isPublishing || draftShifts.length === 0}
-            className="bg-teal-500 hover:bg-teal-600"
+            
           >
             {isPublishing ? (
               'Publishing…'

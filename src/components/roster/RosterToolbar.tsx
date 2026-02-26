@@ -82,13 +82,13 @@ export function RosterToolbar({
     <div className="bg-white dark:bg-gray-800 border-b px-4 py-2 flex items-center gap-3 print:hidden flex-wrap">
       {/* Date Navigation */}
       <div className="flex items-center gap-1">
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={onNavigateBack}>
+        <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Previous period" onClick={onNavigateBack}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <Button variant="outline" className="h-8 px-3 font-medium text-sm">
           {dateRangeLabel}
         </Button>
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={onNavigateForward}>
+        <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Next period" onClick={onNavigateForward}>
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
@@ -207,7 +207,7 @@ export function RosterToolbar({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={onPrint}>
+        <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Print roster" onClick={onPrint}>
           <Printer className="h-4 w-4" />
         </Button>
 
@@ -216,7 +216,7 @@ export function RosterToolbar({
         </Button>
 
         <Button
-          className="h-8 bg-teal-500 hover:bg-teal-600"
+          className="h-8"
           onClick={onPublish}
           disabled={publishDisabled}
         >

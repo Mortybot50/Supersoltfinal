@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
@@ -185,7 +186,10 @@ export function SupplierForm({ onSubmit, onCancel, initialData }: SupplierFormPr
         </div>
         
         <div className="flex gap-2 pt-4">
-          <Button type="submit">Save</Button>
+          <Button type="submit" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save
+            </Button>
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>

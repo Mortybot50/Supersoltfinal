@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Card } from '@/components/ui/card'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { isValidEmail, isValidAUPhone } from '@/lib/utils/validation'
 
 interface ContactDetailsData {
@@ -22,7 +23,7 @@ interface ContactDetailsStepProps {
 }
 
 export default function ContactDetailsStep({ staffId, initialData, onComplete, onBack }: ContactDetailsStepProps) {
-  const { toast } = useToast()
+const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     phone: initialData?.phone || '',
     email: initialData?.email || '',
@@ -70,10 +71,7 @@ export default function ContactDetailsStep({ staffId, initialData, onComplete, o
     if (!validate()) return
 
     onComplete(formData)
-    toast({
-      title: 'Contact details saved',
-      description: 'Your contact information has been updated.'
-    })
+    toast.success('Contact details saved', { description: 'Your contact information has been updated.' })
   }
 
   return (
@@ -161,7 +159,10 @@ export default function ContactDetailsStep({ staffId, initialData, onComplete, o
               Back
             </Button>
           )}
-          <Button type="submit">Save & Continue</Button>
+          <Button type="submit" disabled={submitting}>
+              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save & Continue
+            </Button>
         </div>
       </form>
     </Card>

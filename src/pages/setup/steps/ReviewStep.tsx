@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from 'sonner'
 import { Building2, CheckCircle, Loader2, MapPin, ShoppingCart, Users } from "lucide-react";
 
 interface OrgDetails {
@@ -25,7 +25,7 @@ interface Props {
 }
 
 export default function ReviewStep({ orgId, onBack, onGoLive }: Props) {
-  const { toast } = useToast();
+;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [orgDetails, setOrgDetails] = useState<OrgDetails | null>(null);
@@ -87,14 +87,11 @@ export default function ReviewStep({ orgId, onBack, onGoLive }: Props) {
 
       if (error) throw error;
 
-      toast({ title: "You're live! 🎉", description: "Welcome to SuperSolt" });
+      toast.success("You're live! 🎉", { description: "Welcome to SuperSolt" });
       onGoLive();
     } catch (err) {
-      toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive",
-      });
+      toast.error("Error", { description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive", });
     } finally {
       setSaving(false);
     }

@@ -38,7 +38,7 @@ import {
   X,
 } from "lucide-react"
 import { toast } from "sonner"
-import { PageShell, PageToolbar, StatusBadge } from "@/components/shared"
+import { PageShell, PageToolbar, StatusBadge, EmptyState } from "@/components/shared"
 import { StatCards } from "@/components/ui/StatCards"
 import { SecondaryStats } from "@/components/ui/SecondaryStats"
 
@@ -385,15 +385,11 @@ export default function Sales() {
             <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Loading transactions...
           </div>
         ) : filteredOrders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-            <FileSpreadsheet className="h-12 w-12 mb-4 opacity-50" />
-            <p className="font-medium">No transactions found</p>
-            <p className="text-sm mt-1">
-              {orders.length === 0
-                ? "No sales data for this period"
-                : "Try adjusting your filters"}
-            </p>
-          </div>
+          <EmptyState
+            icon={FileSpreadsheet}
+            title="No transactions found"
+            description={orders.length === 0 ? "No sales data for this period" : "Try adjusting your filters"}
+          />
         ) : (
           <Table>
             <TableHeader>

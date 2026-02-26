@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from 'sonner'
 import { Loader2, Mail, Trash2, UserPlus } from "lucide-react";
 
 const inviteSchema = z.object({
@@ -35,7 +35,6 @@ interface Props {
 
 export default function InviteTeamStep({ orgId, onNext, onBack }: Props) {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [invites, setInvites] = useState<PendingInvite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,13 +96,10 @@ export default function InviteTeamStep({ orgId, onNext, onBack }: Props) {
       }
 
       reset({ email: "", role: "staff" });
-      toast({ title: "Invite sent", description: `Invited ${formData.email} as ${formData.role}` });
+      toast.success('Invite sent', { description: `Invited ${formData.email} as ${formData.role}` });
     } catch (err) {
-      toast({
-        title: "Error sending invite",
-        description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive",
-      });
+      toast.error("Error sending invite", { description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive", });
     } finally {
       setSaving(false);
     }
@@ -113,7 +109,7 @@ export default function InviteTeamStep({ orgId, onNext, onBack }: Props) {
     const { error } = await supabase.from("staff_invites").delete().eq("id", inviteId);
     if (!error) {
       setInvites((prev) => prev.filter((i) => i.id !== inviteId));
-      toast({ title: "Invite removed" });
+      toast.success("Invite removed");
     }
   };
 
