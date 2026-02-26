@@ -13,6 +13,8 @@ export interface Organization {
   price_display_mode: 'INC_GST' | 'EX_GST'
   default_gp_target_percent: number
   financial_year_start_month: number // 1-12, default 7 (July for AU)
+  default_trading_hours?: Record<string, { open: string; close: string }>
+  default_award_level?: string
   payroll_cycle: 'weekly' | 'fortnightly' | 'monthly'
   created_at: Date
   updated_at: Date

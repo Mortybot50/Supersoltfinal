@@ -11,7 +11,10 @@ import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Save, UploadCloud, RotateCcw, Plus } from "lucide-react";
+import { Save, UploadCloud, RotateCcw, Plus, Copy, FileDown } from "lucide-react";
+import CloneVenueDialog from "@/components/venues/CloneVenueDialog";
+import SaveAsTemplateDialog from "@/components/venues/SaveAsTemplateDialog";
+import { fetchVenueTemplates, type VenueTemplate } from "@/lib/venueTemplates";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { z } from "zod";
@@ -37,12 +40,49 @@ export default function VenueSettings() {
   const [originalSettings, setOriginalSettings] = useState<Partial<VenueSettingsType>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [newVenueOpen, setNewVenueOpen] = useState(false);
+
+  // Pre-fill new venue form from org defaults when dialog opens
+  const openNewVenueWithDefaults = () => {
+    const orgId = currentVenue?.org_id || venues[0]?.org_id;
+    if (orgId) {
+      supabase
+        .from('organizations')
+        .select('settings')
+        .eq('id', orgId)
+        .single()
+        .then(({ data }) => {
+          if (data?.settings && typeof data.settings === 'object') {
+            const s = data.settings as Record<string, unknown>;
+            setNewVenueForm((prev) => ({
+              ...prev,
+              timezone: (s.timezone as string) || prev.timezone,
+              trading_hours: s.default_trading_hours
+                ? JSON.stringify(s.default_trading_hours, null, 2)
+                : prev.trading_hours,
+            }));
+          }
+        });
+    }
+    setNewVenueOpen(true);
+  };
   const [newVenueForm, setNewVenueForm] = useState({ name: '', address: '', timezone: 'Australia/Melbourne', trading_hours: '' });
   const [newVenueSaving, setNewVenueSaving] = useState(false);
   const [newVenueErrors, setNewVenueErrors] = useState<Record<string, string>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [cloneDialogOpen, setCloneDialogOpen] = useState(false);
+  const [cloneSourceVenue, setCloneSourceVenue] = useState<{ id: string; name: string; org_id: string } | null>(null);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [templates, setTemplates] = useState<VenueTemplate[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
 
   const orgSettings = getDefaultOrgSettings();
+
+  // Load venue templates
+  useEffect(() => {
+    const orgId = currentVenue?.org_id || venues[0]?.org_id;
+    if (!orgId) return;
+    fetchVenueTemplates(orgId).then(setTemplates).catch(console.error);
+  }, [currentVenue?.org_id, venues]);
 
   const newVenueSchema = z.object({
     name: z.string().min(1, 'Venue name is required').max(100),
@@ -315,10 +355,36 @@ export default function VenueSettings() {
             ))}
           </SelectContent>
         </Select>
-        <Button variant="outline" size="sm" onClick={() => setNewVenueOpen(true)}>
+        <Button variant="outline" size="sm" onClick={openNewVenueWithDefaults}>
           <Plus className="h-4 w-4 mr-2" />
           New Venue
         </Button>
+        {selectedVenue && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const v = venues.find((v) => v.id === selectedVenue);
+                if (v) {
+                  setCloneSourceVenue(v);
+                  setCloneDialogOpen(true);
+                }
+              }}
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Clone Venue
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setTemplateDialogOpen(true)}
+            >
+              <FileDown className="h-4 w-4 mr-2" />
+              Save as Template
+            </Button>
+          </>
+        )}
       </div>
 
       {/* New Venue Dialog */}
@@ -328,6 +394,36 @@ export default function VenueSettings() {
             <DialogTitle>Create New Venue</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {templates.length > 0 && (
+              <div className="space-y-2">
+                <Label>Apply Template</Label>
+                <Select
+                  value={selectedTemplate}
+                  onValueChange={(val) => {
+                    setSelectedTemplate(val);
+                    const tmpl = templates.find((t) => t.id === val);
+                    if (tmpl?.template_data) {
+                      setNewVenueForm((prev) => ({
+                        ...prev,
+                        timezone: tmpl.template_data.timezone || prev.timezone,
+                        trading_hours: tmpl.template_data.trading_hours
+                          ? JSON.stringify(tmpl.template_data.trading_hours, null, 2)
+                          : prev.trading_hours,
+                      }));
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a template..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templates.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="new-venue-name">Venue Name *</Label>
               <Input
@@ -928,6 +1024,26 @@ export default function VenueSettings() {
         </TabsContent>
       </Tabs>
       </div>
+      {/* Clone Venue Dialog */}
+      {cloneSourceVenue && (
+        <CloneVenueDialog
+          open={cloneDialogOpen}
+          onOpenChange={setCloneDialogOpen}
+          sourceVenue={cloneSourceVenue}
+        />
+      )}
+
+      {/* Save as Template Dialog */}
+      {selectedVenue && (
+        <SaveAsTemplateDialog
+          open={templateDialogOpen}
+          onOpenChange={setTemplateDialogOpen}
+          venueId={selectedVenue}
+          venueName={venues.find((v) => v.id === selectedVenue)?.name || ''}
+          orgId={currentVenue?.org_id || venues[0]?.org_id || ''}
+          userId={user?.id || ''}
+        />
+      )}
     </PageShell>
   );
 }

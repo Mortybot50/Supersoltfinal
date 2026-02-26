@@ -281,8 +281,9 @@ export default function OrgSettings() {
       
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-8">
+        <TabsList className="grid w-full grid-cols-9">
           <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="venue-defaults">Venue Defaults</TabsTrigger>
           <TabsTrigger value="branding">Branding</TabsTrigger>
           <TabsTrigger value="menu">Menu</TabsTrigger>
           <TabsTrigger value="approvals">Approvals</TabsTrigger>
@@ -542,6 +543,94 @@ export default function OrgSettings() {
                     Determines pay period for timesheets and payroll
                   </p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {/* Venue Defaults Tab */}
+        <TabsContent value="venue-defaults" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Venue Defaults</CardTitle>
+              <CardDescription>Default settings applied when creating new venues. Venues can override these individually.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label>Default Trading Hours</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Pre-filled when creating new venues
+                </p>
+                <div className="grid grid-cols-1 gap-2">
+                  {(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const).map((day) => {
+                    const hours = (formData.organization.default_trading_hours || {}) as Record<string, { open: string; close: string }>;
+                    const dayHours = hours[day] || { open: '09:00', close: '22:00' };
+                    return (
+                      <div key={day} className="flex items-center gap-2">
+                        <span className="w-24 text-sm">{day}</span>
+                        <Input
+                          type="time"
+                          className="w-28"
+                          value={dayHours.open}
+                          onChange={(e) => {
+                            const updated = { ...hours, [day]: { ...dayHours, open: e.target.value } };
+                            setFormData((prev) => ({
+                              ...prev,
+                              organization: { ...prev.organization, default_trading_hours: updated },
+                            }));
+                          }}
+                        />
+                        <span className="text-sm text-muted-foreground">to</span>
+                        <Input
+                          type="time"
+                          className="w-28"
+                          value={dayHours.close}
+                          onChange={(e) => {
+                            const updated = { ...hours, [day]: { ...dayHours, close: e.target.value } };
+                            setFormData((prev) => ({
+                              ...prev,
+                              organization: { ...prev.organization, default_trading_hours: updated },
+                            }));
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <Label htmlFor="default-award">Default Award Level</Label>
+                <Select
+                  value={(formData.organization as Record<string, unknown>).default_award_level as string || 'restaurant_industry'}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      organization: { ...prev.organization, default_award_level: value },
+                    }))
+                  }
+                >
+                  <SelectTrigger id="default-award">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="restaurant_industry">Restaurant Industry Award</SelectItem>
+                    <SelectItem value="fast_food">Fast Food Industry Award</SelectItem>
+                    <SelectItem value="hospitality_general">Hospitality Industry (General) Award</SelectItem>
+                    <SelectItem value="registered_clubs">Registered and Licensed Clubs Award</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Fair Work award applied to new venues by default
+                </p>
+              </div>
+
+              <div className="bg-muted/30 p-4 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  <strong>Note:</strong> These defaults are also used when the org timezone, GST rate, and GP target (from the Profile tab) are inherited by venues.
+                </p>
               </div>
             </CardContent>
           </Card>

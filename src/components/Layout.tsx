@@ -33,6 +33,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import DataInitializer from "./DataInitializer"
+import VenueSwitcher from "./venues/VenueSwitcher"
 import { LucideIcon } from "lucide-react"
 
 // ─── Navigation config ───────────────────────────────────────
@@ -538,30 +539,7 @@ export default function Layout() {
           )}
 
           {/* Venue Selector */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="gap-2">
-                <span className="font-semibold">{currentVenue?.name || "Select Venue"}</span>
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="bg-popover">
-              <DropdownMenuLabel>Switch Venue</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {venues.map((venue) => (
-                <DropdownMenuItem
-                  key={venue.id}
-                  onClick={() => setCurrentVenue(venue)}
-                  className={currentVenue?.id === venue.id ? "bg-accent" : ""}
-                >
-                  {venue.name}
-                </DropdownMenuItem>
-              ))}
-              {venues.length === 0 && (
-                <DropdownMenuItem disabled>No venues available</DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <VenueSwitcher />
 
           <div className="flex-1" />
 

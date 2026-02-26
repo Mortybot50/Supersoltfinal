@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, Plus, Trash2, MapPin } from "lucide-react";
+import { fetchVenueTemplates, type VenueTemplate } from "@/lib/venueTemplates";
 
 const AU_TIMEZONES = [
   { value: "Australia/Melbourne", label: "Melbourne (AEST/AEDT)" },
@@ -53,6 +54,12 @@ export default function AddVenuesStep({ orgId, userId, onNext, onBack }: Props) 
   const [tradingHours, setTradingHours] = useState<Record<string, { open: string; close: string }>>(
     Object.fromEntries(DAYS.map((d) => [d, { open: "09:00", close: "22:00" }]))
   );
+
+  const [templates, setTemplates] = useState<VenueTemplate[]>([]);
+
+  useEffect(() => {
+    fetchVenueTemplates(orgId).then(setTemplates).catch(console.error);
+  }, [orgId]);
 
   const {
     register,
@@ -184,6 +191,32 @@ export default function AddVenuesStep({ orgId, userId, onNext, onBack }: Props) 
       )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {templates.length > 0 && (
+          <div>
+            <Label>Apply Template</Label>
+            <Select
+              value=""
+              onValueChange={(val) => {
+                const tmpl = templates.find((t) => t.id === val);
+                if (tmpl?.template_data) {
+                  if (tmpl.template_data.timezone) setValue("timezone", tmpl.template_data.timezone);
+                  if (tmpl.template_data.trading_hours) {
+                    setTradingHours(tmpl.template_data.trading_hours as Record<string, { open: string; close: string }>);
+                  }
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a template..." />
+              </SelectTrigger>
+              <SelectContent>
+                {templates.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div>
           <Label htmlFor="venueName">Venue Name *</Label>
           <Input id="venueName" placeholder="e.g. Main Street Store" {...register("name")} />
