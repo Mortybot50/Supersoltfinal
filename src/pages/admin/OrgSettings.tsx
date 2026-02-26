@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { supabase } from '@/integrations/supabase/client'
 import { useDataStore } from '@/lib/store/dataStore'
 import { useAuth } from '@/contexts/AuthContext'
 import { AU_STATES, AU_TIMEZONES, FSANZ_ALLERGENS, DEFAULT_CSV_COLUMNS, MenuSection, Organization, OrgBranding, OrgMenuDefaults, OrgApprovals, OrgHolidays, OrgExportMappings, OrgSecurity, validateABN, formatABN, MONTH_NAMES } from '@/types'
@@ -40,9 +41,35 @@ export default function OrgSettings() {
   } = useDataStore()
   
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('profile')
   const [abnValid, setAbnValid] = useState<boolean | null>(null)
   const [logoUploading, setLogoUploading] = useState(false)
+
+
+  // Load extended org settings from Supabase on mount
+  useEffect(() => {
+    const loadOrgSettings = async () => {
+      if (!currentOrg?.id) return
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('name, settings')
+        .eq('id', currentOrg.id)
+        .single()
+      if (error) {
+        console.error('Failed to load org settings:', error)
+        return
+      }
+      if (data?.settings && typeof data.settings === 'object') {
+        const settings = data.settings as Record<string, unknown>
+        updateOrganization({
+          name: data.name,
+          ...(settings as Partial<Organization>),
+        })
+      }
+    }
+    loadOrgSettings()
+  }, [currentOrg?.id])
 
   // Initialize defaults on mount, and sync real org name from auth
   useEffect(() => {
@@ -124,8 +151,8 @@ export default function OrgSettings() {
     input.click()
   }
 
-  // Handle save
-  const handleSave = () => {
+  // Handle save — writes to Supabase FIRST, then updates Zustand
+  const handleSave = async () => {
     // Validation
     if (!formData.organization.name?.trim()) {
       toast.error('Organization name is required')
@@ -144,18 +171,47 @@ export default function OrgSettings() {
       setActiveTab('profile')
       return
     }
-    
-    // Save all sections
-    updateOrganization(formData.organization)
-    updateBranding(formData.branding)
-    updateMenuDefaults(formData.menuDefaults)
-    updateApprovals(formData.approvals)
-    updateHolidays(formData.holidays)
-    updateExportMappings(formData.exportMappings)
-    updateSecurity(formData.security)
-    
-    toast.success('Settings saved successfully')
-    setHasUnsavedChanges(false)
+
+    if (!currentOrg?.id) {
+      toast.error('No organization selected')
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      // Build settings object (everything except name, which goes in the name column)
+      const { name, ...extendedSettings } = formData.organization
+      
+      const { error } = await supabase
+        .from('organizations')
+        .update({
+          name: name || currentOrg.name,
+          settings: extendedSettings as unknown as Record<string, unknown>,
+        })
+        .eq('id', currentOrg.id)
+
+      if (error) {
+        toast.error('Failed to save to database: ' + error.message)
+        return
+      }
+
+      // Success — now update Zustand store
+      updateOrganization(formData.organization)
+      updateBranding(formData.branding)
+      updateMenuDefaults(formData.menuDefaults)
+      updateApprovals(formData.approvals)
+      updateHolidays(formData.holidays)
+      updateExportMappings(formData.exportMappings)
+      updateSecurity(formData.security)
+      
+      toast.success('Settings saved successfully')
+      setHasUnsavedChanges(false)
+    } catch (err) {
+      console.error('Save error:', err)
+      toast.error('Failed to save settings')
+    } finally {
+      setIsSaving(false)
+    }
   }
   
   // Handle reset
@@ -213,7 +269,7 @@ export default function OrgSettings() {
         label: 'Save Settings',
         icon: Save,
         onClick: handleSave,
-        disabled: !hasUnsavedChanges,
+        disabled: !hasUnsavedChanges || isSaving,
         variant: 'primary',
       }}
     />
