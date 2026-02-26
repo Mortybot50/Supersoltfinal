@@ -216,7 +216,7 @@ export function RosterToolbar({
         </Button>
 
         <Button
-          className="h-8 bg-teal-500 hover:bg-teal-600"
+          className="h-8"
           onClick={onPublish}
           disabled={publishDisabled}
         >

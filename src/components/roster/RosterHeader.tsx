@@ -145,7 +145,7 @@ export function RosterHeader({ onPublish }: RosterHeaderProps) {
         onClick={onPublish}
         disabled={draftCount === 0}
         size="sm"
-        className="h-8 bg-teal-500 hover:bg-teal-600 shrink-0"
+        className="h-8 shrink-0"
       >
         <Send className="h-3.5 w-3.5 mr-1.5" />
         Publish
