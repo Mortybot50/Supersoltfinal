@@ -14,6 +14,7 @@ import NotFound from "./pages/NotFound"
 // Auth
 import Login from "./pages/auth/Login"
 import Signup from "./pages/auth/Signup"
+import ConfirmEmail from "./pages/auth/ConfirmEmail"
 import ForgotPassword from "./pages/auth/ForgotPassword"
 import ResetPassword from "./pages/auth/ResetPassword"
 
