@@ -1,6 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext"
 import { useState, useMemo, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
+import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb'
 import {
   ArrowLeft,
   Building2,
@@ -331,6 +332,13 @@ export default function SupplierDetail() {
   return (
     <PageShell toolbar={toolbar}>
       <div className="px-4 pt-4 space-y-3">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem><BreadcrumbLink asChild><Link to="/inventory/suppliers">Suppliers</Link></BreadcrumbLink></BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem><BreadcrumbPage>{supplier.name}</BreadcrumbPage></BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
         <StatCards stats={[
           { label: 'Products', value: supplierProducts.length },
           { label: 'Orders', value: spendMetrics.orderCount },

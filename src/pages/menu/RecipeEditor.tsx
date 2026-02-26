@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft, Save, Send, Eye, Trash2, Plus, X, ChevronUp, ChevronDown,
   GripVertical, AlertTriangle, BookOpen, DollarSign, Percent,
@@ -21,6 +21,7 @@ import { formatCurrency } from '@/lib/utils/formatters'
 import { COMMON_ALLERGENS, Recipe, RecipeIngredient } from '@/types'
 import { toast } from 'sonner'
 import { PageShell, PageToolbar } from '@/components/shared'
+import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb'
 
 const CATEGORIES = [
   { value: 'mains', label: 'Mains' },
@@ -394,6 +395,15 @@ export default function RecipeEditor() {
 
   return (
     <PageShell toolbar={toolbar}>
+      <div className="px-6 pt-4">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem><BreadcrumbLink asChild><Link to="/menu/recipes">Recipes</Link></BreadcrumbLink></BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem><BreadcrumbPage>{recipeForm.name || 'New Recipe'}</BreadcrumbPage></BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+      </div>
 
       {/* Two-column layout */}
       <div className="flex flex-1 overflow-hidden">

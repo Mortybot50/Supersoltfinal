@@ -1,4 +1,5 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
+import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from '@/components/ui/breadcrumb'
 import { useDataStore } from '@/lib/store/dataStore'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -158,12 +159,13 @@ export default function StaffDetail() {
   
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={() => navigate('/workforce/people')}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to People
-        </Button>
-      </div>
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem><BreadcrumbLink asChild><Link to="/workforce/people">People</Link></BreadcrumbLink></BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem><BreadcrumbPage>{member.first_name} {member.last_name}</BreadcrumbPage></BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
       
       <Card className="p-6">
         <div className="flex justify-between items-start mb-6">
