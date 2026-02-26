@@ -3,6 +3,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +23,6 @@ type InviteFormData = z.infer<typeof inviteSchema>;
 interface PendingInvite {
   id: string;
   sent_to_email: string;
-  staff_id: string;
   role: string;
   sent_at: string;
 }
@@ -33,6 +34,7 @@ interface Props {
 }
 
 export default function InviteTeamStep({ orgId, onNext, onBack }: Props) {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [invites, setInvites] = useState<PendingInvite[]>([]);
@@ -56,7 +58,7 @@ export default function InviteTeamStep({ orgId, onNext, onBack }: Props) {
     const loadInvites = async () => {
       const { data } = await supabase
         .from("staff_invites")
-        .select("id, sent_to_email, staff_id, role, sent_at")
+        .select("id, sent_to_email, role, sent_at")
         .eq("org_id", orgId)
         .is("completed_at", null)
         .order("sent_at", { ascending: false });
@@ -79,13 +81,14 @@ export default function InviteTeamStep({ orgId, onNext, onBack }: Props) {
         .from("staff_invites")
         .insert({
           org_id: orgId,
-          staff_id: crypto.randomUUID(),
           role: formData.role,
           token,
           sent_to_email: formData.email,
           expires_at: expiresAt,
-        })
-        .select("id, sent_to_email, staff_id, role, sent_at")
+          invited_by: user?.id ?? null,
+          invited_by: user?.id,
+        } as Record<string, unknown>)
+        .select("id, sent_to_email, role, sent_at")
         .single();
 
       if (error) throw error;

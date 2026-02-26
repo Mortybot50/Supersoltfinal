@@ -31,8 +31,13 @@ export default function SetupWizard() {
       navigate("/login", { replace: true });
       return;
     }
-    // currentOrg may be null briefly after signup — wait for it
-    if (!currentOrg) return;
+    // currentOrg may be null briefly after signup — wait briefly, then show wizard anyway
+    if (!currentOrg) {
+      const timeout = setTimeout(() => {
+        setChecking(false);
+      }, 5000);
+      return () => clearTimeout(timeout);
+    }
 
     const checkOnboarding = async () => {
       try {
@@ -87,7 +92,8 @@ export default function SetupWizard() {
     );
   }
 
-  if (!currentOrg) return null;
+  // If no currentOrg after loading, user needs to create one via the wizard
+  // Don't block — show the wizard
 
   const progress = ((currentStep - 1) / (STEPS.length - 1)) * 100;
 
@@ -138,18 +144,18 @@ export default function SetupWizard() {
         </Card>
 
         {currentStep === 1 && (
-          <BusinessDetailsStep orgId={currentOrg.id} onNext={handleNext} />
+          <BusinessDetailsStep orgId={currentOrg?.id ?? ""} onNext={handleNext} />
         )}
-        {currentStep === 2 && (
+        {currentStep === 2 && currentOrg && (
           <AddVenuesStep orgId={currentOrg.id} userId={user?.id ?? ""} onNext={handleNext} onBack={handleBack} />
         )}
-        {currentStep === 3 && (
+        {currentStep === 3 && currentOrg && (
           <ConnectPosStep orgId={currentOrg.id} onNext={handleNext} onBack={handleBack} />
         )}
-        {currentStep === 4 && (
+        {currentStep === 4 && currentOrg && (
           <InviteTeamStep orgId={currentOrg.id} onNext={handleNext} onBack={handleBack} />
         )}
-        {currentStep === 5 && (
+        {currentStep === 5 && currentOrg && (
           <ReviewStep orgId={currentOrg.id} onBack={handleBack} onGoLive={handleGoLive} />
         )}
       </div>
