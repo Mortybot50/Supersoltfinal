@@ -117,7 +117,7 @@ export function InvoicesTab() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Invoices</h2>
+          <h2 className="text-lg font-semibold">Invoices</h2>
           <p className="text-sm text-muted-foreground">
             Upload, enter, and manage supplier invoices
           </p>

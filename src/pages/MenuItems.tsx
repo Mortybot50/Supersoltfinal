@@ -520,7 +520,7 @@ export default function MenuItems() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-2xl font-bold">{selectedSection.name}</h2>
+                    <h2 className="text-lg font-semibold">{selectedSection.name}</h2>
                     {selectedSection.is_drinks && <Badge>Drinks</Badge>}
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">

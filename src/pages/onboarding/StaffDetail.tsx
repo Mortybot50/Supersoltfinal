@@ -170,7 +170,7 @@ export default function StaffDetail() {
       <Card className="p-6">
         <div className="flex justify-between items-start mb-6">
           <div>
-            <h1 className="text-3xl font-bold mb-2">{member.name}</h1>
+            <h1 className="text-lg font-semibold mb-2">{member.name}</h1>
             <p className="text-muted-foreground mb-3">Staff Profile & Onboarding</p>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
