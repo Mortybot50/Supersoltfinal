@@ -299,7 +299,7 @@ export default function Daybook() {
                         <div className="text-xs text-muted-foreground mt-0.5">{entry.time}</div>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(entry)}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Edit entry" onClick={() => handleEdit(entry)}>
                           <Pencil className="h-3 w-3" />
                         </Button>
                         <Button

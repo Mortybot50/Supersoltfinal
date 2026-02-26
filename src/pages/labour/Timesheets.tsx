@@ -362,10 +362,10 @@ export default function Timesheets() {
                     <TableCell>
                       {ts.status === "pending" ? (
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleApprove(ts.id)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" aria-label="Approve timesheet" onClick={() => handleApprove(ts.id)}>
                             <Check className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleReject(ts.id)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50" aria-label="Reject timesheet" onClick={() => handleReject(ts.id)}>
                             <X className="h-4 w-4" />
                           </Button>
                         </div>

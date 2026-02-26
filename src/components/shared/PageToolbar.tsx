@@ -53,6 +53,7 @@ export function PageToolbar({
             size="icon"
             className="h-8 w-8"
             onClick={dateNavigation.onBack}
+            aria-label="Previous period"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -64,6 +65,7 @@ export function PageToolbar({
             size="icon"
             className="h-8 w-8"
             onClick={dateNavigation.onForward}
+            aria-label="Next period"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
