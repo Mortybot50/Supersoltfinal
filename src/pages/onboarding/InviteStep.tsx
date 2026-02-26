@@ -1,10 +1,12 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { Building2, ArrowLeft, CheckCircle } from 'lucide-react'
+import { Building2, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { useDataStore } from '@/lib/store/dataStore'
+import { Loader2 } from 'lucide-react'
 import { ONBOARDING_STEPS } from '@/lib/constants/onboarding'
+import { supabase } from '@/integrations/supabase/client'
+import { useEffect, useState } from 'react'
 import ContactDetailsStep from './steps/ContactDetailsStep'
 import AddressStep from './steps/AddressStep'
 import BankDetailsStep from './steps/BankDetailsStep'
@@ -13,16 +15,68 @@ import SuperChoiceStep from './steps/SuperChoiceStep'
 import DocumentsStep from './steps/DocumentsStep'
 import PoliciesStep from './steps/PoliciesStep'
 
+interface StaffRecord {
+  id: string
+  [key: string]: unknown
+}
+
 export default function InviteStep() {
   const { token, stepNumber } = useParams()
   const navigate = useNavigate()
-  const { updateStaffOnboarding, onboardingInvites, staff, updateOnboardingStep, onboardingSteps } = useDataStore()
-
-  const invite = onboardingInvites.find(i => i.token === token)
-  const member = staff.find(s => s.id === invite?.staff_id)
   const currentStep = parseInt(stepNumber || '1')
+  const [loading, setLoading] = useState(true)
+  const [staffRecord, setStaffRecord] = useState<StaffRecord | null>(null)
+  const [inviteValid, setInviteValid] = useState(false)
 
-  if (!invite || !member) {
+  useEffect(() => {
+    if (!token) return
+
+    const load = async () => {
+      const { data: invite } = await supabase
+        .from('staff_invites')
+        .select('*')
+        .eq('token', token)
+        .single()
+
+      if (!invite) {
+        setLoading(false)
+        return
+      }
+
+      setInviteValid(true)
+
+      // Try to load staff record from Supabase
+      const { data: staff } = await supabase
+        .from('staff')
+        .select('*')
+        .eq('id', (invite as Record<string, unknown>).staff_id as string)
+        .single()
+
+      if (staff) {
+        setStaffRecord(staff as unknown as StaffRecord)
+      } else {
+        // No staff record in Supabase — create a minimal one for the portal
+        setStaffRecord({
+          id: (invite as Record<string, unknown>).staff_id as string,
+          name: (invite as Record<string, unknown>).sent_to_email as string,
+          email: (invite as Record<string, unknown>).sent_to_email as string,
+        })
+      }
+
+      setLoading(false)
+    }
+    load()
+  }, [token])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-6">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (!inviteValid || !staffRecord) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 p-6">
         <Card className="p-8 max-w-md text-center">
@@ -33,34 +87,16 @@ export default function InviteStep() {
     )
   }
 
-  const memberSteps = onboardingSteps.filter(s => s.staff_id === member.id)
-  const completedCount = memberSteps.filter(s => s.status === 'completed').length
-  const progressPct = (completedCount / ONBOARDING_STEPS.length) * 100
+  const progressPct = ((currentStep - 1) / ONBOARDING_STEPS.length) * 100
 
   const handleStepComplete = (data: Record<string, unknown>) => {
-    // Update staff data
-    updateStaffOnboarding(member.id, data)
-
-    // Mark step as completed
-    const step = memberSteps.find(s => s.step_number === currentStep)
-    if (step) {
-      updateOnboardingStep(step.id, { status: 'completed', completed_at: new Date() })
-    }
-
-    // Update progress percentage
-    const newCompleted = completedCount + (step?.status !== 'completed' ? 1 : 0)
-    const newProgress = Math.round((newCompleted / ONBOARDING_STEPS.length) * 100)
-    updateStaffOnboarding(member.id, { onboarding_progress: newProgress })
+    // Update local state
+    setStaffRecord(prev => prev ? { ...prev, ...data } : prev)
 
     // Navigate to next step or back to portal
     if (currentStep < ONBOARDING_STEPS.length) {
       navigate(`/onboarding/portal/${token}/step${currentStep + 1}`)
     } else {
-      // All steps complete - update status to pending review
-      updateStaffOnboarding(member.id, {
-        onboarding_status: 'pending_review',
-        onboarding_progress: 100,
-      })
       navigate(`/onboarding/portal/${token}`)
     }
   }
@@ -82,65 +118,30 @@ export default function InviteStep() {
       </p>
 
       <div className="space-y-4">
-        {/* Contact */}
         <div className="border rounded-lg p-4">
           <h3 className="font-semibold mb-2">Contact Details</h3>
           <div className="grid grid-cols-2 gap-2 text-sm">
-            <div><span className="text-muted-foreground">Name:</span> {member.name}</div>
-            <div><span className="text-muted-foreground">Email:</span> {member.email}</div>
-            <div><span className="text-muted-foreground">Phone:</span> {member.phone || '—'}</div>
-            <div><span className="text-muted-foreground">Emergency:</span> {member.emergency_contact_name || '—'}</div>
+            <div><span className="text-muted-foreground">Email:</span> {staffRecord.email as string ?? '—'}</div>
+            <div><span className="text-muted-foreground">Phone:</span> {staffRecord.phone as string ?? '—'}</div>
           </div>
         </div>
 
-        {/* Address */}
         <div className="border rounded-lg p-4">
           <h3 className="font-semibold mb-2">Address</h3>
           <p className="text-sm">
-            {member.address_line1 ? (
-              <>{member.address_line1}{member.address_line2 ? `, ${member.address_line2}` : ''}, {member.suburb} {member.state} {member.postcode}</>
+            {staffRecord.address_line1 ? (
+              <>{staffRecord.address_line1 as string}{staffRecord.address_line2 ? `, ${staffRecord.address_line2 as string}` : ''}, {staffRecord.suburb as string} {staffRecord.state as string} {staffRecord.postcode as string}</>
             ) : (
               <span className="text-muted-foreground">Not provided</span>
             )}
           </p>
         </div>
 
-        {/* Bank */}
         <div className="border rounded-lg p-4">
           <h3 className="font-semibold mb-2">Bank Details</h3>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div><span className="text-muted-foreground">Account:</span> {member.bank_account_name || '—'}</div>
-            <div><span className="text-muted-foreground">BSB:</span> {member.bank_bsb || '—'}</div>
-            <div><span className="text-muted-foreground">Account #:</span> {member.bank_account_number ? '****' + member.bank_account_number.slice(-4) : '—'}</div>
-            <div><span className="text-muted-foreground">Bank:</span> {member.bank_institution_name || '—'}</div>
-          </div>
-        </div>
-
-        {/* TFN */}
-        <div className="border rounded-lg p-4">
-          <h3 className="font-semibold mb-2">Tax File Number</h3>
           <div className="text-sm">
-            {member.tfn_number ? (
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-600" />
-                <span>TFN provided (***{member.tfn_number.slice(-3)})</span>
-              </div>
-            ) : member.tfn_exemption ? (
-              <span>Exemption claimed</span>
-            ) : (
-              <span className="text-muted-foreground">Not provided</span>
-            )}
-          </div>
-        </div>
-
-        {/* Super */}
-        <div className="border rounded-lg p-4">
-          <h3 className="font-semibold mb-2">Superannuation</h3>
-          <div className="text-sm">
-            {member.super_fund_name ? (
-              <div><span className="text-muted-foreground">Fund:</span> {member.super_fund_name}</div>
-            ) : member.super_use_employer_default ? (
-              <span>Using employer default fund</span>
+            {staffRecord.bank_account_name ? (
+              <span>{staffRecord.bank_account_name as string} — BSB: {staffRecord.bank_bsb as string}</span>
             ) : (
               <span className="text-muted-foreground">Not provided</span>
             )}
@@ -159,40 +160,30 @@ export default function InviteStep() {
     </Card>
   )
 
-  const renderStep = () => {
-    const commonProps = {
-      staffId: member.id,
-      initialData: member,
-      onComplete: handleStepComplete,
-      onBack: handleBack
-    }
+  const commonProps = {
+    staffId: staffRecord.id,
+    initialData: staffRecord as Record<string, unknown>,
+    onComplete: handleStepComplete,
+    onBack: handleBack,
+  }
 
+  const renderStep = () => {
     switch (currentStep) {
-      case 1:
-        return <ContactDetailsStep {...commonProps} />
-      case 2:
-        return <AddressStep {...commonProps} />
-      case 3:
-        return <BankDetailsStep {...commonProps} />
-      case 4:
-        return <TFNDeclarationStep {...commonProps} />
-      case 5:
-        return <SuperChoiceStep {...commonProps} />
-      case 6:
-        return <DocumentsStep {...commonProps} onComplete={() => handleStepComplete({})} />
-      case 7:
-        return <PoliciesStep {...commonProps} onComplete={() => handleStepComplete({})} />
-      case 8:
-        return renderReviewStep()
-      default:
-        return <div>Invalid step</div>
+      case 1: return <ContactDetailsStep {...commonProps} />
+      case 2: return <AddressStep {...commonProps} />
+      case 3: return <BankDetailsStep {...commonProps} />
+      case 4: return <TFNDeclarationStep {...commonProps} />
+      case 5: return <SuperChoiceStep {...commonProps} />
+      case 6: return <DocumentsStep {...commonProps} onComplete={() => handleStepComplete({})} />
+      case 7: return <PoliciesStep {...commonProps} onComplete={() => handleStepComplete({})} />
+      case 8: return renderReviewStep()
+      default: return <div>Invalid step</div>
     }
   }
 
   return (
     <div className="min-h-screen bg-muted/30 p-6">
       <div className="max-w-3xl mx-auto space-y-6">
-        {/* Header */}
         <div className="text-center py-6">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Building2 className="w-8 h-8 text-primary" />
@@ -201,7 +192,6 @@ export default function InviteStep() {
           <p className="text-muted-foreground">Staff Onboarding</p>
         </div>
 
-        {/* Progress bar */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Button
@@ -219,7 +209,6 @@ export default function InviteStep() {
           <Progress value={progressPct} className="h-2" />
         </div>
 
-        {/* Step Content */}
         {renderStep()}
       </div>
     </div>

@@ -187,14 +187,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false);
       if (session?.user) {
-        // Don't await - let it run in background
-        fetchUserData(session.user.id);
+        await fetchUserData(session.user.id);
       }
+      setLoading(false);
     });
 
     // Listen for auth changes
@@ -203,11 +202,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false);
 
       if (session?.user) {
-        // Don't await - let it run in background
-        fetchUserData(session.user.id);
+        fetchUserData(session.user.id).finally(() => setLoading(false));
       } else {
         setProfile(null);
         setOrganizations([]);
@@ -215,6 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setVenues([]);
         setCurrentVenue(null);
         setOrgMember(null);
+        setLoading(false);
       }
     });
 

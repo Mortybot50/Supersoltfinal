@@ -22,6 +22,7 @@ interface PendingInvite {
   id: string;
   sent_to_email: string;
   staff_id: string;
+  role: string;
   sent_at: string;
 }
 
@@ -55,7 +56,7 @@ export default function InviteTeamStep({ orgId, onNext, onBack }: Props) {
     const loadInvites = async () => {
       const { data } = await supabase
         .from("staff_invites")
-        .select("id, sent_to_email, staff_id, sent_at")
+        .select("id, sent_to_email, staff_id, role, sent_at")
         .eq("org_id", orgId)
         .is("completed_at", null)
         .order("sent_at", { ascending: false });
@@ -78,12 +79,13 @@ export default function InviteTeamStep({ orgId, onNext, onBack }: Props) {
         .from("staff_invites")
         .insert({
           org_id: orgId,
-          staff_id: formData.role,
+          staff_id: crypto.randomUUID(),
+          role: formData.role,
           token,
           sent_to_email: formData.email,
           expires_at: expiresAt,
         })
-        .select("id, sent_to_email, staff_id, sent_at")
+        .select("id, sent_to_email, staff_id, role, sent_at")
         .single();
 
       if (error) throw error;
@@ -134,7 +136,7 @@ export default function InviteTeamStep({ orgId, onNext, onBack }: Props) {
                 <Mail className="w-4 h-4 text-muted-foreground" />
                 <div>
                   <span className="font-medium">{invite.sent_to_email}</span>
-                  <span className="text-sm text-muted-foreground ml-2 capitalize">{invite.staff_id}</span>
+                  <span className="text-sm text-muted-foreground ml-2 capitalize">{invite.role}</span>
                 </div>
               </div>
               <Button variant="ghost" size="sm" onClick={() => removeInvite(invite.id)}>

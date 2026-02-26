@@ -27,10 +27,12 @@ export default function SetupWizard() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user || !currentOrg) {
-      if (!authLoading) navigate("/login", { replace: true });
+    if (!user) {
+      navigate("/login", { replace: true });
       return;
     }
+    // currentOrg may be null briefly after signup — wait for it
+    if (!currentOrg) return;
 
     const checkOnboarding = async () => {
       try {
