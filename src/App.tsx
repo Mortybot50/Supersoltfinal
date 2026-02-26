@@ -54,7 +54,6 @@ import SetupWizard from "./pages/setup/SetupWizard"
 
 // Operations
 import Daybook from "./pages/operations/Daybook"
-import Imports from "./pages/operations/Imports"
 import Compliance from "./pages/operations/Compliance"
 
 // Integrations
@@ -127,7 +126,6 @@ const App = () => (
 
               {/* Operations */}
               <Route path="operations/daybook" element={<Daybook />} />
-              <Route path="operations/imports" element={<Imports />} />
               <Route path="operations/compliance" element={<Compliance />} />
 
               {/* Admin */}
