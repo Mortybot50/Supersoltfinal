@@ -2,6 +2,7 @@ import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useTheme } from "next-themes"
 import { useAuth } from "@/contexts/AuthContext"
+import { useOnboardingRedirect } from "@/hooks/useOnboardingRedirect"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import {
@@ -447,6 +448,7 @@ function AppSidebar({
 // ─── Layout ──────────────────────────────────────────────────
 
 export default function Layout() {
+  useOnboardingRedirect();
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
   const { profile, currentVenue, venues, setCurrentVenue, orgMember, signOut } = useAuth()
