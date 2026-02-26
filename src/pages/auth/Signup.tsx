@@ -21,6 +21,7 @@ export default function Signup() {
   const [venueName, setVenueName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmationSent, setConfirmationSent] = useState(false);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +60,24 @@ export default function Signup() {
         throw new Error("Failed to create user");
       }
 
+      // Check if we got a session (email confirmation may be required)
+      if (!authData.session) {
+        // Email confirmation required — don't try DB writes without auth token
+        // Org/venue/member creation will happen on first login after confirmation
+        // Store signup metadata in localStorage so we can create org on first login
+        localStorage.setItem("pendingSignup", JSON.stringify({
+          firstName,
+          lastName,
+          orgName: orgName || `${firstName}'s Organization`,
+          venueName: venueName.trim() || `${orgName || firstName + "'s"} Venue`,
+        }));
+        setError(null);
+        setLoading(false);
+        navigate("/confirm-email", { state: { email } });
+        return;
+      }
+
+      // Session exists — proceed with org/venue/member creation
       // 2. Update the profile with name
       const { error: profileError } = await supabase
         .from("profiles")
@@ -139,6 +158,32 @@ export default function Signup() {
       setLoading(false);
     }
   };
+
+  if (confirmationSent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-8">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-brand rounded-xl flex items-center justify-center">
+                <span className="text-gray-900 font-black text-2xl">S</span>
+              </div>
+              <span className="text-3xl font-black tracking-tight uppercase">SuperSolt</span>
+            </div>
+            <CardTitle>Check your email</CardTitle>
+            <CardDescription>
+              We&apos;ve sent a confirmation link to <strong>{email}</strong>. Click the link to verify your account, then sign in to complete setup.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="flex flex-col gap-4">
+            <Link to="/login" className="w-full">
+              <Button className="w-full">Go to Sign In</Button>
+            </Link>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-8">

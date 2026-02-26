@@ -80,6 +80,7 @@ const App = () => (
           <Routes>
             {/* Public Auth Routes */}
             <Route path="/login" element={<Login />} />
+            <Route path="/confirm-email" element={<ConfirmEmail />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />

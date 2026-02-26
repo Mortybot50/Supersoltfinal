@@ -1,4 +1,3 @@
-Initialising login role...
 export type Json =
   | string
   | number
@@ -12,31 +11,6 @@ export type Database = {
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.1"
-  }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
   }
   public: {
     Tables: {
@@ -1160,18 +1134,21 @@ export type Database = {
           created_at: string | null
           id: string
           name: string
+          settings: Json | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
           name: string
+          settings?: Json | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
           name?: string
+          settings?: Json | null
           updated_at?: string | null
         }
         Relationships: []
@@ -2210,6 +2187,62 @@ export type Database = {
           },
         ]
       }
+      staff_invites: {
+        Row: {
+          accessed_at: string | null
+          completed_at: string | null
+          created_at: string | null
+          expires_at: string
+          id: string
+          invited_by: string | null
+          org_id: string
+          role: string
+          sent_at: string
+          sent_to_email: string
+          staff_id: string | null
+          token: string
+          updated_at: string | null
+        }
+        Insert: {
+          accessed_at?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          invited_by?: string | null
+          org_id: string
+          role?: string
+          sent_at?: string
+          sent_to_email: string
+          staff_id?: string | null
+          token: string
+          updated_at?: string | null
+        }
+        Update: {
+          accessed_at?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          org_id?: string
+          role?: string
+          sent_at?: string
+          sent_to_email?: string
+          staff_id?: string | null
+          token?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_invites_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_count_items: {
         Row: {
           actual_quantity: number
@@ -2764,30 +2797,80 @@ export type Database = {
           },
         ]
       }
+      venue_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          org_id: string
+          template_data: Json
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          org_id: string
+          template_data?: Json
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          org_id?: string
+          template_data?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_templates_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       venues: {
         Row: {
+          address: string | null
           created_at: string | null
+          created_by: string | null
           id: string
           is_active: boolean
           name: string
           org_id: string
+          timezone: string | null
+          trading_hours: Json | null
           updated_at: string | null
+          venue_type: string | null
         }
         Insert: {
+          address?: string | null
           created_at?: string | null
+          created_by?: string | null
           id?: string
           is_active?: boolean
           name: string
           org_id: string
+          timezone?: string | null
+          trading_hours?: Json | null
           updated_at?: string | null
+          venue_type?: string | null
         }
         Update: {
+          address?: string | null
           created_at?: string | null
+          created_by?: string | null
           id?: string
           is_active?: boolean
           name?: string
           org_id?: string
+          timezone?: string | null
+          trading_hours?: Json | null
           updated_at?: string | null
+          venue_type?: string | null
         }
         Relationships: [
           {
@@ -3019,9 +3102,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],

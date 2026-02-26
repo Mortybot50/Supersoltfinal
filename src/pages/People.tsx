@@ -39,7 +39,7 @@ import { generateSecureToken, generateInviteUrl } from "@/lib/utils/tokenGenerat
 import { ONBOARDING_STEPS, INVITE_EXPIRY_DAYS } from "@/lib/constants/onboarding"
 
 export default function People() {
-  const { currentOrg, currentVenue } = useAuth()
+  const { currentOrg, currentVenue, user } = useAuth()
   const navigate = useNavigate()
   const { staff: staffList, setStaff: setStaffList, onboardingInvites, addOnboardingInvite, updateStaffOnboarding, setOnboardingSteps, onboardingSteps } = useDataStore()
   const rosterMetrics = useRosterMetrics()
@@ -229,11 +229,12 @@ export default function People() {
         .from('staff_invites')
         .insert({
           org_id: currentOrg.id,
-          staff_id: staffId,
+          staff_id: null,
           token,
           sent_to_email: inviteForm.email,
           sent_at: new Date().toISOString(),
           expires_at: expiryDate.toISOString(),
+          invited_by: user?.id ?? null,
         })
       if (inviteError) {
         console.error('Failed to persist invite:', inviteError)
@@ -290,6 +291,7 @@ export default function People() {
           sent_to_email: staffMember.email,
           sent_at: new Date().toISOString(),
           expires_at: expiryDate.toISOString(),
+          invited_by: user?.id ?? null,
         })
       if (error) {
         console.error('Failed to persist invite:', error)
