@@ -315,7 +315,10 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
     const { venueId } = get()
     if (!venueId) return
 
-    set({ isLoading: true, selectedDate: getWeekStart(weekStart) })
+    const normalised = getWeekStart(weekStart)
+    const current = get().selectedDate
+    const dateChanged = normalised.getTime() !== current.getTime()
+    set({ isLoading: true, ...(dateChanged ? { selectedDate: normalised } : {}) })
 
     try {
       const weekEnd = addDays(weekStart, 6)

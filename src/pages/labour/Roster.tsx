@@ -44,11 +44,13 @@ export default function Roster() {
     }
   }, [currentVenue?.id, currentOrg?.id])
 
+  const selectedDateTs = selectedDate?.getTime()
   useEffect(() => {
-    if (currentVenue?.id) {
+    if (currentVenue?.id && selectedDate) {
       loadWeek(selectedDate)
     }
-  }, [selectedDate])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDateTs, currentVenue?.id])
 
   // Real-time subscription
   useEffect(() => {
