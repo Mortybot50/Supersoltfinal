@@ -11,7 +11,10 @@ import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Save, UploadCloud, RotateCcw } from "lucide-react";
+import { Save, UploadCloud, RotateCcw, Plus } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { z } from "zod";
 import { PageShell, PageToolbar } from '@/components/shared';
 import type { VenueSettings as VenueSettingsType } from "@/lib/venueSettings";
 import { getDefaultOrgSettings } from "@/lib/venueSettings";
@@ -33,9 +36,70 @@ export default function VenueSettings() {
   });
   const [originalSettings, setOriginalSettings] = useState<Partial<VenueSettingsType>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [newVenueOpen, setNewVenueOpen] = useState(false);
+  const [newVenueForm, setNewVenueForm] = useState({ name: '', address: '', timezone: 'Australia/Melbourne', trading_hours: '' });
+  const [newVenueSaving, setNewVenueSaving] = useState(false);
+  const [newVenueErrors, setNewVenueErrors] = useState<Record<string, string>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const orgSettings = getDefaultOrgSettings();
+
+  const newVenueSchema = z.object({
+    name: z.string().min(1, 'Venue name is required').max(100),
+    address: z.string().optional(),
+    timezone: z.string().min(1),
+    trading_hours: z.string().optional(),
+  });
+
+  const handleCreateVenue = async () => {
+    const result = newVenueSchema.safeParse(newVenueForm);
+    if (!result.success) {
+      const errs: Record<string, string> = {};
+      result.error.errors.forEach(e => { errs[e.path[0] as string] = e.message; });
+      setNewVenueErrors(errs);
+      return;
+    }
+    setNewVenueErrors({});
+    setNewVenueSaving(true);
+
+    const orgId = currentVenue?.org_id || venues[0]?.org_id;
+    if (!orgId) {
+      toast({ title: 'Error', description: 'No organization found', variant: 'destructive' });
+      setNewVenueSaving(false);
+      return;
+    }
+
+    try {
+      const tradingHours = newVenueForm.trading_hours
+        ? (() => { try { return JSON.parse(newVenueForm.trading_hours); } catch { return { notes: newVenueForm.trading_hours }; } })()
+        : {};
+
+      const { data, error } = await supabase
+        .from('venues')
+        .insert({
+          org_id: orgId,
+          name: newVenueForm.name.trim(),
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Refresh venues in auth context
+      toast({ title: 'Venue created', description: `${newVenueForm.name} has been created. Refresh the page to see it in the venue list.` });
+      setNewVenueOpen(false);
+      setNewVenueForm({ name: '', address: '', timezone: 'Australia/Melbourne', trading_hours: '' });
+
+      // Force reload to pick up new venue
+      window.location.reload();
+    } catch (err) {
+      console.error('Create venue error:', err);
+      toast({ title: 'Error', description: 'Failed to create venue', variant: 'destructive' });
+    } finally {
+      setNewVenueSaving(false);
+    }
+  };
 
   // Sync selectedVenue when auth context loads
   useEffect(() => {
@@ -251,7 +315,77 @@ export default function VenueSettings() {
             ))}
           </SelectContent>
         </Select>
+        <Button variant="outline" size="sm" onClick={() => setNewVenueOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          New Venue
+        </Button>
       </div>
+
+      {/* New Venue Dialog */}
+      <Dialog open={newVenueOpen} onOpenChange={setNewVenueOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Venue</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-venue-name">Venue Name *</Label>
+              <Input
+                id="new-venue-name"
+                placeholder="e.g. CBD Store, Southbank Kitchen"
+                value={newVenueForm.name}
+                onChange={(e) => setNewVenueForm(prev => ({ ...prev, name: e.target.value }))}
+              />
+              {newVenueErrors.name && <p className="text-sm text-destructive">{newVenueErrors.name}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-venue-address">Address</Label>
+              <Input
+                id="new-venue-address"
+                placeholder="123 Collins St, Melbourne VIC 3000"
+                value={newVenueForm.address}
+                onChange={(e) => setNewVenueForm(prev => ({ ...prev, address: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-venue-tz">Timezone</Label>
+              <Select
+                value={newVenueForm.timezone}
+                onValueChange={(value) => setNewVenueForm(prev => ({ ...prev, timezone: value }))}
+              >
+                <SelectTrigger id="new-venue-tz">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Australia/Melbourne">Melbourne (AEST/AEDT)</SelectItem>
+                  <SelectItem value="Australia/Sydney">Sydney (AEST/AEDT)</SelectItem>
+                  <SelectItem value="Australia/Brisbane">Brisbane (AEST)</SelectItem>
+                  <SelectItem value="Australia/Adelaide">Adelaide (ACST/ACDT)</SelectItem>
+                  <SelectItem value="Australia/Perth">Perth (AWST)</SelectItem>
+                  <SelectItem value="Australia/Darwin">Darwin (ACST)</SelectItem>
+                  <SelectItem value="Australia/Hobart">Hobart (AEST/AEDT)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-venue-hours">Trading Hours</Label>
+              <Textarea
+                id="new-venue-hours"
+                placeholder="Mon-Fri 7am-10pm, Sat-Sun 8am-11pm"
+                rows={3}
+                value={newVenueForm.trading_hours}
+                onChange={(e) => setNewVenueForm(prev => ({ ...prev, trading_hours: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewVenueOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreateVenue} disabled={newVenueSaving}>
+              {newVenueSaving ? 'Creating...' : 'Create Venue'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Tabs */}
       <Tabs defaultValue="locale" className="space-y-6">

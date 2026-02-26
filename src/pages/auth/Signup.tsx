@@ -16,6 +16,7 @@ export default function Signup() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [orgName, setOrgName] = useState("");
+  const [venueName, setVenueName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,7 +88,7 @@ export default function Signup() {
         .from("venues")
         .insert({
           org_id: org.id,
-          name: "Main Venue",
+          name: venueName.trim() || `${orgName || firstName + "'s"} Venue`,
           venue_type: "restaurant",
           created_by: authData.user.id,
         })
@@ -192,6 +193,19 @@ export default function Signup() {
                 required
                 disabled={loading}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="venueName">First Venue Name</Label>
+              <Input
+                id="venueName"
+                type="text"
+                placeholder="e.g. CBD Store, Main Kitchen"
+                value={venueName}
+                onChange={(e) => setVenueName(e.target.value)}
+                disabled={loading}
+              />
+              <p className="text-xs text-muted-foreground">Optional — you can add more venues later</p>
             </div>
 
             <div className="space-y-2">

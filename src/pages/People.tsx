@@ -1,3 +1,4 @@
+import React from 'react'
 import { useAuth } from "@/contexts/AuthContext"
 import { useState, useMemo } from "react"
 import { useDebounce } from '@/lib/hooks/useDebounce'
@@ -31,6 +32,7 @@ import { SecondaryStats } from "@/components/ui/SecondaryStats"
 import { format } from "date-fns"
 import { Users } from "lucide-react"
 import { updateStaffInDB, toggleStaffActiveInDB } from "@/lib/services/labourService"
+import { supabase } from "@/integrations/supabase/client"
 import { toast } from "sonner"
 import { isValidEmail } from "@/lib/utils/validation"
 import { generateSecureToken, generateInviteUrl } from "@/lib/utils/tokenGenerator"
@@ -126,7 +128,37 @@ export default function People() {
 
   const [inviteErrors, setInviteErrors] = useState<Record<string, string>>({})
 
-  const handleSendInvite = () => {
+  // Load invites from Supabase on mount
+  React.useEffect(() => {
+    const loadInvites = async () => {
+      if (!currentOrg?.id) return
+      const { data, error } = await supabase
+        .from('staff_invites')
+        .select('*')
+        .eq('org_id', currentOrg.id)
+        .order('sent_at', { ascending: false })
+      if (error) {
+        console.error('Failed to load invites:', error)
+        return
+      }
+      if (data) {
+        const invites: OnboardingInvite[] = data.map(row => ({
+          id: row.id,
+          staff_id: row.staff_id,
+          token: row.token,
+          sent_to_email: row.sent_to_email,
+          sent_at: new Date(row.sent_at),
+          expires_at: new Date(row.expires_at),
+          accessed_at: row.accessed_at ? new Date(row.accessed_at) : undefined,
+          completed_at: row.completed_at ? new Date(row.completed_at) : undefined,
+        }))
+        setOnboardingInvites(invites)
+      }
+    }
+    loadInvites()
+  }, [currentOrg?.id])
+
+  const handleSendInvite = async () => {
     const errors: Record<string, string> = {}
     if (!inviteForm.first_name.trim()) errors.first_name = 'First name is required'
     if (!inviteForm.email.trim()) {
@@ -191,6 +223,25 @@ export default function People() {
       status: "not_started" as const,
     }))
 
+    // Persist invite to Supabase first, then update Zustand
+    if (currentOrg?.id) {
+      const { error: inviteError } = await supabase
+        .from('staff_invites')
+        .insert({
+          org_id: currentOrg.id,
+          staff_id: staffId,
+          token,
+          sent_to_email: inviteForm.email,
+          sent_at: new Date().toISOString(),
+          expires_at: expiryDate.toISOString(),
+        })
+      if (inviteError) {
+        console.error('Failed to persist invite:', inviteError)
+        toast.error('Failed to save invite: ' + inviteError.message)
+        return
+      }
+    }
+
     setStaffList([...staffList, newStaff])
     addOnboardingInvite(invite)
     setOnboardingSteps([...onboardingSteps, ...stepRecords])
@@ -213,7 +264,7 @@ export default function People() {
     toast.success("Invite link copied to clipboard")
   }
 
-  const handleResendInvite = (staffMember: Staff) => {
+  const handleResendInvite = async (staffMember: Staff) => {
     const token = generateSecureToken()
     const inviteUrl = generateInviteUrl(token)
     const expiryDate = new Date()
@@ -226,6 +277,25 @@ export default function People() {
       sent_to_email: staffMember.email,
       sent_at: new Date(),
       expires_at: expiryDate,
+    }
+
+    // Persist to Supabase first
+    if (currentOrg?.id) {
+      const { error } = await supabase
+        .from('staff_invites')
+        .insert({
+          org_id: currentOrg.id,
+          staff_id: staffMember.id,
+          token,
+          sent_to_email: staffMember.email,
+          sent_at: new Date().toISOString(),
+          expires_at: expiryDate.toISOString(),
+        })
+      if (error) {
+        console.error('Failed to persist invite:', error)
+        toast.error('Failed to save invite')
+        return
+      }
     }
 
     addOnboardingInvite(invite)
