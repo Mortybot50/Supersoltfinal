@@ -333,7 +333,7 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
       const prevEndStr = format(prevEnd, 'yyyy-MM-dd')
 
       // Load current + previous week in parallel
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase join query not captured by auto-gen types
+      /* eslint-disable @typescript-eslint/no-explicit-any -- Supabase join query not captured by auto-gen types */
       const [curData, prevData] = await Promise.all([
         (supabase as any)
           .from('roster_shifts')
@@ -348,6 +348,7 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
           .gte('shift_date', prevStartStr)
           .lte('shift_date', prevEndStr),
       ])
+      /* eslint-enable @typescript-eslint/no-explicit-any */
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase join row shape
       const mapWithName = (row: any): RosterShift => {
