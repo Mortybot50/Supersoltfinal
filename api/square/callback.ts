@@ -22,6 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Debug: verify which key supabaseAdmin is using
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
+  console.log('[square/callback] env check', {
     hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
     hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
     keyPrefix: serviceKey.substring(0, 20),
