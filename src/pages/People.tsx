@@ -16,11 +16,12 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
-import { Search, Plus, MoreVertical, Mail, Phone, FileText, Calendar, Send, Copy, Check, Clock, UserPlus, Users } from "lucide-react"
+import { Search, Plus, MoreVertical, Mail, Phone, FileText, Calendar, Send, Copy, Check, Clock, UserPlus, Users, Upload } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { Staff, OnboardingInvite, OnboardingStep } from "@/types"
 import { formatCurrency } from "@/lib/currency"
 import { StaffDialog } from "@/components/StaffDialog"
+import { BulkStaffImport } from "@/components/BulkStaffImport"
 import { useDataStore } from "@/lib/store/dataStore"
 import { useRosterMetrics } from "@/lib/hooks/useRosterMetrics"
 import {
@@ -47,6 +48,7 @@ export default function People() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingStaff, setEditingStaff] = useState<Staff | undefined>()
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
+  const [bulkImportOpen, setBulkImportOpen] = useState(false)
   const [copiedUrl, setCopiedUrl] = useState("")
   const [inviteForm, setInviteForm] = useState({
     first_name: "",
@@ -431,6 +433,10 @@ export default function People() {
       }
       actions={
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="h-8" onClick={() => setBulkImportOpen(true)}>
+            <Upload className="h-4 w-4 mr-1" />
+            Import CSV
+          </Button>
           <Button variant="outline" size="sm" className="h-8" onClick={() => { setCopiedUrl(""); setInviteDialogOpen(true) }}>
             <UserPlus className="h-4 w-4 mr-1" />
             Invite Staff
@@ -562,6 +568,16 @@ export default function People() {
       </div>
 
       <StaffDialog open={dialogOpen} onOpenChange={setDialogOpen} staff={editingStaff} onSave={handleSaveStaff} />
+
+      {/* Bulk Staff Import */}
+      <BulkStaffImport
+        open={bulkImportOpen}
+        onOpenChange={setBulkImportOpen}
+        onImportComplete={() => {
+          // Reload staff from DB
+          window.location.reload()
+        }}
+      />
 
       {/* Invite Staff Dialog */}
       <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
