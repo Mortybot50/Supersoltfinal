@@ -30,7 +30,7 @@ import { PageShell, PageToolbar, StatusBadge, EmptyState } from "@/components/sh
 import { StatCards } from "@/components/ui/StatCards"
 import { SecondaryStats } from "@/components/ui/SecondaryStats"
 import { format } from "date-fns"
-import { updateStaffInDB, toggleStaffActiveInDB } from "@/lib/services/labourService"
+import { createStaffInDB, updateStaffInDB, toggleStaffActiveInDB } from "@/lib/services/labourService"
 import { supabase } from "@/integrations/supabase/client"
 import { toast } from "sonner"
 import { isValidEmail } from "@/lib/utils/validation"
@@ -98,9 +98,17 @@ export default function People() {
         toast.error('Failed to update staff member')
       }
     } else {
-      // Add new — update store (DB insert requires auth user + org_member flow)
-      setStaffList([...staffList, { ...staff, id: `staff-${Date.now()}`, organization_id: currentOrg?.id || '', venue_id: currentVenue?.id || '' }])
-      toast.success(`${staff.name} added`)
+      // Add new — create full chain in DB via API
+      const newStaff: Staff = {
+        ...staff,
+        organization_id: currentOrg?.id || '',
+        venue_id: currentVenue?.id || '',
+      }
+      const result = await createStaffInDB(newStaff)
+      if (result) {
+        setStaffList([...staffList, { ...newStaff, id: result.staff_id }])
+        toast.success(`${staff.name} added`)
+      }
     }
     setDialogOpen(false)
   }
