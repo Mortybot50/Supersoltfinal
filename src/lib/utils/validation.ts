@@ -39,13 +39,13 @@ export function isValidTFN(tfn: string): boolean {
 
 /** BSB: exactly 6 digits */
 export function isValidBSB(bsb: string): boolean {
-  const cleaned = bsb.replace(/[\s\-]/g, '')
+  const cleaned = bsb.replace(/[\s-]/g, '')
   return /^\d{6}$/.test(cleaned)
 }
 
 /** Bank account number: 6-10 digits */
 export function isValidAccountNumber(acct: string): boolean {
-  const cleaned = acct.replace(/[\s\-]/g, '')
+  const cleaned = acct.replace(/[\s-]/g, '')
   return /^\d{6,10}$/.test(cleaned)
 }
 

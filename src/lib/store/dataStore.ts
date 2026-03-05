@@ -1856,7 +1856,6 @@ export const useDataStore = create<DataState>()(
         
         if (error) {
           console.error('Failed to save ingredients:', dbError(error))
-        } else {
         }
       }
       
@@ -1879,7 +1878,6 @@ export const useDataStore = create<DataState>()(
         
         if (error) {
           console.error('Failed to save suppliers:', dbError(error))
-        } else {
         }
       }
       

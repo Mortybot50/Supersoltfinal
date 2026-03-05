@@ -813,7 +813,7 @@ export function calculateHourlyStaffing(shifts: RosterShift[], date: Date): Hour
       dayShifts.forEach((shift) => {
         const [startH, startM] = shift.start_time.split(':').map(Number)
         const [endH, endM] = shift.end_time.split(':').map(Number)
-        let shiftStart = startH * 60 + startM
+        const shiftStart = startH * 60 + startM
         let shiftEnd = endH * 60 + endM
         if (shiftEnd <= shiftStart) shiftEnd += 24 * 60
 
