@@ -28,7 +28,7 @@ export function RosterMonthView({
     const monthNum = firstDay.getMonth()
 
     // Get the Monday before or on the first of the month
-    let day = getDay(firstDay) // 0=Sun, 1=Mon, ...
+    const day = getDay(firstDay) // 0=Sun, 1=Mon, ...
     const padBefore = day === 0 ? 6 : day - 1 // number of days to pad before
 
     const grid: Array<{ date: Date; inMonth: boolean }[]> = []

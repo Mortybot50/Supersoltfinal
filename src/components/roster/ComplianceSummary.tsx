@@ -8,6 +8,7 @@ import { useRosterStore } from '@/stores/useRosterStore'
 import {
   getAllRosterWarnings,
 } from '@/lib/utils/rosterCalculations'
+import { RosterWarning } from '@/types'
 import { cn } from '@/lib/utils'
 import { AlertTriangle, AlertCircle, CheckCircle, X, ChevronRight } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -96,7 +97,7 @@ export function ComplianceSummary({ onClose }: ComplianceSummaryProps) {
   )
 }
 
-function WarningRow({ warning }: { warning: any }) {
+function WarningRow({ warning }: { warning: RosterWarning }) {
   const isError = warning.severity === 'error'
   const typeLabel = TYPE_LABELS[warning.type] || warning.type
 

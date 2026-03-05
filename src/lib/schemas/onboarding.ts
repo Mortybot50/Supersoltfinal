@@ -37,10 +37,10 @@ export type TFNDeclarationFormData = z.infer<typeof tfnDeclarationSchema>
 export const bankDetailsSchema = z.object({
   bank_name: z.string().min(1, 'Bank name is required'),
   bsb: z.string()
-    .transform(v => v.replace(/[\s\-]/g, ''))
+    .transform(v => v.replace(/[\s-]/g, ''))
     .refine(v => isValidBSB(v), 'BSB must be exactly 6 digits'),
   account_number: z.string()
-    .transform(v => v.replace(/[\s\-]/g, ''))
+    .transform(v => v.replace(/[\s-]/g, ''))
     .refine(v => isValidAccountNumber(v), 'Account number must be 6-10 digits'),
   account_name: z.string().min(1, 'Account name is required'),
 })

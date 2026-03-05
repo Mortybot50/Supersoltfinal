@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Card } from '@/components/ui/card'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Check, ChevronsUpDown, Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,7 +10,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { toast } from 'sonner'
 import { AUSTRALIAN_SUPER_FUNDS } from '@/lib/data/superFunds'
-import { Check, ChevronsUpDown, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface SuperChoiceData {

@@ -16,7 +16,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
-import { Search, Plus, MoreVertical, Mail, Phone, FileText, Calendar, Send, Copy, Check, Clock, UserPlus } from "lucide-react"
+import { Search, Plus, MoreVertical, Mail, Phone, FileText, Calendar, Send, Copy, Check, Clock, UserPlus, Users } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { Staff, OnboardingInvite, OnboardingStep } from "@/types"
 import { formatCurrency } from "@/lib/currency"
@@ -30,7 +30,6 @@ import { PageShell, PageToolbar, StatusBadge, EmptyState } from "@/components/sh
 import { StatCards } from "@/components/ui/StatCards"
 import { SecondaryStats } from "@/components/ui/SecondaryStats"
 import { format } from "date-fns"
-import { Users } from "lucide-react"
 import { updateStaffInDB, toggleStaffActiveInDB } from "@/lib/services/labourService"
 import { supabase } from "@/integrations/supabase/client"
 import { toast } from "sonner"

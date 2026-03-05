@@ -52,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // near-real-time updates when needed.
 
     return res.status(200).json({ received: true })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[square/webhook] Error:', err)
     // Still return 200 to prevent Square from retrying
     return res.status(200).json({ received: true, error: 'Processing failed' })

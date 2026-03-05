@@ -181,8 +181,8 @@ export default function Integrations() {
       } else {
         toast.error(data.error ?? 'Sync failed')
       }
-    } catch (err: any) {
-      toast.error(err.message ?? 'Sync request failed')
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Sync request failed')
     } finally {
       setSyncing(false)
     }
@@ -210,8 +210,8 @@ export default function Integrations() {
       } else {
         toast.error(data.error ?? 'Disconnect failed')
       }
-    } catch (err: any) {
-      toast.error(err.message ?? 'Disconnect request failed')
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Disconnect request failed')
     } finally {
       setDisconnecting(false)
       setConfirmDisconnect(false)
