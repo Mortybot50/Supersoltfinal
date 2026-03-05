@@ -33,9 +33,26 @@ _Created: 2026-03-05 | Target: PPB Hawthorn + PPB South Yarra_
 - **No food cost tracking today** — SuperSolt will be their first system for this. Massive opportunity but also means we need to make data entry painless.
 - **Pain point is ordering/inventory** — this should be the hero flow at launch, not just dashboard/roster
 
-### Remaining Questions
-1. **Trading hours and daypart structure per venue?** (AM/lunch/PM/close — needed for roster and sales forecasting)
-2. **Accounting software?** (Xero? MYOB? — not needed for MVP but good to know for v1.1)
+### Trading Hours (Both Venues)
+
+| Day | Open | Close |
+|-----|------|-------|
+| Monday | 8:00 AM | 3:00 PM |
+| Tuesday | 8:00 AM | 3:00 PM |
+| Wednesday | 8:00 AM | 3:00 PM |
+| Thursday | 8:00 AM | 3:00 PM |
+| Friday | 8:00 AM | 3:00 PM |
+| Saturday | 9:00 AM | 2:00 PM |
+| Sunday | 9:00 AM | 2:00 PM |
+
+**Key insight:** These are breakfast/brunch/lunch venues — no dinner service. All trade is compressed into 5-7 hours. This means:
+- Roster complexity is lower (one daypart, no split shifts)
+- Peak labour is concentrated (setup → service → close)
+- No evening penalty rates to worry about (all shifts end by 3pm)
+- Forecasting granularity can be daily, not hourly
+
+### Accounting
+- **Xero** — both venues. Xero integration is planned for v2.0 (~$30-50K specialist work). Not MVP but good to know the target.
 
 ---
 
