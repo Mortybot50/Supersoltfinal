@@ -51,8 +51,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ].join('')
 
     return res.redirect(authorizeUrl)
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[square/auth] Error:', err)
-    return res.status(500).json({ error: err.message ?? 'Internal server error' })
+    return res.status(500).json({ error: err instanceof Error ? err.message : 'Internal server error' })
   }
 }

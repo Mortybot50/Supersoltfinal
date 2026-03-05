@@ -172,12 +172,12 @@ function Sparkline({ data, color = BRAND_TEAL }: { data: number[]; color?: strin
 // ============================================
 // CUSTOM TOOLTIP
 // ============================================
-function DollarTooltip({ active, payload, label }: any) {
+function DollarTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ color: string; name: string; value: number }>; label?: string }) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-white dark:bg-gray-800 border rounded-lg shadow-lg px-3 py-2 text-sm">
       <div className="font-medium text-muted-foreground mb-1">{label}</div>
-      {payload.map((p: any, i: number) => (
+      {payload.map((p, i: number) => (
         <div key={i} className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
           <span className="text-muted-foreground">{p.name}:</span>

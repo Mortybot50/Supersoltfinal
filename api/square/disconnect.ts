@@ -77,8 +77,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const text = await revokeRes.text()
           console.error('[square/disconnect] Revoke API error:', text)
         }
-      } catch (revokeErr: any) {
-        console.error('[square/disconnect] Token revoke failed (continuing):', revokeErr.message)
+      } catch (revokeErr: unknown) {
+        console.error('[square/disconnect] Token revoke failed (continuing):', revokeErr instanceof Error ? revokeErr.message : revokeErr)
       }
     }
 
@@ -105,8 +105,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .eq('pos_connection_id', conn.id)
 
     return res.status(200).json({ success: true, disconnected: true })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[square/disconnect] Error:', err)
-    return res.status(500).json({ error: err.message ?? 'Disconnect failed' })
+    return res.status(500).json({ error: err instanceof Error ? err.message : 'Disconnect failed' })
   }
 }

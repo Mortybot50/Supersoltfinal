@@ -169,12 +169,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (mapError) {
         console.error('[square/callback] Location mapping error:', JSON.stringify(mapError))
         // Non-fatal — continue to redirect
-      } else {
       }
     }
 
     return res.redirect(`${env('APP_URL')}${INTEGRATIONS_PATH}?connected=square`)
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[square/callback] Unhandled error:', err)
     return res.redirect(`${env('APP_URL')}${INTEGRATIONS_PATH}?error=unknown`)
   }

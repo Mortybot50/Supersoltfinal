@@ -120,6 +120,7 @@ interface RosterStore {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase row shape varies by query
 function mapShiftRow(row: any): RosterShift {
   return {
     id: row.id,
@@ -332,6 +333,7 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
       const prevEndStr = format(prevEnd, 'yyyy-MM-dd')
 
       // Load current + previous week in parallel
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase join query not captured by auto-gen types
       const [curData, prevData] = await Promise.all([
         (supabase as any)
           .from('roster_shifts')
@@ -347,6 +349,7 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
           .lte('shift_date', prevEndStr),
       ])
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase join row shape
       const mapWithName = (row: any): RosterShift => {
         const firstName = row.staff?.org_members?.profiles?.first_name || ''
         const lastName = row.staff?.org_members?.profiles?.last_name || ''
@@ -354,6 +357,7 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
       }
 
       const shifts = (curData.data || []).map(mapWithName)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase row
       const ghostShifts = (prevData.data || []).map((r: any) => mapShiftRow(r))
       const openShifts = shifts.filter((s: RosterShift) => s.is_open_shift)
 
@@ -411,6 +415,7 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
     const { venueId } = get()
     if (!venueId) return () => {}
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase realtime channel API
     const channel = (supabase as any)
       .channel(`roster_${venueId}`)
       .on('postgres_changes', {
@@ -424,6 +429,7 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
       .subscribe()
 
     return () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase realtime cleanup
       ;(supabase as any).removeChannel(channel)
     }
   },

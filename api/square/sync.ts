@@ -125,7 +125,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let retried = false
 
     const fetchPage = async (): Promise<{ orders: SquareOrder[]; cursor?: string }> => {
-      const body: Record<string, any> = {
+      const body: Record<string, unknown> = {
         location_ids: locationIds,
         query: {
           filter: {
@@ -302,12 +302,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       skipped,
       sync_from: syncFrom,
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[square/sync] Error:', err)
 
     // Try to record the failure
     try {
-      const { org_id } = req.body ?? {}
+      const { org_id } = (req.body as Record<string, string>) ?? {}
       if (org_id) {
         await db
           .from('pos_connections')
