@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useDataStore } from '@/lib/store/dataStore'
+import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
 import { PageShell, PageToolbar } from '@/components/shared'
 import { StatCards } from '@/components/ui/StatCards'
@@ -55,6 +56,7 @@ interface DaybookEntry {
 
 export default function Daybook() {
   const { staff } = useDataStore()
+  const { currentOrg, currentVenue, user } = useAuth()
   const [selectedDate, setSelectedDate] = useState(startOfDay(new Date()))
   const [entries, setEntries] = useState<DaybookEntry[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -82,8 +84,33 @@ export default function Daybook() {
         if (error) throw error
         if (data) {
           const mapped: DaybookEntry[] = data.map(row => {
-            const totalAmount = (row.pos_sales ?? 0) + (row.cash_counted ?? 0) + (row.card_total ?? 0)
             const createdAt = new Date(row.created_at)
+
+            // Try to parse structured notes (new format)
+            let parsed: { category?: string; title?: string; notes?: string; time?: string } | null = null
+            try {
+              if (row.notes?.startsWith('{')) {
+                parsed = JSON.parse(row.notes)
+              }
+            } catch { /* not JSON, treat as plain text */ }
+
+            if (parsed) {
+              // New structured entry
+              return {
+                id: row.id,
+                date: row.entry_date,
+                time: parsed.time || format(createdAt, 'HH:mm'),
+                category: (parsed.category || row.status || 'operations') as EntryCategory,
+                title: parsed.title || 'Entry',
+                notes: parsed.notes || '',
+                amount: row.pos_sales ? row.pos_sales : undefined,
+                created_at: createdAt,
+                created_by: row.created_by || 'system',
+              }
+            }
+
+            // Legacy format (financial reconciliation entries)
+            const totalAmount = (row.pos_sales ?? 0) + (row.cash_counted ?? 0) + (row.card_total ?? 0)
             const notesParts = [row.notes, row.issues].filter(Boolean).join(' | ')
             return {
               id: row.id,
@@ -138,14 +165,16 @@ export default function Daybook() {
     return { total: dayEntries.length, totalAmount, byCat }
   }, [entries, dateKey])
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.title.trim()) {
       toast.error('Title is required')
       return
     }
 
+    const entryId = editingEntry?.id || crypto.randomUUID()
+
     const entry: DaybookEntry = {
-      id: editingEntry?.id || crypto.randomUUID(),
+      id: entryId,
       date: dateKey,
       time: form.time,
       category: form.category,
@@ -153,20 +182,64 @@ export default function Daybook() {
       notes: form.notes.trim(),
       amount: form.amount ? Math.round(parseFloat(form.amount) * 100) : undefined,
       created_at: editingEntry?.created_at || new Date(),
-      created_by: 'current-user',
+      created_by: user?.id || 'current-user',
     }
 
+    // Optimistic update
     if (editingEntry) {
       setEntries((prev) => prev.map((e) => (e.id === entry.id ? entry : e)))
-      toast.success('Entry updated')
     } else {
       setEntries((prev) => [...prev, entry])
-      toast.success('Entry added')
     }
 
     setDialogOpen(false)
     setEditingEntry(null)
     setForm({ category: 'operations', title: '', notes: '', amount: '', time: format(new Date(), 'HH:mm') })
+
+    // Persist to Supabase
+    try {
+      const { supabase } = await import('@/integrations/supabase/client')
+
+      if (!currentOrg?.id || !currentVenue?.id) {
+        toast.error('No venue selected')
+        return
+      }
+
+      // Store structured entry data in notes as JSON
+      const structuredNotes = JSON.stringify({
+        category: form.category,
+        title: form.title.trim(),
+        notes: form.notes.trim(),
+        time: form.time,
+      })
+
+      const dbPayload = {
+        id: entryId,
+        entry_date: dateKey,
+        org_id: currentOrg.id,
+        venue_id: currentVenue.id,
+        notes: structuredNotes,
+        status: form.category, // Use status field for category
+        created_by: user?.id || null,
+        pos_sales: form.amount && form.category === 'financial'
+          ? Math.round(parseFloat(form.amount) * 100)
+          : null,
+      }
+
+      const { error } = editingEntry
+        ? await supabase.from('daybook_entries').update(dbPayload).eq('id', entryId)
+        : await supabase.from('daybook_entries').insert(dbPayload)
+
+      if (error) {
+        console.error('[Daybook] Failed to save entry:', error)
+        toast.error('Failed to save entry to database')
+      } else {
+        toast.success(editingEntry ? 'Entry updated' : 'Entry added')
+      }
+    } catch (err) {
+      console.error('[Daybook] Error saving entry:', err)
+      toast.error('Failed to save entry')
+    }
   }
 
   const handleEdit = (entry: DaybookEntry) => {
