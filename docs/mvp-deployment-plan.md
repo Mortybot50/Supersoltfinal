@@ -6,33 +6,36 @@ _Created: 2026-03-05 | Target: PPB Hawthorn + PPB South Yarra_
 ## Venue Profile
 
 ### PPB Hawthorn
-| Item | Status |
+| Item | Detail |
 |------|--------|
-| POS system | ❓ **Need to confirm** — Square? Lightspeed? Other? |
-| Approximate staff count | ❓ **Need to confirm** |
-| Current rostering tool | ❓ **Need to confirm** (Deputy? Spreadsheet? Paper?) |
-| Current inventory method | ❓ **Need to confirm** |
-| Current accounting | ❓ **Need to confirm** (Xero? MYOB?) |
+| POS system | ✅ Square |
+| Approximate staff count | ~20 |
+| Current rostering tool | Deputy |
+| Current inventory method | ❌ None — no food cost tracking |
+| Current accounting | ❓ TBC |
+| Day-to-day manager | **Damien** |
+| Biggest pain point | **Ordering & inventory management** |
 
 ### PPB South Yarra
-| Item | Status |
+| Item | Detail |
 |------|--------|
-| POS system | ❓ **Need to confirm** |
-| Approximate staff count | ❓ **Need to confirm** |
-| Current rostering tool | ❓ **Need to confirm** |
-| Current inventory method | ❓ **Need to confirm** |
-| Current accounting | ❓ **Need to confirm** |
+| POS system | ✅ Square |
+| Approximate staff count | ~20 |
+| Current rostering tool | Deputy |
+| Current inventory method | ❌ None — no food cost tracking |
+| Current accounting | ❓ TBC |
+| Day-to-day manager | **Stephen** |
+| Biggest pain point | **Ordering & inventory management** |
 
-### 🚨 Questions for Morty Before We Proceed
+### Key Context
+- **Separate ABNs** — two distinct organisations in SuperSolt (not one org with two venues)
+- **Award:** Restaurant Industry Award — mostly Level 1 and Level 2, plus a few salaried staff
+- **No food cost tracking today** — SuperSolt will be their first system for this. Massive opportunity but also means we need to make data entry painless.
+- **Pain point is ordering/inventory** — this should be the hero flow at launch, not just dashboard/roster
 
-1. **What POS does each venue use?** (Square is the only integration we have. If they use something else, that changes scope significantly.)
-2. **Approximate staff count per venue?** (Affects roster complexity, onboarding volume)
-3. **What tools do they currently use for rostering?** (Need to understand what we're replacing)
-4. **Do they track food costs today?** (Even spreadsheets count — we need to know the baseline)
-5. **Who are the day-to-day managers at each venue?** (They'll be our primary users, not Morty)
-6. **What's the biggest daily pain point at each venue right now?** (This shapes what we show them first)
-7. **Are both venues under the same org/ABN or separate?** (Affects multi-tenancy setup)
-8. **Trading hours and daypart structure?** (AM/lunch/PM/close — needed for roster and sales analysis)
+### Remaining Questions
+1. **Trading hours and daypart structure per venue?** (AM/lunch/PM/close — needed for roster and sales forecasting)
+2. **Accounting software?** (Xero? MYOB? — not needed for MVP but good to know for v1.1)
 
 ---
 
@@ -115,6 +118,27 @@ After these fixes, a venue manager can:
 5. Track **inventory** (ingredients, stock counts, waste, POs)
 6. Manage **staff** (add, invite to onboarding, assign roles)
 7. Log **daily operations** in the daybook
+
+---
+
+### Forecasting Module (Added Per Morty's Requirement)
+
+Forecasting is critical for accurate ordering, labour budgeting, and food cost control. Without it, managers are guessing.
+
+| Feature | What It Does | Data Source | Effort | Sprint |
+|---------|-------------|-------------|--------|--------|
+| **Sales forecast (weekly)** | Predict next week's revenue by day using same-period-last-year + recent trend | Square order history (needs 4+ weeks of data) | 2 days | Sprint 2 |
+| **Labour budget from forecast** | Auto-calculate target labour $ per day: forecast revenue × target labour % | Sales forecast + venue settings | 0.5 days | Sprint 2 |
+| **Order quantity forecast** | Suggest order quantities per ingredient based on: forecast revenue × sales mix × recipe usage | Sales forecast + recipe-to-POS mapping + recipe ingredients | 2 days | Sprint 3 |
+| **Forecast vs actual tracking** | Show how accurate the forecast was after the week ends. Builds trust + improves model over time. | Forecast saved vs actual POS data | 1 day | Sprint 4 |
+
+**Forecasting approach (MVP):**
+- **Week 1-4 of data:** Use simple averages (last 4 weeks same-day average)
+- **Week 5+:** Weighted moving average (recent weeks weighted higher) + day-of-week seasonality
+- **NOT building:** ML models, weather correlation, event-based adjustments — those are v2.0
+- **Key insight:** Even a simple "last 4 Tuesdays averaged $X" is better than guessing, and it gets more accurate every week
+
+**Critical dependency:** Venues need to connect Square ASAP — every day of POS data we capture improves forecast accuracy. Backfill last 90 days on connect.
 
 ---
 
@@ -258,74 +282,92 @@ For **each** venue (Hawthorn + South Yarra):
 
 ## Sprint Plan (4 Weeks)
 
-### Sprint 1 (Week 1): Fix the Foundation
-**Goal:** Every module that's supposed to write to DB actually writes to DB. Zero stubs in core flows.
+### Sprint 1 (Week 1): Fix Foundation + Connect POS
+**Goal:** Both orgs created, Square connected, historical data flowing. Fix all DB persistence gaps.
 
 | Task | Effort | Details |
 |------|--------|---------|
+| Create two orgs in SuperSolt | 0.5 days | PPB Hawthorn (org 1) + PPB South Yarra (org 2). Separate ABNs = separate orgs. User accounts for Damien + Stephen. |
+| Connect Square POS (both venues) | 0.5 days | OAuth flow with Morty present. Backfill last 90 days of orders per venue. |
 | Fix `addStaff` to write to Supabase | 1 day | Replace Zustand-only with DB-first. Fix fake ID generation. Load staff from `staff` table. |
-| Fix Daybook `handleSubmit` to write to DB | 0.5 days | Currently writes to local state. Wire to Supabase `daybook_entries` table (create if needed). |
-| Add Sentry error tracking | 0.5 days | Free tier. Wire to existing ErrorBoundary. Capture unhandled errors + API failures. |
-| Bulk data import: staff CSV | 1 day | Manager uploads a CSV with name, role, pay rate → creates staff records in DB. |
-| Bulk data import: ingredients CSV | 0.5 days | Import wizard already partially exists. Complete for ingredients. |
-| Test POS sync end-to-end | 0.5 days | Connect a test Square account. Verify orders flow. Test webhook for real-time sync. |
+| Fix Daybook `handleSubmit` to write to DB | 0.5 days | Currently writes to local state. Wire to Supabase. |
+| Add Sentry error tracking | 0.5 days | Free tier. Wire to existing ErrorBoundary. |
+| Bulk data import: ingredients CSV | 0.5 days | Template: Ingredient, Category, Unit, Pack Size, Pack Cost, Supplier. Manager fills in, we import. |
+| Bulk data import: staff CSV | 0.5 days | Template: Name, Role, Employment Type, Hourly Rate, Award Level. |
+| POS auto-sync via webhook | 0.5 days | Square webhook triggers sync on new orders. No manual sync needed. |
 
-**Definition of Done:** Staff, daybook, and all inventory writes persist to DB. Sentry catches errors. POS sync confirmed working.
+**Definition of Done:** Both venues connected to Square with 90 days of sales data. Staff and daybook write to DB. Sentry live. Damien and Stephen can log in and see their sales dashboard.
 
-**What Morty needs to provide:** Staff lists for both venues (name, role, employment type, hourly rate). Confirm Square POS at both venues.
-
----
-
-### Sprint 2 (Week 2): Labour Cost Engine + Roster
-**Goal:** Roster shows real labour costs. Manager can see budget impact before publishing.
-
-| Task | Effort | Details |
-|------|--------|---------|
-| Staff pay rates in DB | 0.5 days | Add `base_hourly_rate`, `employment_type`, `award_level` fields to staff table (or use existing columns). |
-| Basic award rate calculator | 2 days | Simplified: base rate × day multiplier (weekday=1.0, Sat=1.25, Sun=1.5, PH=2.5) × time multiplier (before 7am/after 9pm = 1.15). Casual loading (+25%). **NOT full Fair Work engine** — that's specialist work. |
-| Wire CostBar to real calculations | 1 day | CostBar component exists. Replace estimate with: sum(shift_hours × calculated_rate) for each day/week. |
-| Labour % on Dashboard | 0.5 days | Dashboard reads roster cost for current week ÷ POS revenue for current week = labour %. |
-| Venue KPI targets from settings | 0.5 days | Pull target_labour_pct, target_food_cost_pct, target_revenue from venue_settings. Replace hardcoded values. |
-
-**Definition of Done:** Roster shows dollar cost per shift based on staff pay rates. CostBar shows total weekly labour cost and % of revenue. Dashboard shows real labour %. Venue targets are configurable.
-
-**What Morty needs to provide:** Pay rates for all staff at both venues. Award classifications (e.g., Restaurant Industry Award Level 2).
+**What Morty needs to provide:**
+- Square login credentials (to authorise OAuth) for both venues
+- Staff lists: name, role, casual/PT/FT, hourly rate, award level (L1/L2/salaried)
+- 30 mins with Morty to do the Square connection together
 
 ---
 
-### Sprint 3 (Week 3): Recipe-to-Margin + Data Loading
-**Goal:** Food cost % is real. Top 20 recipes entered. Dashboard shows true P&L.
+### Sprint 2 (Week 2): Inventory & Ordering (Pain Point)
+**Goal:** Damien and Stephen can manage ingredients, suppliers, and place purchase orders. This is their #1 pain point — nail it.
 
 | Task | Effort | Details |
 |------|--------|---------|
-| Recipe bulk import | 1 day | Template spreadsheet: Recipe Name, Ingredient, Qty, Unit. Parse and create recipes + recipe_ingredients in DB. |
+| Supplier data entry (both venues) | 0.5 days | Morty provides supplier list → we import. Or managers enter via UI. |
+| Ingredient data entry (top 50 per venue) | 1 day | Use bulk import template. Include: pack size, pack cost, supplier, reorder point, par level. |
+| Order Guide: auto-suggest quantities | 1.5 days | Current Order Guide is read-only. Add: current stock (from last count) − par level = suggested order qty. One-click "Create PO from suggestions." |
+| PO → Supplier email | 1 day | Generate PO as PDF. One-click email to supplier (mailto: link with attachment, or basic email via Supabase Edge Function). |
+| Sales forecast (weekly) | 2 days | Predict next week's revenue by day from Square history (4-week weighted average). Display on Dashboard + Roster. |
+
+**Definition of Done:** Managers can do a stock count → see what to order → create a PO → send it to their supplier. All in SuperSolt. Sales forecast shows predicted revenue by day.
+
+**What Morty needs to provide:**
+- Supplier list per venue (name, email, what they supply)
+- Top 50 ingredients per venue with current costs (can delegate to Damien/Stephen)
+- Current par levels / reorder points (even rough: "we usually order 10kg chicken per week")
+
+---
+
+### Sprint 3 (Week 3): Recipes + Labour Costing + Forecasting
+**Goal:** Food cost % is real. Roster shows actual labour costs. Forecast drives ordering suggestions.
+
+| Task | Effort | Details |
+|------|--------|---------|
+| Recipe bulk import | 1 day | Template: Recipe Name, Ingredient, Qty, Unit. Top 20 menu items per venue. |
 | POS item → Recipe mapping | 1 day | UI to link Square catalog items to SuperSolt recipes. Enables food cost per sale. |
-| Theoretical food cost on Dashboard | 1 day | (recipe cost × items sold) ÷ revenue = food cost %. Display on Dashboard KPI card. |
-| Menu item profitability view | 1 day | New view: items ranked by GP%, contribution margin. Highlight under-performers. |
-| Multi-venue comparison view | 1 day | Side-by-side: Hawthorn vs South Yarra on revenue, labour %, food cost %. |
+| Theoretical food cost on Dashboard | 1 day | (recipe cost × items sold) ÷ revenue = food cost %. Live KPI card. |
+| Basic award rate calculator | 2 days | Base rate × day multiplier (weekday 1.0, Sat 1.25, Sun 1.5, PH 2.5) × casual loading (+25%). Label as "estimated". |
+| Wire CostBar to real rates | 0.5 days | CostBar exists → replace estimates with: shift hours × calculated rate. |
+| Labour budget from forecast | 0.5 days | Forecast revenue × target labour % = daily labour budget on roster. |
+| Order quantity forecast | 1 day | Forecast revenue × sales mix × recipe usage = suggested ingredient order quantities. |
+| Venue KPI targets from settings | 0.5 days | Pull targets from venue_settings. Replace hardcoded values. |
 
-**Definition of Done:** Dashboard shows real food cost %. Menu profitability ranking works. Both venues visible in comparison view. All top 20 recipes entered and costed.
+**Definition of Done:** Dashboard shows real food cost % and real labour %. Roster shows dollar cost per shift. Order Guide suggests quantities based on forecast. Menu profitability visible.
 
-**What Morty needs to provide:** Top 20 recipes per venue with ingredient quantities. Map Square menu items to recipes (we provide the UI).
+**What Morty needs to provide:**
+- Top 20 recipes per venue with ingredient quantities (even rough — "200g chicken, 50g sauce")
+- Pay rates confirmed for all staff
+- Target KPIs per venue (labour %, food cost %, weekly revenue target)
 
 ---
 
 ### Sprint 4 (Week 4): Polish + Go-Live
-**Goal:** Production-ready. Both venues onboarded. Managers trained.
+**Goal:** Production-ready. Both venues live. Managers using it daily.
 
 | Task | Effort | Details |
 |------|--------|---------|
-| Morning briefing dashboard polish | 1 day | Clean layout for the "open at 7am" view. Yesterday's P&L, today's roster, alerts. |
-| Mobile responsiveness pass | 1 day | Test all core flows on iPhone. Fix any broken layouts. Priority: Dashboard, Roster, Daybook. |
-| Onboarding portal mobile polish | 0.5 days | Staff complete onboarding on their phones. Ensure forms work on mobile. |
-| Custom domain + SSL | 0.5 days | Set up `app.supersolt.com.au` on Vercel. |
-| Venue 1 go-live (Hawthorn) | 0.5 days | Final data check. Manager training (30 min walkthrough). Go live. |
-| Venue 2 go-live (South Yarra) | 0.5 days | Same as above. |
-| Bug buffer | 1 day | Reserved for issues found during go-live week. |
+| Morning briefing dashboard | 1 day | The "open at 7am" view: yesterday's P&L, today's roster + labour budget, this week's forecast vs actual, inventory alerts. |
+| Menu item profitability ranking | 1 day | Items ranked by GP%, contribution margin. "Your best seller is your worst margin item." |
+| Forecast vs actual tracking | 1 day | After each week: show how accurate the forecast was. Builds trust. |
+| Mobile responsiveness pass | 1 day | Test: Dashboard, Order Guide, Stock Count, Daybook on iPhone. Fix broken layouts. |
+| Custom domain + SSL | 0.5 days | `app.supersolt.com.au` on Vercel. |
+| Venue 1 go-live (Hawthorn — Damien) | 0.5 days | Data check. 30 min walkthrough. Go live. |
+| Venue 2 go-live (South Yarra — Stephen) | 0.5 days | Same as above. |
+| Bug buffer | 1.5 days | Reserved for go-live issues. |
 
-**Definition of Done:** Both venues live. Managers can log in, see dashboard, manage roster, track inventory. Sentry monitoring active. No critical bugs.
+**Definition of Done:** Both venues live. Damien and Stephen log in daily. Dashboard shows real P&L. Order Guide drives purchasing. Sentry monitoring active. Zero critical bugs for 7 days.
 
-**What Morty needs to provide:** 30 minutes per venue for manager walkthrough. Feedback on mobile experience.
+**What Morty needs to provide:**
+- 30 mins per venue for manager walkthrough
+- Mobile testing feedback
+- Map Square menu items → recipes (we provide the UI, manager confirms the links)
 
 ---
 
@@ -333,13 +375,16 @@ For **each** venue (Hawthorn + South Yarra):
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| **Venues don't use Square POS** | Medium | 🔴 Critical — no sales data, no dashboard, no food cost mapping | Confirm POS before Sprint 1 starts. If not Square, scope a basic CSV import for sales data as fallback. |
+| **~~Venues don't use Square POS~~** | ~~Medium~~ | ~~Critical~~ | ✅ **RESOLVED** — both venues confirmed Square. |
 | **Staff pay rate data not available** | Medium | 🟡 High — labour cost engine is meaningless without rates | Provide a template spreadsheet. Even approximate rates (e.g., "casuals are $28/hr") work for MVP. |
 | **Recipe data too rough** | Medium | 🟡 High — food cost % will be inaccurate | Start with top 10 items, not 20. Even rough specs (200g chicken, 50g sauce) give directional accuracy. |
 | **Award rate simplification causes distrust** | Medium | 🟡 Medium — if labour cost is visibly wrong, managers won't trust the tool | Label it clearly: "Estimated labour cost — based on simplified rates". Add a disclaimer. Plan specialist dev for v1.2. |
 | **Supabase DNS issues recur** | Low | 🔴 Critical — app completely unusable | Monitor status.supabase.com. Have DNS fallback instructions ready. Consider CDN/edge caching for static assets. |
 | **Morty's time becomes bottleneck** | High | 🟡 High — data entry and venue coordination depend on Morty | Front-load data collection in Week 1. Provide templates. Delegate data entry to venue managers where possible. |
-| **Venue managers resist adoption** | Medium | 🟡 High — tool is useless if no one opens it | Focus on the "morning briefing" as the hook. Make it the first thing they see. If the dashboard delivers value in 30 seconds, they'll come back. |
+| **Venue managers resist adoption** | Medium | 🟡 High — tool is useless if no one opens it | Lead with ordering/inventory — their stated pain point. If the Order Guide saves them time on their first order, they'll come back. Dashboard is the second hook. |
+| **Ingredient/recipe data entry burden** | High | 🟡 High — food cost % is meaningless without accurate recipe data | Provide CSV templates. Start with top 20 items, not everything. Even rough quantities give directional accuracy. Delegate to Damien/Stephen. |
+| **Forecast accuracy in first month** | High | 🟡 Medium — simple averages may look wrong on unusual weeks | Label clearly: "Based on last 4 weeks." Show confidence level. Accuracy improves every week — track and display it. |
+| **Separate orgs = double the setup work** | Low | 🟡 Medium — two orgs means two Square connections, two data loads | Front-load in Sprint 1. Template everything so Venue 2 setup is copy-paste from Venue 1. |
 | **Security audit needed before handling real TFN/bank data** | Low | 🔴 Critical — compliance risk | Onboarding module exists but defer collecting sensitive PII until security review. Use it for non-sensitive steps only (contact, emergency contact). |
 
 ---
