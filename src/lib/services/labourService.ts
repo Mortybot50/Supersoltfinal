@@ -99,6 +99,62 @@ export async function loadStaffFromDB(): Promise<Staff[]> {
   }
 }
 
+/**
+ * Create a new staff member via the serverless API.
+ * This creates the full chain: auth user → profile → org_member → staff → venue_access
+ */
+export async function createStaffInDB(staff: Staff): Promise<{ staff_id: string; org_member_id: string } | null> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) {
+      toast.error('Not authenticated')
+      return null
+    }
+
+    const nameParts = staff.name.trim().split(/\s+/)
+    const firstName = nameParts[0] || ''
+    const lastName = nameParts.slice(1).join(' ') || ''
+
+    const res = await fetch('/api/staff/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        org_id: staff.organization_id,
+        venue_id: staff.venue_id,
+        first_name: firstName,
+        last_name: lastName,
+        email: staff.email || undefined,
+        phone: staff.phone || undefined,
+        role: staff.role || 'crew',
+        employment_type: (staff.employment_type || 'casual').replace('-', '_'),
+        base_hourly_rate: staff.hourly_rate ? staff.hourly_rate / 100 : undefined, // cents to dollars
+        award_classification: staff.award_classification || undefined,
+        position: staff.role || 'crew',
+        start_date: staff.start_date instanceof Date
+          ? staff.start_date.toISOString().split('T')[0]
+          : undefined,
+      }),
+    })
+
+    const data = await res.json()
+
+    if (!res.ok || !data.success) {
+      console.error('[createStaffInDB] API error:', data.error)
+      toast.error(data.error || 'Failed to create staff member')
+      return null
+    }
+
+    return { staff_id: data.staff_id, org_member_id: data.org_member_id }
+  } catch (error) {
+    console.error('[createStaffInDB] Error:', error)
+    toast.error('Failed to create staff member')
+    return null
+  }
+}
+
 export async function updateStaffInDB(staffId: string, updates: Partial<Staff>): Promise<boolean> {
   try {
     const staffUpdates: Record<string, unknown> = {}
