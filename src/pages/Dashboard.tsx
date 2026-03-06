@@ -1,3 +1,4 @@
+import { WeeklyForecastCard } from "@/components/forecast/WeeklyForecastCard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -581,6 +582,9 @@ export default function Dashboard() {
         </div>
 
         )}
+        {/* ====== SALES FORECAST ====== */}
+        <WeeklyForecastCard venueId={venueId} />
+
         {/* ====== ROW 2: CHARTS ====== */}
         <div className="grid gap-4 lg:grid-cols-3">
           {/* Revenue Trend */}
