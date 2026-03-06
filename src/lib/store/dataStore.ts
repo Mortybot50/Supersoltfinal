@@ -229,9 +229,9 @@ interface DataState {
   updateMenuItem: (id: string, updates: Partial<Types.MenuItem>) => Promise<void>
   deleteMenuItem: (id: string) => Promise<void>
   loadMenuSectionsFromDB: () => Promise<void>
-  addMenuSection: (section: Types.MenuSection) => void
-  updateMenuSection: (id: string, updates: Partial<Types.MenuSection>) => void
-  deleteMenuSection: (id: string) => void
+  addMenuSection: (section: Types.MenuSection) => Promise<void>
+  updateMenuSection: (id: string, updates: Partial<Types.MenuSection>) => Promise<void>
+  deleteMenuSection: (id: string) => Promise<void>
   reorderSections: (sections: Types.MenuSection[]) => void
   getSectionItems: (sectionId: string) => Types.MenuItem[]
   calculateMenuItemFields: (item: Types.MenuItem) => Types.MenuItem
@@ -241,15 +241,15 @@ interface DataState {
   saveRecipeToDB: (recipe: Types.Recipe, ingredients: Types.RecipeIngredient[], isNew: boolean) => Promise<void>
   deleteRecipeFromDB: (id: string) => Promise<void>
   setRecipes: (recipes: Types.Recipe[]) => void
-  addRecipe: (recipe: Types.Recipe) => void
-  updateRecipe: (id: string, updates: Partial<Types.Recipe>) => void
-  deleteRecipe: (id: string) => void
-  publishRecipe: (id: string) => void
-  archiveRecipe: (id: string) => void
+  addRecipe: (recipe: Types.Recipe) => Promise<void>
+  updateRecipe: (id: string, updates: Partial<Types.Recipe>) => Promise<void>
+  deleteRecipe: (id: string) => Promise<void>
+  publishRecipe: (id: string) => Promise<void>
+  archiveRecipe: (id: string) => Promise<void>
   setRecipeIngredients: (recipeIngredients: Types.RecipeIngredient[]) => void
-  addRecipeIngredient: (ingredient: Types.RecipeIngredient) => void
-  updateRecipeIngredient: (id: string, updates: Partial<Types.RecipeIngredient>) => void
-  deleteRecipeIngredient: (id: string) => void
+  addRecipeIngredient: (ingredient: Types.RecipeIngredient) => Promise<void>
+  updateRecipeIngredient: (id: string, updates: Partial<Types.RecipeIngredient>) => Promise<void>
+  deleteRecipeIngredient: (id: string) => Promise<void>
   getRecipeIngredients: (recipeId: string) => Types.RecipeIngredient[]
   recalculateRecipeCosts: (recipeId: string) => void
   setForecasts: (forecasts: Types.Forecast[]) => void
@@ -1102,21 +1102,59 @@ export const useDataStore = create<DataState>()(
     }
   },
 
-  addMenuSection: (section) => {
-    set((state) => ({ menuSections: [...state.menuSections, section] }))
+  addMenuSection: async (section) => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client')
+      const { error } = await supabase.from('menu_sections').insert({
+        id: section.id,
+        org_id: section.organization_id,
+        name: section.name,
+        sort_order: section.display_order,
+        is_active: true,
+      })
+      if (error) throw error
+      set((state) => ({ menuSections: [...state.menuSections, section] }))
+    } catch (error) {
+      console.error('Failed to add menu section:', error)
+      toast.error('Failed to add menu section.')
+      throw error
+    }
   },
-  updateMenuSection: (id, updates) => {
-    set((state) => ({
-      menuSections: state.menuSections.map((s) =>
-        s.id === id ? { ...s, ...updates, updated_at: new Date() } : s
-      ),
-    }))
+  updateMenuSection: async (id, updates) => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client')
+      const dbUpdates: Record<string, unknown> = {}
+      if (updates.name !== undefined) dbUpdates.name = updates.name
+      if (updates.display_order !== undefined) dbUpdates.sort_order = updates.display_order
+      if (Object.keys(dbUpdates).length > 0) {
+        const { error } = await supabase.from('menu_sections').update(dbUpdates).eq('id', id)
+        if (error) throw error
+      }
+      set((state) => ({
+        menuSections: state.menuSections.map((s) =>
+          s.id === id ? { ...s, ...updates, updated_at: new Date() } : s
+        ),
+      }))
+    } catch (error) {
+      console.error('Failed to update menu section:', error)
+      toast.error('Failed to update menu section.')
+      throw error
+    }
   },
-  deleteMenuSection: (id) => {
-    set((state) => ({
-      menuSections: state.menuSections.filter((s) => s.id !== id),
-      menuItems: state.menuItems.filter((i) => i.section_id !== id),
-    }))
+  deleteMenuSection: async (id) => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client')
+      const { error } = await supabase.from('menu_sections').delete().eq('id', id)
+      if (error) throw error
+      set((state) => ({
+        menuSections: state.menuSections.filter((s) => s.id !== id),
+        menuItems: state.menuItems.filter((i) => i.section_id !== id),
+      }))
+    } catch (error) {
+      console.error('Failed to delete menu section:', error)
+      toast.error('Failed to delete menu section.')
+      throw error
+    }
   },
   reorderSections: (sections) => {
     set({ menuSections: sections.map((s, i) => ({ ...s, display_order: i })) })
@@ -1325,76 +1363,197 @@ export const useDataStore = create<DataState>()(
 
   setRecipes: (recipes) => set({ recipes }),
   setRecipeIngredients: (recipeIngredients) => set({ recipeIngredients }),
-  addRecipe: (recipe) =>
-    set((state) => ({ recipes: [...state.recipes, recipe] })),
-  
-  updateRecipe: (id, updates) =>
-    set((state) => ({
-      recipes: state.recipes.map((r) =>
-        r.id === id ? { ...r, ...updates, updated_at: new Date() } : r
-      ),
-    })),
-  
-  deleteRecipe: (id) =>
-    set((state) => ({
-      recipes: state.recipes.filter((r) => r.id !== id),
-      recipeIngredients: state.recipeIngredients.filter((ri) => ri.recipe_id !== id),
-    })),
-  
-  publishRecipe: (id) =>
-    set((state) => ({
-      recipes: state.recipes.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              status: 'published' as const,
-              published_at: new Date(),
-              updated_at: new Date(),
-            }
-          : r
-      ),
-    })),
-  
-  archiveRecipe: (id) =>
-    set((state) => ({
-      recipes: state.recipes.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              status: 'archived' as const,
-              archived_at: new Date(),
-              updated_at: new Date(),
-            }
-          : r
-      ),
-    })),
-  
-  addRecipeIngredient: (ingredient) => {
-    set((state) => ({
-      recipeIngredients: [...state.recipeIngredients, ingredient],
-    }))
-    get().recalculateRecipeCosts(ingredient.recipe_id)
-  },
-  
-  updateRecipeIngredient: (id, updates) => {
-    const ingredient = get().recipeIngredients.find((ri) => ri.id === id)
-    set((state) => ({
-      recipeIngredients: state.recipeIngredients.map((ri) =>
-        ri.id === id ? { ...ri, ...updates } : ri
-      ),
-    }))
-    if (ingredient) {
-      get().recalculateRecipeCosts(ingredient.recipe_id)
+  addRecipe: async (recipe) => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client')
+      const { error } = await supabase.from('recipes').insert({
+        id: recipe.id,
+        org_id: recipe.organization_id,
+        name: recipe.name,
+        category: recipe.category,
+        batch_yield: recipe.serves,
+        waste_percent: recipe.wastage_percent,
+        gp_target_percent: recipe.gp_target_percent,
+        description: recipe.instructions || null,
+        method: JSON.stringify(recipe.steps.filter((s: string) => s.trim() !== '')),
+        allergens: recipe.allergens,
+        status: recipe.status,
+        cost_per_batch: recipe.total_cost,
+        cost_per_serve: recipe.cost_per_serve,
+        suggested_price: recipe.suggested_price,
+        created_by: recipe.created_by || null,
+      })
+      if (error) throw error
+      set((state) => ({ recipes: [...state.recipes, recipe] }))
+    } catch (error) {
+      console.error('Failed to add recipe:', error)
+      toast.error('Failed to add recipe.')
+      throw error
     }
   },
-  
-  deleteRecipeIngredient: (id) => {
-    const ingredient = get().recipeIngredients.find((ri) => ri.id === id)
-    set((state) => ({
-      recipeIngredients: state.recipeIngredients.filter((ri) => ri.id !== id),
-    }))
-    if (ingredient) {
+
+  updateRecipe: async (id, updates) => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client')
+      const dbUpdates: Record<string, unknown> = {}
+      if (updates.name !== undefined) dbUpdates.name = updates.name
+      if (updates.category !== undefined) dbUpdates.category = updates.category
+      if (updates.serves !== undefined) dbUpdates.batch_yield = updates.serves
+      if (updates.wastage_percent !== undefined) dbUpdates.waste_percent = updates.wastage_percent
+      if (updates.gp_target_percent !== undefined) dbUpdates.gp_target_percent = updates.gp_target_percent
+      if (updates.instructions !== undefined) dbUpdates.description = updates.instructions || null
+      if (updates.steps !== undefined) dbUpdates.method = JSON.stringify(updates.steps)
+      if (updates.allergens !== undefined) dbUpdates.allergens = updates.allergens
+      if (updates.status !== undefined) dbUpdates.status = updates.status
+      if (updates.total_cost !== undefined) dbUpdates.cost_per_batch = updates.total_cost
+      if (updates.cost_per_serve !== undefined) dbUpdates.cost_per_serve = updates.cost_per_serve
+      if (updates.suggested_price !== undefined) dbUpdates.suggested_price = updates.suggested_price
+      if (Object.keys(dbUpdates).length > 0) {
+        const { error } = await supabase.from('recipes').update(dbUpdates).eq('id', id)
+        if (error) throw error
+      }
+      set((state) => ({
+        recipes: state.recipes.map((r) =>
+          r.id === id ? { ...r, ...updates, updated_at: new Date() } : r
+        ),
+      }))
+    } catch (error) {
+      console.error('Failed to update recipe:', error)
+      toast.error('Failed to update recipe.')
+      throw error
+    }
+  },
+
+  deleteRecipe: async (id) => {
+    try {
+      const { deleteRecipeFromDB } = await import('@/lib/services/recipeService')
+      await deleteRecipeFromDB(id)
+      set((state) => ({
+        recipes: state.recipes.filter((r) => r.id !== id),
+        recipeIngredients: state.recipeIngredients.filter((ri) => ri.recipe_id !== id),
+      }))
+    } catch (error) {
+      console.error('Failed to delete recipe:', error)
+      toast.error('Failed to delete recipe.')
+      throw error
+    }
+  },
+
+  publishRecipe: async (id) => {
+    try {
+      const { updateRecipeStatusInDB } = await import('@/lib/services/recipeService')
+      await updateRecipeStatusInDB(id, 'published')
+      set((state) => ({
+        recipes: state.recipes.map((r) =>
+          r.id === id
+            ? {
+                ...r,
+                status: 'published' as const,
+                published_at: new Date(),
+                updated_at: new Date(),
+              }
+            : r
+        ),
+      }))
+    } catch (error) {
+      console.error('Failed to publish recipe:', error)
+      toast.error('Failed to publish recipe.')
+      throw error
+    }
+  },
+
+  archiveRecipe: async (id) => {
+    try {
+      const { updateRecipeStatusInDB } = await import('@/lib/services/recipeService')
+      await updateRecipeStatusInDB(id, 'archived')
+      set((state) => ({
+        recipes: state.recipes.map((r) =>
+          r.id === id
+            ? {
+                ...r,
+                status: 'archived' as const,
+                archived_at: new Date(),
+                updated_at: new Date(),
+              }
+            : r
+        ),
+      }))
+    } catch (error) {
+      console.error('Failed to archive recipe:', error)
+      toast.error('Failed to archive recipe.')
+      throw error
+    }
+  },
+
+  addRecipeIngredient: async (ingredient) => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client')
+      const { error } = await supabase.from('recipe_ingredients').insert({
+        id: ingredient.id,
+        recipe_id: ingredient.recipe_id,
+        ingredient_id: ingredient.product_id,
+        quantity: ingredient.quantity,
+        unit: ingredient.unit,
+        cost: ingredient.line_cost,
+        sort_order: 0,
+        is_sub_recipe: false,
+      })
+      if (error) throw error
+      set((state) => ({
+        recipeIngredients: [...state.recipeIngredients, ingredient],
+      }))
       get().recalculateRecipeCosts(ingredient.recipe_id)
+    } catch (error) {
+      console.error('Failed to add recipe ingredient:', error)
+      toast.error('Failed to add recipe ingredient.')
+      throw error
+    }
+  },
+
+  updateRecipeIngredient: async (id, updates) => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client')
+      const dbUpdates: Record<string, unknown> = {}
+      if (updates.quantity !== undefined) dbUpdates.quantity = updates.quantity
+      if (updates.unit !== undefined) dbUpdates.unit = updates.unit
+      if (updates.line_cost !== undefined) dbUpdates.cost = updates.line_cost
+      if (updates.product_id !== undefined) dbUpdates.ingredient_id = updates.product_id
+      if (Object.keys(dbUpdates).length > 0) {
+        const { error } = await supabase.from('recipe_ingredients').update(dbUpdates).eq('id', id)
+        if (error) throw error
+      }
+      const ingredient = get().recipeIngredients.find((ri) => ri.id === id)
+      set((state) => ({
+        recipeIngredients: state.recipeIngredients.map((ri) =>
+          ri.id === id ? { ...ri, ...updates } : ri
+        ),
+      }))
+      if (ingredient) {
+        get().recalculateRecipeCosts(ingredient.recipe_id)
+      }
+    } catch (error) {
+      console.error('Failed to update recipe ingredient:', error)
+      toast.error('Failed to update recipe ingredient.')
+      throw error
+    }
+  },
+
+  deleteRecipeIngredient: async (id) => {
+    try {
+      const ingredient = get().recipeIngredients.find((ri) => ri.id === id)
+      const { supabase } = await import('@/integrations/supabase/client')
+      const { error } = await supabase.from('recipe_ingredients').delete().eq('id', id)
+      if (error) throw error
+      set((state) => ({
+        recipeIngredients: state.recipeIngredients.filter((ri) => ri.id !== id),
+      }))
+      if (ingredient) {
+        get().recalculateRecipeCosts(ingredient.recipe_id)
+      }
+    } catch (error) {
+      console.error('Failed to delete recipe ingredient:', error)
+      toast.error('Failed to delete recipe ingredient.')
+      throw error
     }
   },
   
