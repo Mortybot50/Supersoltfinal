@@ -7,7 +7,7 @@
 import { useMemo, useState } from 'react'
 import { useRosterStore, getRoleColors } from '@/stores/useRosterStore'
 import { formatCurrency } from '@/lib/utils/formatters'
-import { formatTimeCompact } from '@/lib/utils/rosterCalculations'
+import { formatTimeCompact, calculateShiftCostBreakdown } from '@/lib/utils/rosterCalculations'
 import { format, isSameDay } from 'date-fns'
 import { cn } from '@/lib/utils'
 import {
@@ -94,11 +94,34 @@ export function ShiftDetailPanel() {
   }
 
   const handleSaveTime = async () => {
+    if (!shift) return
     setIsSaving(true)
-    await updateShift(shift.id, { start_time: startTime, end_time: endTime })
+    const shiftDate = shift.date instanceof Date ? shift.date : new Date(shift.date)
+    const hourlyRate = staffMember?.hourly_rate || 2500
+    const empType = staffMember?.employment_type || 'casual'
+    const breakdown = calculateShiftCostBreakdown(
+      startTime, endTime, shift.break_minutes, hourlyRate,
+      shift.venue_id, shiftDate, empType,
+    )
+    await updateShift(shift.id, {
+      start_time: startTime,
+      end_time: endTime,
+      total_hours: breakdown.base_hours,
+      base_cost: breakdown.base_cost_cents,
+      penalty_cost: breakdown.penalty_cost_cents,
+      total_cost: breakdown.total_cost_cents,
+      penalty_type: breakdown.penalty_type as RosterShift['penalty_type'] || 'none',
+      penalty_multiplier: breakdown.penalty_multiplier,
+    })
     setIsSaving(false)
     setEditingTime(false)
   }
+
+
+
+
+
+
 
   const handleReassign = async (newStaffId: string) => {
     const member = staff.find(s => s.id === newStaffId)
@@ -192,6 +215,7 @@ export function ShiftDetailPanel() {
             <DollarSign className="h-4 w-4 text-gray-400 shrink-0" />
             <div className="flex-1">
               <span className="font-medium">{formatCurrency(shift.total_cost)}</span>
+              <span className="text-[10px] text-amber-500 ml-1">(est.)</span>
               {shift.penalty_type && shift.penalty_type !== 'none' && (
                 <Badge variant="outline" className="ml-2 text-[10px] h-4">
                   {penaltyLabel} ×{shift.penalty_multiplier?.toFixed(2)}
