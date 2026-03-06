@@ -147,33 +147,36 @@ export default function MenuItems() {
     setSectionDialogOpen(true)
   }
   
-  const handleSaveSection = () => {
+  const handleSaveSection = async () => {
     if (!sectionForm.name.trim()) {
       toast.error('Section name is required')
       return
     }
     
-    if (editingSection) {
-      updateMenuSection(editingSection.id, sectionForm)
-      toast.success('Section updated')
-    } else {
-      const newSection: MenuSection = {
-        id: crypto.randomUUID(),
-        organization_id: currentOrg?.id || '',
-        ...sectionForm,
-        display_order: menuSections.length,
-        created_at: new Date(),
-        updated_at: new Date(),
+    try {
+      if (editingSection) {
+        await updateMenuSection(editingSection.id, sectionForm)
+        toast.success('Section updated')
+      } else {
+        const newSection: MenuSection = {
+          id: crypto.randomUUID(),
+          organization_id: currentOrg?.id || '',
+          ...sectionForm,
+          display_order: menuSections.length,
+          created_at: new Date(),
+          updated_at: new Date(),
+        }
+        await addMenuSection(newSection)
+        setSelectedSectionId(newSection.id)
+        toast.success('Section added')
       }
-      addMenuSection(newSection)
-      setSelectedSectionId(newSection.id)
-      toast.success('Section added')
+      setSectionDialogOpen(false)
+    } catch {
+      // Error already toasted in store
     }
-    
-    setSectionDialogOpen(false)
   }
   
-  const handleDeleteSection = (section: MenuSection) => {
+  const handleDeleteSection = async (section: MenuSection) => {
     const items = getSectionItems(section.id)
     
     if (items.length > 0) {
@@ -182,9 +185,13 @@ export default function MenuItems() {
     }
     
     if (confirm(`Delete ${section.name}?`)) {
-      deleteMenuSection(section.id)
-      setSelectedSectionId(null)
-      toast.success('Section deleted')
+      try {
+        await deleteMenuSection(section.id)
+        setSelectedSectionId(null)
+        toast.success('Section deleted')
+      } catch {
+        // Error already toasted in store
+      }
     }
   }
   
