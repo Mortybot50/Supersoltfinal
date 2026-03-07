@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRosterStore } from '@/stores/useRosterStore'
 import { RosterHeader } from '@/components/roster/RosterHeader'
 import { RosterGrid } from '@/components/roster/RosterGrid'
+import { RosterDndWrapper } from '@/components/roster/RosterDndWrapper'
 import { StaffSidebar } from '@/components/roster/StaffSidebar'
 import { CostBar } from '@/components/roster/CostBar'
 import { CostBarExpanded } from '@/components/roster/CostBarExpanded'
@@ -90,6 +91,7 @@ export default function Roster() {
     <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden bg-gray-50">
       <RosterHeader onPublish={() => setShowPublish(true)} />
 
+      <RosterDndWrapper>
       <div className="flex flex-1 overflow-hidden">
         {/* Left staff sidebar */}
         {sidebarOpen && <StaffSidebar />}
@@ -116,6 +118,7 @@ export default function Roster() {
         {/* Right detail panel */}
         {selectedShiftId && <ShiftDetailPanel />}
       </div>
+      </RosterDndWrapper>
 
       {/* Footer tool strip */}
       <div className="flex items-center gap-2 px-3 py-1 bg-white border-t print:hidden shrink-0">
