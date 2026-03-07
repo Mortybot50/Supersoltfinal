@@ -237,7 +237,7 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
     const { venueId, orgId, shifts } = get()
     if (!venueId || !orgId) return
 
-    const id = `shift-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const id = crypto.randomUUID()
     const newShift: RosterShift = {
       id,
       venue_id: venueId,
