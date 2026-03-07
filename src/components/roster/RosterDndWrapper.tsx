@@ -20,7 +20,7 @@ import {
 } from '@dnd-kit/core'
 import { useRosterStore } from '@/stores/useRosterStore'
 import { RosterShift, Staff } from '@/types'
-import { DRAGGABLE_SHIFT_TYPE } from './RosterGrid'
+import { DRAGGABLE_SHIFT_TYPE } from './ShiftBlock'
 import { DRAGGABLE_STAFF_TYPE } from './StaffCard'
 import { ShiftBlock } from './ShiftBlock'
 import { parse, isSameDay } from 'date-fns'
