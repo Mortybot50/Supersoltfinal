@@ -312,7 +312,7 @@ export async function loadRosterShiftsFromDB(venueId?: string): Promise<RosterSh
 /** Convert a date + time string (e.g. "09:00") to a full ISO timestamp for timestamptz columns */
 function toTimestampTZ(date: Date | string, time: string): string {
   const d = date instanceof Date ? date.toISOString().split('T')[0] : String(date).split('T')[0]
-  return \`\${d}T\${time}:00\`
+  return `${d}T${time}:00`
 }
 
 export async function addRosterShiftToDB(shift: RosterShift, orgId: string): Promise<RosterShift | null> {
