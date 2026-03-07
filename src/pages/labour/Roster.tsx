@@ -73,11 +73,8 @@ export default function Roster() {
   }
 
   const handleDeleteShift = async (shift: RosterShift) => {
-    const d = shift.date instanceof Date ? shift.date : new Date(shift.date)
-    if (window.confirm(`Delete shift for ${shift.staff_name} on ${d.toDateString()}?`)) {
-      await deleteShift(shift.id)
-      toast.success('Shift deleted')
-    }
+    await deleteShift(shift.id)
+    toast.success('Shift deleted')
   }
 
   const warningCount = getAllRosterWarnings(shifts, availability).length
