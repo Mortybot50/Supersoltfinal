@@ -1,8 +1,0 @@
-type,menu_item_name,price_cents,active,ingredient_name,qty,unit
-menu,Margherita Pizza,1800,yes,,,
-recipe,Margherita Pizza,,,,Pizza Dough,200,g
-recipe,Margherita Pizza,,,,Tomato Sauce,150,g
-recipe,Margherita Pizza,,,,Mozzarella,100,g
-menu,Caesar Salad,1200,yes,,,
-recipe,Caesar Salad,,,,Romaine Lettuce,150,g
-recipe,Caesar Salad,,,,Caesar Dressing,50,ml
