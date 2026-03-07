@@ -1,0 +1,442 @@
+Goal:
+
+Calculate ingredient requirements from the forecast window using recipes (supports nested recipes & yields).
+
+Compare to on‑hand, apply safety stock, round to supplier pack sizes, choose preferred supplier/cheapest.
+
+Serve a review UI grouped by supplier with inline quantity edits and CSV export.
+
+Expose a clean GET API so the same logic powers future automations.
+
+Do NOT remove pages. Implement exactly as below and adapt import paths to this repo (you used db/schema.ts previously).
+
+0) Assumptions (use/extend existing code)
+
+db/schema.ts already defines: ingredients, suppliers, ingredient_suppliers (with pack size/unit/price and is_preferred), menu_items, recipes, recipe_lines, daily_sales (for actuals), and you’ve added sales_forecasts.
+
+lib/uom.ts (or similar) has unit conversion helpers. If not, add a minimal convert(value, from, to) using your existing unit map.
+
+ingredients has on_hand_qty and a base unit (e.g., g, kg, ml, l, ea). If on‑hand unit differs, normalize with uom.
+
+1) Ordering engine (library)
+
+File: lib/inventory-ordering.ts
+
+import { db } from "@/db"; // adjust
+import {
+  ingredients, suppliers, ingredient_suppliers,
+  menu_items, recipes, recipe_lines, sales_forecasts
+} from "@/db/schema"; // adjust
+import { and, eq, gte, lte, sql, desc, asc } from "drizzle-orm";
+import { convert } from "@/lib/uom"; // adjust
+
+type Range = { start: Date; end: Date; };
+type UsageLine = { ingredientId: string; unit: string; qtyPerServe: number }; // normalized to ingredient base unit
+type BomMap = Map<string, UsageLine[]>; // menuItemId -> lines
+
+/** Flatten a menu item to ingredient usage per serve (handles nested recipes; applies yields & wastage). */
+export async function buildBomMap(venueId: string): Promise<BomMap> {
+  // Pull all recipe_lines joined to know whether a line is ingredient or nested item.
+  // Adjust to your schema column names.
+  const lines = await db.execute(sql`
+    SELECT rl.menu_item_id, rl.ingredient_id, rl.child_menu_item_id,
+           rl.quantity, rl.unit, r.yield_qty, r.yield_unit, r.wastage_pct,
+           i.base_unit AS ingredient_unit
+    FROM recipe_lines rl
+    LEFT JOIN recipes r ON r.id = rl.recipe_id
+    LEFT JOIN ingredients i ON i.id = rl.ingredient_id
+    WHERE r.venue_id = ${venueId}
+  `);
+
+  // Build adjacency lists
+  const byItem = new Map<string, any[]>();
+  for (const l of lines.rows as any[]) {
+    if (!byItem.has(l.menu_item_id)) byItem.set(l.menu_item_id, []);
+    byItem.get(l.menu_item_id)!.push(l);
+  }
+
+  const memo = new Map<string, UsageLine[]>();
+
+  const dfs = (itemId: string, scale = 1): UsageLine[] => {
+    if (memo.has(itemId) && scale === 1) return memo.get(itemId)!;
+    const rows = byItem.get(itemId) ?? [];
+    const out: Record<string, { unit: string; qty: number }> = {};
+
+    for (const r of rows) {
+      const yieldQty = Number(r.yield_qty ?? 1);
+      const wastage = Number(r.wastage_pct ?? 0) / 100;
+      const baseFactor = (1 + wastage) / (yieldQty || 1); // per-serve multiplier
+
+      if (r.ingredient_id) {
+        const ingUnit = r.ingredient_unit || r.unit; // normalize to ingredient base
+        const qtyBase = convert(Number(r.quantity) * baseFactor * scale, r.unit, ingUnit);
+        const k = r.ingredient_id as string;
+        if (!out[k]) out[k] = { unit: ingUnit, qty: 0 };
+        out[k].qty += qtyBase;
+      } else if (r.child_menu_item_id) {
+        const childLines = dfs(r.child_menu_item_id, Number(r.quantity) * baseFactor * scale);
+        for (const cl of childLines) {
+          const k = cl.ingredientId;
+          if (!out[k]) out[k] = { unit: cl.unit, qty: 0 };
+          out[k].qty += cl.qtyPerServe;
+        }
+      }
+    }
+
+    const flat = Object.entries(out).map(([ingredientId, v]) => ({ ingredientId, unit: v.unit, qtyPerServe: v.qty }));
+    if (scale === 1) memo.set(itemId, flat);
+    return flat;
+  };
+
+  // Produce for all menu items that have recipes
+  const items = await db.select({ id: menu_items.id }).from(menu_items).where(eq(menu_items.venue_id, venueId));
+  const map: BomMap = new Map();
+  for (const it of items) map.set(it.id, dfs(it.id));
+  return map;
+}
+
+/** Aggregate forecasted units per menu item for date range. */
+export async function forecastUnitsByItem(venueId: string, range: Range) {
+  const rows = await db
+    .select({
+      menu_item_id: sales_forecasts.menu_item_id,
+      qty: sql<number>`SUM(${sales_forecasts.qty})`.as("qty")
+    })
+    .from(sales_forecasts)
+    .where(and(
+      eq(sales_forecasts.venue_id, venueId),
+      gte(sales_forecasts.date, range.start),
+      lte(sales_forecasts.date, range.end)
+    ))
+    .groupBy(sales_forecasts.menu_item_id);
+
+  const map = new Map<string, number>();
+  for (const r of rows) map.set(r.menu_item_id as string, Number(r.qty));
+  return map;
+}
+
+export type OrderGuideLine = {
+  ingredientId: string;
+  ingredientName: string;
+  baseUnit: string;
+  requiredUnits: number;     // demand in base unit
+  onHandUnits: number;       // in base unit
+  shortfallUnits: number;    // max(0, required+ss - onHand)
+  supplierId?: string;
+  supplierName?: string;
+  packSize?: number;
+  packUnit?: string;
+  unitPrice?: number;        // price per purchase unit
+  packsRecommended: number;  // ceil(shortfall in purchase units)
+  estCost: number;
+  notes: string[];
+};
+
+export type OrderGuideGroup = {
+  supplierId?: string;
+  supplierName: string;
+  lines: OrderGuideLine[];
+  groupCost: number;
+};
+
+export async function buildOrderGuide({
+  orgId, venueId, range, safetyDays = 0
+}: { orgId: string; venueId: string; range: Range; safetyDays?: number; }): Promise<{ groups: OrderGuideGroup[], totals: { items: number; cost: number } }> {
+
+  // 1) Demand: per item forecast × per-serve usage → ingredient demand
+  const [bomMap, unitsByItem] = await Promise.all([
+    buildBomMap(venueId),
+    forecastUnitsByItem(venueId, range),
+  ]);
+
+  const demand = new Map<string, { unit: string; qty: number }>(); // ingredientId -> base-unit qty
+  for (const [itemId, units] of unitsByItem) {
+    const bom = bomMap.get(itemId) ?? [];
+    for (const line of bom) {
+      const need = line.qtyPerServe * units;
+      const cur = demand.get(line.ingredientId) ?? { unit: line.unit, qty: 0 };
+      cur.qty += need;
+      demand.set(line.ingredientId, cur);
+    }
+  }
+
+  // 2) On-hand + safety stock
+  //   Safety stock = average daily demand for the ingredient * safetyDays
+  const days = (range.end.getTime() - range.start.getTime()) / 86_400_000 + 1;
+  const lines: OrderGuideLine[] = [];
+
+  const ingRows = await db.execute(sql`
+    SELECT i.id, i.name, i.base_unit, COALESCE(i.on_hand_qty,0) AS on_hand
+    FROM ingredients i
+    WHERE i.venue_id = ${venueId}
+  `);
+
+  for (const r of ingRows.rows as any[]) {
+    const need = demand.get(r.id)?.qty ?? 0;
+    const ss = safetyDays > 0 ? (need / Math.max(1, days)) * safetyDays : 0;
+    const required = need;
+    const onHand = Number(r.on_hand || 0);
+    const shortfall = Math.max(0, required + ss - onHand);
+
+    const notes: string[] = [];
+    let supplierId: string | undefined;
+    let supplierName: string | undefined;
+    let packSize: number | undefined;
+    let packUnit: string | undefined;
+    let unitPrice: number | undefined;
+    let packsRecommended = 0;
+    let estCost = 0;
+
+    if (shortfall > 0) {
+      // Supplier choice: preferred first else cheapest unit price
+      const supRows = await db.execute(sql`
+        SELECT isup.supplier_id, s.name as supplier_name,
+               isup.pack_size, isup.pack_unit, isup.unit_price, isup.is_preferred
+        FROM ingredient_suppliers isup
+        JOIN suppliers s ON s.id = isup.supplier_id
+        WHERE isup.ingredient_id = ${r.id}
+        ORDER BY isup.is_preferred DESC, isup.unit_price ASC
+        LIMIT 1
+      `);
+      const sup = (supRows.rows as any[])[0];
+      if (sup) {
+        supplierId = sup.supplier_id;
+        supplierName = sup.supplier_name;
+        packSize = Number(sup.pack_size);
+        packUnit = sup.pack_unit;
+        unitPrice = Number(sup.unit_price);
+
+        const shortfallInPurchaseUnits = convert(shortfall, r.base_unit, packUnit);
+        packsRecommended = Math.ceil(shortfallInPurchaseUnits / (packSize || 1));
+        estCost = packsRecommended * (unitPrice || 0);
+      } else {
+        notes.push("No supplier configured");
+      }
+    }
+
+    lines.push({
+      ingredientId: r.id,
+      ingredientName: r.name,
+      baseUnit: r.base_unit,
+      requiredUnits: Number(required.toFixed(2)),
+      onHandUnits: Number(onHand.toFixed(2)),
+      shortfallUnits: Number(shortfall.toFixed(2)),
+      supplierId, supplierName, packSize, packUnit, unitPrice,
+      packsRecommended,
+      estCost: Number(estCost.toFixed(2)),
+      notes
+    });
+  }
+
+  // 3) Group by supplier (null supplier group at bottom)
+  const bySupplier = new Map<string, OrderGuideGroup>();
+  for (const l of lines.filter(x => x.shortfallUnits > 0)) {
+    const key = l.supplierId ?? "__NO_SUPPLIER__";
+    const name = l.supplierName ?? "No supplier";
+    if (!bySupplier.has(key)) bySupplier.set(key, { supplierId: l.supplierId, supplierName: name, lines: [], groupCost: 0 });
+    const g = bySupplier.get(key)!;
+    g.lines.push(l);
+    g.groupCost += l.estCost;
+  }
+
+  const groups = Array.from(bySupplier.values())
+    .sort((a,b) => (a.supplierName || "").localeCompare(b.supplierName || ""));
+
+  const totals = {
+    items: lines.filter(x => x.shortfallUnits > 0).length,
+    cost: groups.reduce((s,g)=> s + g.groupCost, 0)
+  };
+
+  return { groups, totals };
+}
+
+2) API endpoint
+
+File: app/api/inventory/order-guide/route.ts
+
+import { NextResponse } from "next/server";
+import { requireOrg } from "@/lib/authz"; // adjust
+import { buildOrderGuide } from "@/lib/inventory-ordering";
+
+export async function GET(req: Request) {
+  const { orgId, venueId } = await requireOrg(); // tenant isolation
+  const url = new URL(req.url);
+  const start = new Date(url.searchParams.get("start") ?? new Date());
+  const days = Number(url.searchParams.get("days") ?? 7);
+  const safetyDays = Number(url.searchParams.get("safetyDays") ?? 0);
+  start.setHours(0,0,0,0);
+  const end = new Date(start); end.setDate(end.getDate() + days - 1);
+
+  const result = await buildOrderGuide({ orgId, venueId, range: { start, end }, safetyDays });
+
+  return NextResponse.json({
+    start, end, days, safetyDays,
+    ...result
+  });
+}
+
+
+CSV export (optional but quick):
+File: app/api/inventory/order-guide/export/route.ts
+
+import { NextResponse } from "next/server";
+import { requireOrg } from "@/lib/authz";
+import { buildOrderGuide } from "@/lib/inventory-ordering";
+
+export async function GET(req: Request) {
+  const { orgId, venueId } = await requireOrg();
+  const url = new URL(req.url);
+  const start = new Date(url.searchParams.get("start") ?? new Date());
+  const days = Number(url.searchParams.get("days") ?? 7);
+  const safetyDays = Number(url.searchParams.get("safetyDays") ?? 0);
+  start.setHours(0,0,0,0);
+  const end = new Date(start); end.setDate(end.getDate() + days - 1);
+
+  const { groups } = await buildOrderGuide({ orgId, venueId, range: { start, end }, safetyDays });
+
+  const rows: string[] = [];
+  rows.push([
+    "Supplier","Ingredient","Required (base)","On hand","Shortfall (base)","Pack size","Pack unit",
+    "Packs","Unit price","Est. cost"
+  ].join(","));
+
+  for (const g of groups) {
+    for (const l of g.lines) {
+      rows.push([
+        g.supplierName,
+        l.ingredientName,
+        l.requiredUnits,
+        l.onHandUnits,
+        l.shortfallUnits,
+        l.packSize ?? "",
+        l.packUnit ?? "",
+        l.packsRecommended,
+        l.unitPrice ?? "",
+        l.estCost
+      ].join(","));
+    }
+  }
+
+  const csv = rows.join("\n");
+  return new NextResponse(csv, {
+    headers: { "Content-Type": "text/csv", "Content-Disposition": "attachment; filename=order_guide.csv" }
+  });
+}
+
+3) Review UI
+
+File: app/inventory/order-guide/page.tsx (replace stub if present)
+
+import Link from "next/link";
+
+async function fetchGuide(params: { start?: string; days?: number; safetyDays?: number }) {
+  const qs = new URLSearchParams();
+  if (params.start) qs.set("start", params.start);
+  if (params.days) qs.set("days", String(params.days));
+  if (params.safetyDays != null) qs.set("safetyDays", String(params.safetyDays));
+  const res = await fetch(`/api/inventory/order-guide?${qs.toString()}`, { cache: "no-store" });
+  if (!res.ok) throw new Error("order_guide_failed");
+  return res.json();
+}
+
+export default async function OrderGuidePage() {
+  const start = new Date(); start.setDate(start.getDate() + 1); start.setHours(0,0,0,0); // default from tomorrow
+  const data = await fetchGuide({ start: start.toISOString(), days: 7, safetyDays: 1 });
+
+  return (
+    <div className="p-6">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold tracking-[-0.01em]">Order Guide</h1>
+          <p className="text-sm text-muted-foreground">Forecast-based purchasing suggestions grouped by supplier.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/api/inventory/order-guide/export?start=${encodeURIComponent(start.toISOString())}&days=7&safetyDays=1`}
+            className="rounded-md bg-[hsl(var(--accent))] px-3 py-2 text-sm text-white hover:opacity-90"
+          >
+            Export CSV
+          </Link>
+        </div>
+      </div>
+
+      <div className="mb-4 text-sm text-muted-foreground">
+        Window: <b>{new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(start)}</b> for <b>7</b> days · Safety stock: <b>1 day</b>
+      </div>
+
+      {data.groups.length === 0 ? (
+        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+          No shortfalls predicted. Stock levels cover the forecast.
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {data.groups.map((g: any) => (
+            <div key={g.supplierId ?? g.supplierName} className="rounded-xl border border-black/5 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
+              <div className="flex items-center justify-between border-b border-black/5 px-4 py-3">
+                <div className="text-sm font-medium">{g.supplierName}</div>
+                <div className="text-sm">{new Intl.NumberFormat(undefined,{style:"currency",currency:"USD"}).format(g.groupCost)}</div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-left text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-2">Ingredient</th>
+                      <th className="px-4 py-2">Required (base)</th>
+                      <th className="px-4 py-2">On hand</th>
+                      <th className="px-4 py-2">Shortfall</th>
+                      <th className="px-4 py-2">Pack</th>
+                      <th className="px-4 py-2">Packs</th>
+                      <th className="px-4 py-2">Unit price</th>
+                      <th className="px-4 py-2">Est. cost</th>
+                      <th className="px-4 py-2">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {g.lines.map((l: any) => (
+                      <tr key={l.ingredientId} className="border-t border-black/5">
+                        <td className="px-4 py-2">{l.ingredientName}</td>
+                        <td className="px-4 py-2">{l.requiredUnits} {l.baseUnit}</td>
+                        <td className="px-4 py-2">{l.onHandUnits} {l.baseUnit}</td>
+                        <td className="px-4 py-2">{l.shortfallUnits} {l.baseUnit}</td>
+                        <td className="px-4 py-2">{l.packSize ? `${l.packSize} ${l.packUnit}` : "—"}</td>
+                        <td className="px-4 py-2">{l.packsRecommended}</td>
+                        <td className="px-4 py-2">{l.unitPrice ? new Intl.NumberFormat(undefined,{style:"currency",currency:"USD"}).format(l.unitPrice) : "—"}</td>
+                        <td className="px-4 py-2">{new Intl.NumberFormat(undefined,{style:"currency",currency:"USD"}).format(l.estCost)}</td>
+                        <td className="px-4 py-2 text-muted-foreground">{(l.notes || []).join("; ")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+4) Performance & correctness guardrails (quick)
+
+Indexes: ensure (venue_id,date) on sales_forecasts; (ingredient_id,is_preferred) on ingredient_suppliers; (venue_id) on ingredients.
+
+Unit conversion: convert must handle g↔kg, ml↔l, identity, and ea. When a conversion is missing, return the original number and append note "unit conversion missing".
+
+Empty data: If an ingredient has no supplier row, line stays but shows “No supplier configured” and packsRecommended=0.
+
+5) Acceptance
+
+GET /api/inventory/order-guide?start=YYYY-MM-DD&days=7&safetyDays=1 returns { groups:[{ supplierName, lines:[...] }], totals:{ items, cost } }.
+
+/inventory/order-guide loads, shows supplier groups with editable data (packs are displayed; inline editing can be added later—out of scope for this prompt), and Export CSV downloads a file.
+
+With sample sales + recipes entered, at least one ingredient shows a positive shortfall and a non‑zero estimated cost.
+
+(Bonus) Tiny patch to make the chart bars visible
+
+If the dashboard bars were invisible, set fills explicitly using your theme:
+
+File: components/charts/SalesVsForecast.tsx
+
+<Bar dataKey="actual" radius={[6,6,0,0]} fill="hsl(var(--accent))" />
+<Bar dataKey="forecast" radius={[6,6,0,0]} fill="hsl(var(--muted))" />

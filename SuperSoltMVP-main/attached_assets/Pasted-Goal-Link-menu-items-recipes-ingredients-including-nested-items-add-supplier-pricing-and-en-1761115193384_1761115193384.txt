@@ -1,0 +1,170 @@
+Goal: Link menu items ↔ recipes ↔ ingredients (including nested items), add supplier pricing, and enable sales import (manual + CSV now, OCR stub). Keep currency AUD (en-AU). Don’t touch invites/auth.
+
+1) Database (Drizzle) – add/adjust tables
+
+Create/modify schema files and push migration.
+
+suppliers
+
+id (pk), orgId (fk), name (text, required), contactEmail (text, nullable), phone (text, nullable), notes (text, nullable), isActive (boolean, default true), createdAt/updatedAt.
+
+ingredient_suppliers (many suppliers per ingredient w/ prices)
+
+id (pk), orgId (fk), ingredientId (fk), supplierId (fk), packSize (numeric, nullable), packUnit (text, nullable), unitPriceCents (int, required), leadTimeDays (int, default 0), sku (text, nullable), isPreferred (boolean, default false), unique(orgId, ingredientId, supplierId).
+
+recipes (header)
+
+id (pk), orgId (fk), menuItemId (fk), yieldQty (numeric, default 1), yieldUnit (text, nullable), wastagePct (numeric, default 0), unique(orgId, menuItemId).
+
+recipe_lines (lines can reference an ingredient OR another menu item to allow nested recipes)
+
+id (pk), orgId (fk), recipeId (fk), ingredientId (fk, nullable), subMenuItemId (fk, nullable), qty (numeric, required), unit (text, required), notes (text, nullable).
+
+CHECK constraint: exactly one of (ingredientId, subMenuItemId) is not null.
+
+daily_sales (keep existing) – no change, but add index on (orgId, date).
+
+menu_items – add optional fields now (don’t break UI): sku (text, nullable), category (text, nullable), isComposite (computed by presence of recipe; store as boolean default false if easier).
+
+2) Server utilities
+
+In lib/currency.ts, keep AUD formatting helpers as source of truth. Ensure all new UI uses them.
+
+Add lib/uom.ts with a small helper to normalize unit strings and convert g↔kg, ml↔L for cost/unit math (simple conversion map; we only need g/kg and ml/L for now).
+
+3) API routes
+
+Create REST endpoints with zod validation and orgId from cookie. Use existing patterns.
+
+app/api/suppliers (GET list, POST create)
+
+app/api/suppliers/[id] (GET, PATCH, DELETE – soft delete with isActive=false)
+
+app/api/ingredient-suppliers (POST create, PATCH/DELETE on [id])
+
+Recipes:
+
+app/api/recipes (GET by menuItemId, POST create or upsert)
+
+app/api/recipes/[id] (GET, PATCH, DELETE)
+
+app/api/recipe-lines (POST add line, PATCH/DELETE on [id])
+
+Sales import:
+
+app/api/sales/import/csv (POST: accepts CSV text or file upload, returns parsed rows & creates daily_sales rows)
+
+app/api/sales/import/ocr (POST: stub now – upload image, run Tesseract if available; otherwise return 501 with shape the UI expects)
+
+Business rules in APIs
+
+Costing: expose a helper getIngredientUnitCost(ingredientId) = cheapest active supplier unitPriceCents (or null).
+
+Recipe costing: getMenuItemCost(menuItemId) recursively sums lines; handles:
+
+ingredient lines → qty × normalized unit cost
+
+subMenuItem lines → recurse and multiply by qty
+
+factor for wastagePct and yieldQty if provided
+
+All list endpoints filter by orgId and isActive.
+
+4) UI pages & components (shadcn)
+Suppliers
+
+/suppliers: table + “Add Supplier” dialog (name, contact, phone).
+
+On /ingredients:
+
+Add “Suppliers” column → badge “Preferred” if any.
+
+Row action “Manage Suppliers” → dialog: list supplier rows (supplier, unit price, pack info, preferred toggle, delete). Create and edit inline.
+
+Show computed Current Best Unit Cost next to Cost/Unit in table (grey text if sourced from supplier mapping; keep manual cost field but mark “manual override” if present).
+
+Recipes (linking)
+
+/recipes: redesign as a “Recipe Builder”:
+
+Select Menu Item (combobox).
+
+Show lines table with “Add Line”:
+
+Radio: Ingredient or Menu Item
+
+Selector for chosen type
+
+Qty + Unit
+
+Show sidebar with live Theoretical Cost (A$), Food Cost % = cost / menu price, Wastage %, Yield.
+
+Save/Update recipe. Deleting last line is allowed (empty recipe).
+
+On /menu-items list:
+
+Add columns: Cost (A$), Food Cost %, Recipe (Yes/No).
+
+In Edit dialog, show read-only computed cost and food cost %. If no recipe lines, show hint “Add recipe lines to compute cost.”
+
+Sales
+
+Keep /sales manual entry.
+
+Add /sales/import:
+
+Tabs: CSV Upload | OCR (Beta).
+
+CSV: upload or paste text → parse preview table → column mapper (Date, Menu Item name, Qty, Price each, Revenue). Default to (Date, Menu Item, Quantity). Require user confirm → post to /api/sales/import/csv.
+
+OCR: file upload → call /api/sales/import/ocr. If 501, show toast “OCR coming soon—use CSV for now”.
+
+After import, navigate back to /sales and show newly created rows; update summary cards.
+
+5) Calculations & UX polish
+
+Use AUD everywhere (A$). Don’t regress.
+
+Unit normalization (g↔kg, ml↔L) when costing recipe lines; store the entered unit but convert for calculation as needed.
+
+Nested cost caching: getMenuItemCost may recurse; memoize per request to avoid loops; if loop detected (A includes B includes A), return 400 from API with a friendly message.
+
+Add lightweight tooltips:
+
+On cost cells: “Based on N lines (X ingredients, Y sub-items).”
+
+On ingredient cost: “Best supplier: {name} at A${price}/unit”.
+
+All new mutations invalidate relevant react-query keys (["ingredients"], ["menu-items"], ["recipes", menuItemId], ["suppliers"], ["ingredient-suppliers", ingredientId], ["sales"]).
+
+6) Tests / Acceptance
+
+Seed one org and one venue if none exist so E2E can run.
+
+E2E happy path:
+
+Create supplier, link to an ingredient with unitPriceCents.
+
+Create ingredient (kg), confirm best cost reflects supplier mapping.
+
+Create menu item “Burger”.
+
+Create sub menu item “Fries”.
+
+Build recipe for Fries: Potato (500 g). Build recipe for Burger: Bun (80 g), Patty (150 g), Fries (1).
+
+Verify Burger cost is computed recursively and Food Cost % shown on /menu-items.
+
+Import CSV with 2 lines (Burger × 5, Fries × 3) → rows appear in /sales, summary updates.
+
+Unit tests for getIngredientUnitCost, getMenuItemCost (with nested items, yield/wastage) and unit conversions.
+
+7) Out of scope (leave stubs)
+
+OCR engine: return 501 unless Tesseract.js is trivially available in this environment.
+
+Auto-decrementing stock: not yet—will come after we add stock movements.
+
+Do not modify: auth/invites/roles, existing currency helpers, or theme setup.
+
+Deliver in small PR-sized commits. When done, post a short checklist mapping each acceptance step to the code that satisfies it.

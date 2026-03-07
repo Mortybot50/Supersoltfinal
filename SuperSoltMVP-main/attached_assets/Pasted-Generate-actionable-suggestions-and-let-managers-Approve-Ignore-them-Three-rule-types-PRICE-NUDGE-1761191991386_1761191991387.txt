@@ -1,0 +1,90 @@
+Generate actionable suggestions and let managers Approve/Ignore them. Three rule types:
+
+PRICE_NUDGE — item GP% below target → suggest new price to hit target GP% (rounded to .00 or .50).
+
+ORDER_SHORTFALL — from Order Guide: shortfall lines → suggest creating a purchase (packs + supplier).
+
+LABOUR_TRIM/ADD — compare scheduled vs. suggested headcount per hour; if deviation > threshold, suggest trimming or adding a block.
+
+Implement exactly as below (no page removals).
+
+1) DB
+
+Add ops_suggestions:
+
+// in db/schema.ts
+export const ops_suggestions = pgTable("ops_suggestions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  org_id: uuid("org_id").notNull(),
+  venue_id: uuid("venue_id").notNull(),
+  type: varchar("type", { length: 32 }).notNull(), // PRICE_NUDGE | ORDER_SHORTFALL | LABOUR_TRIM | LABOUR_ADD
+  status: varchar("status", { length: 16 }).notNull().default("NEW"), // NEW | APPROVED | IGNORED
+  title: varchar("title", { length: 256 }).notNull(),
+  reason: varchar("reason", { length: 512 }),
+  impact: varchar("impact", { length: 128 }),
+  payload: jsonb("payload").notNull(), // typed per type (see below)
+  created_at: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  decided_at: timestamp("decided_at", { mode: "date" })
+});
+createIndex("idx_ops_suggestions_venue_status").on(ops_suggestions, t => [t.venue_id, t.status]);
+
+
+Payload shapes
+
+PRICE_NUDGE: { menuItemId, currentPrice, suggestedPrice, gpPct, targetGpPct }
+
+ORDER_SHORTFALL: { ingredientId, supplierId, packs, estCost }
+
+LABOUR_TRIM|LABOUR_ADD: { role, startAt, endAt, deltaHeadcount }
+
+2) Generator library
+
+Create lib/guardrails.ts:
+
+Price nudge rule: for each menu item with theoretical cost present, compute GP% = (price - cost) / price. If < targetGpPct (e.g., 65% GP → 35% COGS), suggest newPrice = ceil_to_0_50(cost / (1 - targetCogs)).
+
+Order shortfall rule: call existing order‑guide function with days=7, safetyDays=1; for each line with packsRecommended > 0, emit suggestion.
+
+Labour trim/add rule: compare roster_suggestions (need) vs. current scheduled draft/published shifts by hour. For blocks where scheduled > need + 1 → TRIM (delta = difference). Where scheduled < need → ADD.
+
+De‑duplication: before inserting a new suggestion of the same type+key (e.g., same menu item), mark any previous NEW as IGNORED.
+
+3) API
+
+POST /api/ops/suggestions/generate?days=7 → runs all three rules and inserts rows.
+
+GET /api/ops/suggestions?status=NEW → returns current queue.
+
+POST /api/ops/suggestions/:id/approve:
+
+PRICE_NUDGE → update menu_items.price to suggestedPrice.
+
+ORDER_SHORTFALL → no external ordering yet; mark APPROVED (we’ll convert to a purchase in Prompt #7).
+
+LABOUR_ADD → insert draft shifts for deltaHeadcount; LABOUR_TRIM → mark target shifts as candidates for removal (status = “suggest_trim”).
+
+In all cases, set status=APPROVED + decided_at=now() + write to audit log if present.
+
+POST /api/ops/suggestions/:id/ignore → status=IGNORED.
+
+All endpoints use your requireOrg() for tenant isolation.
+
+4) Wire the Dashboard panel
+
+Replace the placeholder Suggestions fetch with GET /api/ops/suggestions?status=NEW.
+
+Hook Approve / Ignore buttons to the new endpoints and refresh the panel.
+
+Show a small badge on Automation → Suggestions with the count of NEW suggestions.
+
+5) Defaults & thresholds
+
+Add a config file or env for TARGET_COGS_PCT (e.g., 0.35) and labour deviation threshold (e.g., ±20% vs. suggested).
+
+6) Acceptance
+
+POST /api/ops/suggestions/generate creates at least one suggestion with a realistic dataset.
+
+Dashboard Suggestions list renders NEW items; Approve updates data (e.g., price changes visible in Menu Items; new draft shifts after LABOUR_ADD).
+
+The badge count decrements on Approve/Ignore without a full reload.

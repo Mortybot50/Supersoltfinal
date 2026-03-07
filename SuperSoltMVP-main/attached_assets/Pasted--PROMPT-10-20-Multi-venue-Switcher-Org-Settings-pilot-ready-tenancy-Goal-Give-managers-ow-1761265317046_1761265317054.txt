@@ -1,0 +1,159 @@
+🔧 PROMPT 10 / 20 — Multi-venue Switcher & Org Settings (pilot-ready tenancy)
+
+Goal
+Give managers/owners a clean venue switcher, lock all pages to the active venue, and expose Org & Venue Settings (targets, hours, time zone, defaults). Keep invites & roles tidy.
+
+Do not remove existing pages. Follow these steps exactly; adapt import paths to the repo.
+
+0) Schema: settings + business hours (safe, additive)
+
+File: db/schema.ts (append)
+
+// Per-organisation defaults
+export const organisation_settings = pgTable("organisation_settings", {
+  org_id: uuid("org_id").primaryKey(),
+  timezone: varchar("timezone", { length: 64 }).notNull().default("Australia/Melbourne"),
+  target_cogs_pct: integer("target_cogs_pct").notNull().default(35),     // whole %
+  target_labour_pct: integer("target_labour_pct").notNull().default(22), // whole %
+  week_starts_on: integer("week_starts_on").notNull().default(1)         // 1 = Monday
+});
+
+// Per-venue settings (override org where set)
+export const venue_settings = pgTable("venue_settings", {
+  venue_id: uuid("venue_id").primaryKey(),
+  timezone: varchar("timezone", { length: 64 }),
+  display_name: varchar("display_name", { length: 128 }),
+  safety_stock_days: integer("safety_stock_days"),
+  default_order_window_days: integer("default_order_window_days"),
+});
+
+// Opening hours per day-of-week (0=Sun..6=Sat)
+export const business_hours = pgTable("business_hours", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  venue_id: uuid("venue_id").notNull(),
+  dow: integer("dow").notNull(),
+  open_minute: integer("open_minute").notNull(),   // minutes from midnight
+  close_minute: integer("close_minute").notNull(), // minutes from midnight
+});
+createIndex("idx_hours_venue_dow").on(business_hours, t => [t.venue_id, t.dow]);
+
+
+Run: npm run db:push
+
+Seed defaults on first access if rows missing (org/venue).
+
+1) Top-bar Venue Switcher
+
+Files:
+
+components/top-bar/VenueSwitcher.tsx (client)
+
+app/api/session/active-venue/route.ts (POST sets cookie; GET returns active)
+
+Behaviour
+
+On load, read venueId from secure HTTP-only cookie.
+
+Switcher lists venues user has membership for (query via requireOrg() + membership join).
+
+Selecting a venue → POST /api/session/active-venue to set cookie, then router.refresh().
+
+Enforcement
+
+In your existing requireOrg()/requireVenue() helpers, add:
+
+If no venueId cookie, redirect to /admin/locations (or a “Choose a venue” screen).
+
+All data queries must include venue_id = activeVenueId.
+
+2) Org & Venue Settings UI
+
+Routes
+
+app/admin/settings/org/page.tsx
+
+app/admin/settings/venue/page.tsx
+
+APIs
+
+PATCH /api/settings/org → { timezone, target_cogs_pct, target_labour_pct, week_starts_on }
+
+PATCH /api/settings/venue→ { timezone?, display_name?, safety_stock_days?, default_order_window_days? }
+
+GET /api/settings/org|venue → return effective settings.
+
+Use settings
+
+Date logic (week start) in dashboard/roster uses week_starts_on.
+
+Order Guide defaults use default_order_window_days + safety_stock_days.
+
+Forecast labels and roster use timezone.
+
+3) Locations (Venues) management quick pass
+
+If you don’t already expose it:
+
+app/admin/locations/page.tsx — list venues, “Add venue” (name/display_name).
+
+POST /api/admin/venues to create (org-scoped).
+
+Ensure memberships allow only owner/manager to create venues.
+
+4) Invitations scoped to org/venue (optional but handy)
+
+Extend existing invitations table with venue_id nullable.
+
+Update invitation send UI to optionally include venue.
+
+On accept, create membership for the org; store a preferred default_venue_id on membership if you have that model.
+
+On login, if no cookie → set to default_venue_id (or first venue).
+
+5) Hardening: guard every page
+
+Add a tiny server helper getActiveContext() that returns { orgId, venueId, settings }.
+
+Replace ad-hoc cookie reads with this in pages and APIs.
+
+Add a 403 for mismatched access (e.g., resource from another venue).
+
+Ensure background endpoints (forecast/order guide/roster/labour) all require the active venue.
+
+6) Analytics & audit
+
+PostHog:
+
+venue_switched { venueId }
+
+org_settings_updated { target_cogs_pct, target_labour_pct }
+
+venue_settings_updated { safety_stock_days, default_order_window_days }
+
+Log audit rows for settings changes with userId.
+
+7) Acceptance
+
+Top-bar shows current venue; switching updates Dashboard, Inventory, Roster data instantly.
+
+New venues appear in the switcher and are isolated.
+
+Org & Venue Settings persist and affect:
+
+Dashboard week boundaries & time labels
+
+Order Guide defaults (days, safety)
+
+Forecast/chart timezone
+
+All pages 403/redirect if a user removes venue cookie or tries cross-tenant access.
+
+PostHog captures the events above.
+
+8) Nice-to-have (fast)
+
+Quick venue chooser on first login if cookie missing.
+
+Per-venue hour profiles UI (you already store profiles; expose edit per DOW).
+
+Bulk staff import to venue shortcut on /admin/locations.

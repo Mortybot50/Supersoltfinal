@@ -1,0 +1,61 @@
+Build People → Staff & Invites (MVP) with org/venue scoping and RBAC.
+
+1) DB (Drizzle)
+- Alter Staff: add columns phone TEXT null, isActive BOOLEAN default true.
+- Ensure Invite table exists (id, orgId, email, role, token UNIQUE, status enum, createdAt, expiresAt). If missing, create it.
+
+2) API (App Router)
+- GET /api/people/staff
+  • requireOrg(cookie orgId); read venueId cookie.
+  • Return active staff for org+venue (or all org staff if venueId is null).
+- POST /api/people/staff
+  • Body: { name, email?, phone?, venueId?, roleTitle, hourlyRateCents }
+  • requireRole(orgId, ['owner','manager'])
+  • Insert Staff (orgId, venueId, …). withAudit('staff.create', null, row)
+  • Return created staff row.
+- PUT /api/people/staff
+  • Body: { id, name?, phone?, roleTitle?, hourlyRateCents?, isActive? }
+  • requireRole(orgId, ['owner','manager']); verify staff belongs to org.
+  • Update + withAudit('staff.update', before, after); return updated row.
+
+- GET /api/people/invites
+  • requireRole(orgId, ['owner','manager'])
+  • Return pending invites for org.
+
+- POST /api/people/invites
+  • Body: { email, role: 'owner'|'manager'|'supervisor'|'crew' }
+  • requireRole(orgId, ['owner','manager'])
+  • Create Invite with token (uuid), status='pending', expiresAt = now()+14d
+  • withAudit('invite.create', null, invite)
+  • Return { token }.
+
+- POST /api/people/invites/accept
+  • Body: { token }
+  • Look up invite by token; if valid & not expired:
+     – If no user exists with invite.email, create user.
+     – Upsert Membership(userId, orgId, role).
+     – Mark invite.status='accepted'.
+     – withAudit('invite.accept', before, after)
+     – Return { ok:true }
+    Else 400 with clear error.
+
+3) UI
+- Page: app/people/page.tsx
+  • Tabbed view: Staff | Invites.
+  • Staff tab: table (Name, Role, Venue, Rate, Active, …); “Add staff” button opens dialog to create (validates).
+  • Row action “Edit” opens dialog to edit basic fields (name, roleTitle, rate, active).
+  • Invites tab: list pending invites (email, role, expiresAt) + “Invite” button (email + role). After create, show the token with a copy button (no email send yet).
+  • Use shadcn/ui, TanStack Query, strict TS.
+
+4) RBAC & tenancy
+- All endpoints assert org via cookie and filter by org (and venue where applicable).
+- UI hides create/edit/invite buttons for non owners/managers (can read-only).
+
+5) Seed
+- Add one pending invite for org Demo Bistro: email test-invite@example.com, role='manager', expiresAt = now()+14 days.
+
+Acceptance:
+- /people loads list of staff (Carla/Mick/Jo).
+- Can add a new staff member; it appears in the table.
+- Invites tab shows the seeded invite and allows creating a new invite (shows token).
+- POST /api/people/invites/accept with the token succeeds and creates a Membership.

@@ -1,0 +1,85 @@
+Fix org selector + orgs API (unblock invites)
+
+Add/repair GET /api/me/orgs so it returns the orgs for the signed-in user (reads JWT user → memberships).
+
+If we only support the demo A/B users for now, return Demo Bistro for a@example.com and 403 for b@example.com exactly as before.
+
+Acceptance: the Invites dialog shows the org selector populated and the request no longer hits 404.
+
+Harden invite creation API
+
+POST /api/people/invites must validate:
+
+email is present and normalised to lowercase
+
+role ∈ {owner, manager, supervisor, crew}
+
+orgId belongs to the current user (RBAC: owner/manager can create)
+
+prevent duplicate pending invite for the same (orgId, email) — return 409 with a friendly JSON error
+
+On success: return { token, invite }. Token must be unique (UUID) and expiry = 14 days.
+
+Log an audit entry invite.create.
+
+Hook up UI create-invite flow (controlled dialog is already done)
+
+Ensure the mutation invalidates ["invites"] on success.
+
+Reset the form on close (already done) and also on success.
+
+Show a toast: “Invite created and copied to clipboard” and copy a shareable accept URL: /invite/<token>.
+
+Add a “Copy link” button next to each pending invite row.
+
+Implement invite acceptance
+
+API: POST /api/people/invites/accept
+
+body: { token }
+
+validates token not expired, matches org; creates Staff+Membership if none exists, marks invite accepted, audit invite.accept
+
+idempotent: calling again returns 200 and indicates already accepted
+
+Page: app/invite/[token]/page.tsx
+
+Loads token server-side, shows org + role, and a single “Accept invite” button
+
+On success, redirect to /dashboard with a success toast
+
+On fail (expired/invalid), show a helpful error and a link to contact the manager
+
+E2E tests (Playwright)
+
+Flow: sign in as a@example.com → People → Invites → create invite for alex.invite@test.com → copy URL → open accept page (new context, pretend “crew” user) → Accept → list of staff shows the new member.
+
+Also test duplicate pending invite returns 409 and UI shows an inline error.
+
+Chart polish (final pass)
+
+Sales vs Forecast: keep Actual as filled green; Forecast as outlined #818181, strokeWidth: 1, fillOpacity: 0.
+
+Legend must show a small outlined square for Forecast using the same #818181.
+
+Title/axis/legend text should use our current foreground text color (already adjusted).
+
+Currency consistency (AUD)
+
+Ensure every money display routes through the AUD formatter utilities (axis ticks, tooltips, KPI cards, tables). Remove any lingering hard-coded symbols.
+
+Acceptance: visual scan shows $ everywhere (en-AU format), no £/€ left; abbreviated ticks use A$ style per our helper.
+
+Done when
+
+Invites dialog opens reliably, resets cleanly, and can create multiple invites back-to-back.
+
+Org selector is populated (no more 404).
+
+Accept-invite flow works from a public link and adds the person to Staff.
+
+Playwright E2E passes.
+
+Forecast legend shows an outlined square and stroke width is thin (1).
+
+All currency is AUD.
