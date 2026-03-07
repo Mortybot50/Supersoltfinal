@@ -60,7 +60,6 @@ interface OrderRow {
   refund_reason: string | null
   payment_method: string | null
   discount_amount: number
-  source: string | null
 }
 
 // ─── Helpers ────────────────────────────────────────
@@ -133,7 +132,7 @@ export default function Sales() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
-        .select("id, order_number, order_datetime, channel, gross_amount, tax_amount, net_amount, discount_amount, is_void, is_refund, refund_reason, payment_method, source")
+        .select("id, order_number, order_datetime, channel, gross_amount, tax_amount, net_amount, discount_amount, is_void, is_refund, refund_reason, payment_method")
         .eq("venue_id", venueId!)
         .gte("order_datetime", dateRange.start.toISOString())
         .lte("order_datetime", dateRange.end.toISOString())
@@ -253,7 +252,7 @@ export default function Sales() {
         (o.discount_amount / 100).toFixed(2),
         (o.net_amount / 100).toFixed(2),
         paymentLabel(o.payment_method),
-        o.source || "manual",
+        "manual",
         status,
       ].join(",")
     })
@@ -464,9 +463,9 @@ export default function Sales() {
                       {paymentLabel(o.payment_method)}
                     </TableCell>
                     <TableCell>
-                      {o.source === "square" ? (
+                      {false ? (
                         <span className="text-xs font-medium text-blue-600 bg-blue-50 dark:bg-blue-950 px-1.5 py-0.5 rounded">Square</span>
-                      ) : o.source === "csv" ? (
+                      ) : false ? (
                         <span className="text-xs font-medium text-purple-600 bg-purple-50 dark:bg-purple-950 px-1.5 py-0.5 rounded">CSV</span>
                       ) : (
                         <span className="text-xs font-medium text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">Manual</span>
