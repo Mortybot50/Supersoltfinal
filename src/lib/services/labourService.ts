@@ -308,6 +308,13 @@ export async function loadRosterShiftsFromDB(venueId?: string): Promise<RosterSh
   }
 }
 
+
+/** Convert a date + time string (e.g. "09:00") to a full ISO timestamp for timestamptz columns */
+function toTimestampTZ(date: Date | string, time: string): string {
+  const d = date instanceof Date ? date.toISOString().split('T')[0] : String(date).split('T')[0]
+  return \`\${d}T\${time}:00\`
+}
+
 export async function addRosterShiftToDB(shift: RosterShift, orgId: string): Promise<RosterShift | null> {
   try {
     const shiftData: Partial<DBRosterShift> = {
@@ -316,8 +323,8 @@ export async function addRosterShiftToDB(shift: RosterShift, orgId: string): Pro
       venue_id: shift.venue_id,
       staff_id: shift.staff_id,
       shift_date: shift.date instanceof Date ? shift.date.toISOString().split('T')[0] : String(shift.date).split('T')[0],
-      start_time: shift.start_time,
-      end_time: shift.end_time,
+      start_time: toTimestampTZ(shift.date, shift.start_time),
+      end_time: toTimestampTZ(shift.date, shift.end_time),
       break_duration_mins: shift.break_minutes,
       position: shift.role,
       status: mapShiftStatus(shift.status),
@@ -357,8 +364,8 @@ export async function updateRosterShiftInDB(id: string, updates: Partial<RosterS
         ? updates.date.toISOString().split('T')[0]
         : String(updates.date).split('T')[0]
     }
-    if (updates.start_time) updateData.start_time = updates.start_time
-    if (updates.end_time) updateData.end_time = updates.end_time
+    if (updates.start_time) updateData.start_time = updates.date ? toTimestampTZ(updates.date, updates.start_time) : updates.start_time
+    if (updates.end_time) updateData.end_time = updates.date ? toTimestampTZ(updates.date, updates.end_time) : updates.end_time
     if (updates.break_minutes !== undefined) updateData.break_duration_mins = updates.break_minutes
     if (updates.role) updateData.position = updates.role
     if (updates.status) updateData.status = mapShiftStatus(updates.status)
@@ -682,8 +689,8 @@ export async function updateShiftTemplateInDB(id: string, updates: Partial<Shift
 
     if (updates.name) updateData.name = updates.name
     if (updates.description !== undefined) updateData.description = updates.description
-    if (updates.start_time) updateData.start_time = updates.start_time
-    if (updates.end_time) updateData.end_time = updates.end_time
+    if (updates.start_time) updateData.start_time = updates.date ? toTimestampTZ(updates.date, updates.start_time) : updates.start_time
+    if (updates.end_time) updateData.end_time = updates.date ? toTimestampTZ(updates.date, updates.end_time) : updates.end_time
     if (updates.break_minutes !== undefined) updateData.break_minutes = updates.break_minutes
     if (updates.role) updateData.position = updates.role
     if (updates.days_of_week) updateData.days_of_week = updates.days_of_week
