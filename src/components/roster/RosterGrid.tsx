@@ -5,16 +5,15 @@
  *            staff cards drag from sidebar to create shifts.
  */
 
-import { useMemo, useCallback, useState } from 'react'
+import { useMemo } from 'react'
 
 import { Staff, RosterShift } from '@/types'
 import { useRosterStore } from '@/stores/useRosterStore'
 import { RosterRow } from './RosterRow'
 import { RoleGroupHeader } from './RoleGroupHeader'
-import { ShiftBlock, DRAGGABLE_SHIFT_TYPE } from './ShiftBlock'
-import { DRAGGABLE_STAFF_TYPE } from './StaffCard'
+import { ShiftBlock } from './ShiftBlock'
 import { format, isToday, isWeekend, isSameDay, parse } from 'date-fns'
-import { getWeekDates, getFortnightDates, calculateShiftCostBreakdown } from '@/lib/utils/rosterCalculations'
+import { getWeekDates, getFortnightDates } from '@/lib/utils/rosterCalculations'
 import { cn } from '@/lib/utils'
 import { CoverageHeatmap } from './CoverageHeatmap'
 import { SalesForecastOverlay, PrepLoadBadge } from './SalesForecastOverlay'
@@ -36,14 +35,9 @@ export function RosterGrid({
     shifts, ghostShifts, staff,
     roleFilter, searchQuery,
     expandedRoles, toggleRole,
-    moveShift, addShift,
   } = useRosterStore()
 
 
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
-  )
 
   const dates = useMemo(() => {
     if (view === 'fortnight') return getFortnightDates(selectedDate)
