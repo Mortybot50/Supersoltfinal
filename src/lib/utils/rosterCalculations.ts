@@ -145,7 +145,7 @@ export function calculateShiftHoursAndCost(
 } {
   const breakdown = calculateShiftCostBreakdown(
     startTime, endTime, breakMinutes, hourlyRateCents,
-    date, isCasual ? 'casual' : 'full-time', state
+    venueId, date, isCasual ? 'casual' : 'full-time', state
   )
 
   return {
@@ -872,7 +872,7 @@ export function applyShiftTemplate(
   venueId: string
 ): Omit<RosterShift, 'id'> {
   const calc = calculateShiftHoursAndCost(
-    template.start_time, template.end_time, template.break_minutes, hourlyRateCents, date
+    template.start_time, template.end_time, template.break_minutes, hourlyRateCents, venueId, date
   )
 
   return {

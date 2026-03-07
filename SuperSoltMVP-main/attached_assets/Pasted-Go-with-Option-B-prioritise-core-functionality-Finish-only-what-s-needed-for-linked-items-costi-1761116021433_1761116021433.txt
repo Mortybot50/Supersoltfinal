@@ -1,0 +1,64 @@
+Go with Option B (prioritise core functionality).
+Finish only what’s needed for linked items → costing → CSV sales import. Leave OCR as a stub.
+
+Do this in order
+
+APIs (finish)
+
+Complete /api/recipes (header) and /api/recipe-lines CRUD using the new schema.
+
+Use lib/costing.ts to expose GET /api/recipes/cost?menuItemId=... that returns { costCents, lines, warnings }.
+
+Add index on daily_sales (orgId, date) if not already done.
+
+Add /api/sales/import/csv (POST: text or file) → parse, upsert daily_sales.
+
+Keep /api/sales/import/ocr returning 501 with the agreed response shape.
+
+UI
+
+/suppliers: table + create/edit/delete (soft) dialogs.
+
+/ingredients: add “Manage Suppliers” action → dialog for ingredient→supplier rows (price, pack, preferred). Show “Best Unit Cost” badge next to Cost/Unit (uses supplier mapping if present).
+
+/recipes: convert to Recipe Builder
+
+Select menu item (combobox).
+
+Lines table supports Ingredient OR Menu Item rows (qty + unit).
+
+Sidebar: live Theoretical Cost (A$), Food Cost % (cost ÷ menu price), Yield, Wastage %.
+
+Save/Update recipe.
+
+/menu-items: add Cost (A$) and Food Cost % columns. In edit dialog, show read-only computed cost. “Recipe: Yes/No”.
+
+/sales/import: new page with tabs
+
+CSV Upload: paste/upload → preview → column mapper (Date, Menu Item, Qty, Price, Revenue) → import.
+
+OCR (Beta): upload → call stub and show “Coming soon—use CSV”.
+
+Rules / polish
+
+AUD only via existing helpers.
+
+Unit conversions (g↔kg, ml↔L) in costing.
+
+Detect recipe cycles; show toast + block save.
+
+Invalidate react-query keys: ["ingredients"], ["suppliers"], ["ingredient-suppliers", id], ["menu-items"], ["recipes", menuItemId], ["sales"].
+
+Acceptance checklist
+
+Create Supplier; link to Ingredient with price; ingredient shows Best Unit Cost.
+
+Build nested recipes (e.g., Fries used inside Burger); costs compute recursively.
+
+Menu Items list shows Cost and Food Cost %.
+
+Import CSV with two rows (Burger×5, Fries×3); rows appear in /sales and summary cards update.
+
+OCR tab loads but returns “coming soon”.
+
+Don’t change auth/invites, theme, or currency utilities. Deliver in small commits and post a brief mapping from checklist → code when done.

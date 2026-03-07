@@ -1,0 +1,368 @@
+Goal:
+
+Add sales_forecasts storage and default hourly profiles.
+
+Implement a simple, explainable forecast (DOW weighted + recency trend).
+
+Provide /api/forecast/* endpoints to generate and fetch.
+
+Wire the dashboard chart to real forecast vs actual.
+
+Do NOT remove pages. Implement exactly as below.
+
+1) DB schema & migration
+
+Create two new tables with Drizzle and a migration.
+
+File: server/schema/forecast.ts
+
+import { pgTable, varchar, timestamp, date, integer, smallint, uuid, numeric } from "drizzle-orm/pg-core";
+
+/** Per-menu-item daily forecasts (units). Revenue derived from price at read time. */
+export const sales_forecasts = pgTable("sales_forecasts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  org_id: uuid("org_id").notNull(),
+  venue_id: uuid("venue_id").notNull(),
+  date: date("date", { mode: "date" }).notNull(),
+  menu_item_id: uuid("menu_item_id").notNull(),
+  qty: numeric("qty", { precision: 12, scale: 3 }).notNull(), // predicted units
+  model: varchar("model", { length: 64 }).notNull().default("dow_ewma_v1"),
+  generated_at: timestamp("generated_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+/** Hourly distribution weights per DOW for a venue (sum 24h = 1). */
+export const forecast_hour_profiles = pgTable("forecast_hour_profiles", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  org_id: uuid("org_id").notNull(),
+  venue_id: uuid("venue_id").notNull(),
+  dow: smallint("dow").notNull(), // 0=Sun..6=Sat
+  hour: smallint("hour").notNull(), // 0..23
+  weight: numeric("weight", { precision: 6, scale: 4 }).notNull(),
+  updated_at: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+
+Add these to your schema barrel export (server/schema/index.ts) so they’re importable.
+
+Create a migration to create both tables and an index on (venue_id, date) for sales_forecasts, and (venue_id, dow, hour) for forecast_hour_profiles.
+
+Migration (example SQL):
+
+CREATE TABLE IF NOT EXISTS sales_forecasts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id uuid NOT NULL,
+  venue_id uuid NOT NULL,
+  date date NOT NULL,
+  menu_item_id uuid NOT NULL,
+  qty numeric(12,3) NOT NULL,
+  model varchar(64) NOT NULL DEFAULT 'dow_ewma_v1',
+  generated_at timestamp NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_sales_forecasts_venue_date ON sales_forecasts (venue_id, date);
+
+CREATE TABLE IF NOT EXISTS forecast_hour_profiles (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id uuid NOT NULL,
+  venue_id uuid NOT NULL,
+  dow smallint NOT NULL,
+  hour smallint NOT NULL,
+  weight numeric(6,4) NOT NULL,
+  updated_at timestamp NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_hour_profiles_unique ON forecast_hour_profiles (venue_id, dow, hour);
+
+
+Run the migration.
+
+2) Forecasting library
+
+File: lib/forecasting.ts
+
+import { db } from "@/server/db";
+import { daily_sales, menu_items } from "@/server/schema"; // adjust paths/names
+import { sales_forecasts, forecast_hour_profiles } from "@/server/schema/forecast";
+import { and, eq, gte, lte, inArray, sql } from "drizzle-orm";
+
+/**
+ * Ensure a default hour profile exists (peaks lunch/dinner). weights sum to 1 per DOW.
+ */
+export async function ensureDefaultHourProfiles(orgId: string, venueId: string) {
+  const existing = await db.select({ c: sql<number>`COUNT(*)` })
+    .from(forecast_hour_profiles)
+    .where(eq(forecast_hour_profiles.venue_id, venueId));
+  if (Number(existing[0].c) > 0) return;
+
+  const template = (dow: number) => {
+    // 24 weights; mild lunch peak (12-14), dinner peak (18-20). Slightly higher Fri/Sat.
+    const base = Array(24).fill(0.02);
+    const bump = (h: number, v: number) => base[h] += v;
+    // lunch
+    bump(11, 0.03); bump(12, 0.05); bump(13, 0.03);
+    // dinner
+    bump(18, 0.05); bump(19, 0.06); bump(20, 0.03);
+    if (dow === 5) { bump(12, 0.01); bump(19, 0.02); }     // Fri
+    if (dow === 6) { bump(13, 0.02); bump(19, 0.02); }     // Sat
+    // normalize
+    const s = base.reduce((a,b)=>a+b,0);
+    return base.map(v => v / s);
+  };
+
+  const rows = [];
+  for (let dow=0; dow<7; dow++) {
+    const weights = template(dow);
+    for (let h=0; h<24; h++) {
+      rows.push({
+        org_id: orgId, venue_id: venueId, dow, hour: h, weight: Number(weights[h].toFixed(4))
+      });
+    }
+  }
+  await db.insert(forecast_hour_profiles).values(rows);
+}
+
+/**
+ * Generate daily forecasts (units) per menu_item for [start..end] using 8-week DOW weighted avg with recency trend.
+ * If a menu item has < 3 matching DOW observations, fall back to simple overall avg for that item.
+ */
+export async function generateDailyForecast({
+  orgId, venueId, start, end
+}: { orgId: string; venueId: string; start: Date; end: Date; }) {
+
+  // Fetch price list (we forecast units but need item existence)
+  const items = await db.select({ id: menu_items.id })
+    .from(menu_items).where(eq(menu_items.venue_id, venueId));
+
+  if (items.length === 0) return;
+
+  // 8 weeks lookback window ending yesterday
+  const endHist = new Date(start); endHist.setDate(endHist.getDate() - 1);
+  const startHist = new Date(endHist); startHist.setDate(endHist.getDate() - 7*8);
+
+  // Pull historical daily sales
+  const rows = await db.select({
+      date: daily_sales.date,
+      menu_item_id: daily_sales.menu_item_id,
+      qty: daily_sales.quantity
+    })
+    .from(daily_sales)
+    .where(and(
+      gte(daily_sales.date, startHist),
+      lte(daily_sales.date, endHist),
+      eq(daily_sales.venue_id, venueId)
+    ));
+
+  // Organise by item -> DOW -> weekIndex (0 oldest..7 latest)
+  const map = new Map<string, Map<number, number[]>>(); // item -> dow -> qty per week
+  for (const it of items) {
+    map.set(it.id, new Map());
+  }
+  const weekIndex = (d: Date) => {
+    const diffDays = Math.floor((+endHist - +d) / 86_400_000);
+    return Math.min(7, Math.max(0, Math.floor(diffDays / 7))); // 0..7 (0 = closest)
+  };
+  for (const r of rows) {
+    const id = r.menu_item_id as string;
+    if (!map.has(id)) continue;
+    const d = new Date(r.date as any);
+    const dow = d.getDay(); // 0..6
+    const w = weekIndex(d);
+    const slot = map.get(id)!.get(dow) ?? Array(8).fill(0);
+    slot[7 - w] += Number(r.qty); // oldest left, newest right
+    map.get(id)!.set(dow, slot);
+  }
+
+  // Weighted DOW average with recency (1..8 weights)
+  const weights = [1,2,3,4,5,6,7,8];
+  const avg = (arr: number[]) => {
+    const num = arr.reduce((s,v,i)=> s + v*weights[i], 0);
+    const den = weights.reduce((s,v)=> s + v, 0);
+    return den === 0 ? 0 : num/den;
+  };
+
+  // Build records for each target day
+  const out: { org_id:string; venue_id:string; date:Date; menu_item_id:string; qty:number; }[] = [];
+  const cur = new Date(start);
+  while (cur <= end) {
+    const dow = cur.getDay();
+    for (const it of items) {
+      const series = map.get(it.id)!.get(dow) ?? [];
+      let q = series.length >= 3 ? avg(series as number[]) : 0;
+
+      // Fallback: overall avg for item if DOW too sparse
+      if (q === 0) {
+        // mean of all weeks/dows
+        let sum=0, n=0;
+        for (const [,arr] of map.get(it.id)!.entries()) {
+          for (const v of arr) { sum += v; n++; }
+        }
+        q = n>0 ? sum/n : 0;
+      }
+
+      // Clamp very small noise to 0
+      if (q < 0.01) q = 0;
+
+      out.push({ org_id: orgId, venue_id: venueId, date: new Date(cur), menu_item_id: it.id, qty: Number(q.toFixed(3)) });
+    }
+    cur.setDate(cur.getDate()+1);
+  }
+
+  // Replace existing window
+  await db.delete(sales_forecasts).where(and(
+    eq(sales_forecasts.venue_id, venueId),
+    gte(sales_forecasts.date, start),
+    lte(sales_forecasts.date, end)
+  ));
+  if (out.length) await db.insert(sales_forecasts).values(out);
+}
+
+3) Forecast APIs
+
+File: app/api/forecast/generate/route.ts
+
+import { NextResponse } from "next/server";
+import { requireOrg } from "@/lib/authz"; // your existing auth util
+import { ensureDefaultHourProfiles, generateDailyForecast } from "@/lib/forecasting";
+
+export async function POST(req: Request) {
+  const { orgId, venueId } = await requireOrg(); // adjust to your session/context helpers
+  const url = new URL(req.url);
+  const days = Number(url.searchParams.get("days") ?? 14);
+  const start = new Date(url.searchParams.get("start") ?? new Date());
+  start.setHours(0,0,0,0);
+  const end = new Date(start); end.setDate(end.getDate() + days - 1);
+
+  await ensureDefaultHourProfiles(orgId, venueId);
+  await generateDailyForecast({ orgId, venueId, start, end });
+
+  return NextResponse.json({ ok: true, start, end, days });
+}
+
+
+File: app/api/forecast/daily/route.ts
+
+import { NextResponse } from "next/server";
+import { db } from "@/server/db";
+import { daily_sales, menu_items } from "@/server/schema";
+import { sales_forecasts } from "@/server/schema/forecast";
+import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { requireOrg } from "@/lib/authz";
+
+export async function GET(req: Request) {
+  const { venueId } = await requireOrg();
+  const url = new URL(req.url);
+  const start = new Date(url.searchParams.get("start") ?? new Date());
+  const days = Number(url.searchParams.get("days") ?? 7);
+  start.setHours(0,0,0,0);
+  const end = new Date(start); end.setDate(end.getDate() + days - 1);
+
+  // Actual revenue per day
+  const actual = await db
+    .select({
+      date: daily_sales.date,
+      revenue: sql<number>`COALESCE(SUM(ds.quantity * mi.price),0)`
+    })
+    .from(daily_sales as any)
+    .leftJoin(menu_items as any, eq((daily_sales as any).menu_item_id, (menu_items as any).id))
+    .where(and(
+      gte((daily_sales as any).date, start),
+      lte((daily_sales as any).date, end),
+      eq((daily_sales as any).venue_id, venueId)
+    ))
+    .groupBy((daily_sales as any).date)
+    .orderBy((daily_sales as any).date);
+
+  // Forecast revenue per day: sum(qty * price)
+  const forecast = await db
+    .select({
+      date: sales_forecasts.date,
+      revenue: sql<number>`COALESCE(SUM(sf.qty * mi.price),0)`
+    })
+    .from(sales_forecasts as any)
+    .leftJoin(menu_items as any, eq((sales_forecasts as any).menu_item_id, (menu_items as any).id))
+    .where(and(
+      gte((sales_forecasts as any).date, start),
+      lte((sales_forecasts as any).date, end),
+      eq((sales_forecasts as any).venue_id, venueId)
+    ))
+    .groupBy((sales_forecasts as any).date)
+    .orderBy((sales_forecasts as any).date);
+
+  return NextResponse.json({ actual, forecast, start, end, days });
+}
+
+4) Wire the Dashboard chart to real data
+
+Create/Update client chart component: components/charts/SalesVsForecast.tsx
+
+"use client";
+import { useEffect, useState } from "react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+
+type Row = { date: string; actual: number; forecast: number };
+export default function SalesVsForecast({ start, days }: { start?: string; days?: number }) {
+  const [data, setData] = useState<Row[]>([]);
+
+  useEffect(() => {
+    const qs = new URLSearchParams();
+    if (start) qs.set("start", start);
+    if (days) qs.set("days", String(days));
+    fetch(`/api/forecast/daily?${qs.toString()}`).then(r=>r.json()).then((j) => {
+      // Merge by date
+      const map = new Map<string, Row>();
+      for (const a of j.actual) map.set(a.date, { date: a.date, actual: Number(a.revenue), forecast: 0 });
+      for (const f of j.forecast) {
+        const r = map.get(f.date) ?? { date: f.date, actual: 0, forecast: 0 };
+        r.forecast = Number(f.revenue); map.set(f.date, r);
+      }
+      const arr = Array.from(map.values()).sort((a,b)=> a.date.localeCompare(b.date));
+      setData(arr);
+    });
+  }, [start, days]);
+
+  return (
+    <ResponsiveContainer width="100%" height={320}>
+      <BarChart data={data}>
+        <XAxis dataKey="date" tickLine={false} />
+        <YAxis tickLine={false} />
+        <Tooltip />
+        <Bar dataKey="actual" radius={[6,6,0,0]} />
+        <Bar dataKey="forecast" radius={[6,6,0,0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+
+Update the chart block on app/dashboard/page.tsx to use the component above and trigger generation automatically (idempotent):
+
+// near top of the file (server side)
+await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/forecast/generate`, { method: "POST", cache: "no-store" }).catch(()=>{});
+
+// inside the chart card
+import dynamic from "next/dynamic";
+const SalesVsForecast = dynamic(() => import("@/components/charts/SalesVsForecast"), { ssr: false });
+
+// ...
+<div className="rounded-xl border border-black/5 bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
+  <div className="mb-2 text-sm font-medium">Sales vs Forecast</div>
+  <SalesVsForecast days={7} />
+</div>
+
+5) Build & verify
+
+Seed or import at least 4–8 weeks of daily_sales.
+
+Open /dashboard. First load will call POST /api/forecast/generate and populate sales_forecasts.
+
+Confirm the chart now shows two series (Actual vs Forecast) with non‑zero data.
+
+Confirm GET /api/forecast/daily returns arrays where dates align and values are in currency units (derived from menu item prices).
+
+Acceptance criteria
+
+sales_forecasts table is populated for the next 14 days after generation.
+
+GET /api/forecast/daily?days=7 returns { actual: [...], forecast: [...] } with matching date keys.
+
+Dashboard chart renders real data (not placeholders).
+
+No pages are removed; existing KPIs continue to load.

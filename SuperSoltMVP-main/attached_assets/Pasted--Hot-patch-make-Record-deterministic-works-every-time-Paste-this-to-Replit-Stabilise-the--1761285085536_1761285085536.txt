@@ -1,0 +1,130 @@
+⚙️ Hot-patch — make “Record” deterministic (works every time)
+
+Paste this to Replit:
+
+Stabilise the “Record Daily Sale” flow end-to-end.
+
+A) Client form
+- Ensure the modal form component is a client component (`"use client"`).
+- Use `<form onSubmit={...}>` (NOT onClick on the button).
+- In onSubmit(e):
+   e.preventDefault();
+   disable button while saving;
+   POST to /api/sales with JSON body { date, menuItemId, quantity } and header "Content-Type":"application/json";
+   on success: close modal and call router.refresh();
+
+B) API
+- File: app/api/sales/route.ts
+  - `export const runtime = "nodejs";`
+  - Use `const { orgId, venueId } = await getActiveContext();` (the new cookie names).
+  - Accept `{ date, menuItemId, quantity }`.
+  - Upsert (venueId, date, menuItemId) – add to quantity if row exists.
+  - After writing, fire-and-forget forecast generate:
+      const qs = new URLSearchParams({ start: new Date(date).toISOString(), days: "1" });
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/forecast/generate?`+qs, { method: "POST", cache: "no-store" }).catch(()=>{});
+  - Return 201 with { ok:true }.
+
+C) Guard rails
+- If `getActiveContext()` throws “No active venue”, return 400 with that message.
+- On the client: if response is 400/403, show that message in a toast and keep the modal open.
+
+D) Sanity
+- Add a console.log in the API on POST (one line) so we can see calls arriving during dev.
+
+
+This removes the last source of “click does nothing”: non-client form, missing JSON header, or old cookie names.
+
+🔧 PROMPT 6 / 20 — Reconcile KPIs + Chart + Top Products (period-aware) and include forecast revenue + qty
+
+Goal: All numbers agree for Day/Week/Month; the chart shows Actual $ vs Forecast $ and we also expose forecast qty (for inventory). Fixes the “~0.0% change” and “no correlation” complaints.
+
+Paste this full prompt:
+
+Unify sales math across KPIs, chart, and products, and include forecast revenue + qty.
+
+1) Shared date window helper
+- Create lib/date-window.ts with:
+  getWindow(period:"day"|"week"|"month", startISO:string) -> { start:Date, end:Date, days:number, label:string }
+- Weeks are Mon–Sun; months are calendar months. Use local TZ consistently.
+
+2) One dashboard data endpoint
+- New route: app/api/dashboard/summary/route.ts  (runtime nodejs)
+- Input: ?period=day|week|month&start=YYYY-MM-DD
+- Output:
+  {
+    kpis: {
+      salesCents: number,
+      cogsPct: number | null,
+      labourPct: number | null,
+    },
+    chart: {
+      days: Array<{ date: string, actualCents: number, forecastCents: number }>
+    },
+    topProducts: Array<{ id: string, name: string, valueCents: number, pctOfSales: number, changePct: number }>,
+    forecastByItem: Array<{ menuItemId: string, qty: number, revenueCents: number }>
+  }
+- Implementation details:
+  - Use getWindow() for the range.
+  - Actuals:
+     * Sum by date for the window from your existing sales tables.
+  - Forecast:
+     * Ensure coverage: call POST /api/forecast/generate for the window (idempotent).
+     * Compute per-day **forecast qty** from sales_forecasts.
+     * Compute per-day **forecast revenue** = Σ(qty_item * current_price_cents_of_item).
+  - KPIs:
+     * salesCents = Σ actualCents in window (if future only, this can be 0).
+     * cogsPct: theoretical COGS based on recipes * actual quantities in the window (fallback null if data incomplete).
+     * labourPct: scheduled cost in window / salesCents (fallback based on forecast if salesCents==0).
+  - TopProducts:
+     * For the window, aggregate actual revenue by item.
+     * pctOfSales = itemRevenue / totalActualRevenue (0 if denom 0).
+     * changePct = ((thisWindowRevenue - prevWindowRevenue) / max(prevWindowRevenue, 1)) * 100
+       where prevWindow is the same length immediately before start.
+
+3) Chart component updates
+- components/charts/SalesVsForecast:
+  - Accept data from dashboard summary endpoint, not separate endpoints.
+  - Render two bars per day: Actual ($), Forecast ($).
+  - Tooltip shows both $ and a second line "Forecast qty: X" by summing forecastByItem for that day
+    (or pass a per-day qty aggregate in the endpoint to keep it simple).
+
+4) Dashboard wiring
+- DashboardClient fetches /api/dashboard/summary with current period/start (from DateNav).
+- Replace the old separate calls with this single payload.
+- For Top Products table, use summary.topProducts; show changePct with ↑/↓ color and 1 decimal.
+
+5) Accuracy / performance
+- Make sure sales, chart, and top products all use the SAME window (getWindow()).
+- Add DB indexes if missing:
+   sales_actual (venue_id, date)
+   sales_forecasts (venue_id, date)
+   menu_items (venue_id, id) -- for price lookup
+- Return 200 with empty arrays if no data; never 400 for “no data”.
+
+6) Acceptance
+- Day/Week/Month all show consistent totals between KPI and chart.
+- Top Products change% shows non-zero when prior window had different revenue.
+- Forecast bars appear in future windows (actuals zero, forecast non-zero).
+- Inventory endpoints can use summary.forecastByItem to drive order calculations.
+
+About external signals (weather/holidays/events)
+
+Let’s add those after the totals agree (so we know we’re lifting the right baseline). I’ll package Prompt 10 / 20 later to add:
+
+Weather (7-day forecast: rain, max temp)
+
+Public holidays (by country/state)
+
+Event hooks (simple manual overrides to start)
+
+Those will be “demand multipliers” on top of the baseline forecast (e.g., +18% for public holiday, +8% for rain on delivery-heavy venues).
+
+Quick sanity checklist you can try right now
+
+Open DevTools → Network, click Record. You should see POST /api/sales 201.
+
+Switch DateNav Week → KPI total equals the sum of chart “Actual” bars.
+
+Add one sale in the week → KPI and chart update after the modal closes.
+
+If anything still misbehaves after you run the two prompts above, te

@@ -1,0 +1,299 @@
+Goal: Upgrade /dashboard with real KPIs, premium layout, and a Suggestions panel. Create small UI primitives we can reuse elsewhere.
+
+Do NOT remove pages. Implement exactly as below.
+
+1) UI primitives
+
+File: components/ui/SectionHeader.tsx
+
+import { ReactNode } from "react";
+
+export function SectionHeader({
+  title,
+  description,
+  action
+}: { title: string; description?: string; action?: ReactNode }) {
+  return (
+    <div className="mb-4 flex items-start justify-between gap-4">
+      <div>
+        <h1 className="text-xl font-semibold tracking-[-0.01em]">{title}</h1>
+        {description ? (
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        ) : null}
+      </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
+    </div>
+  );
+}
+
+
+File: components/ui/KpiCard.tsx
+
+import { ReactNode } from "react";
+
+export function KpiCard({
+  label,
+  value,
+  delta,
+  icon
+}: { label: string; value: string; delta?: { sign: "up"|"down"; text: string } | null; icon?: ReactNode }) {
+  return (
+    <div className="rounded-xl border border-black/5 bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+        {icon}
+      </div>
+      <div className="mt-2 text-2xl font-semibold tracking-tight">{value}</div>
+      {delta ? (
+        <div className="mt-1 text-xs">
+          <span className={delta.sign === "up" ? "text-emerald-600" : "text-rose-600"}>
+            {delta.sign === "up" ? "▲ " : "▼ "}{delta.text}
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+2) KPI service (server)
+
+Create a small endpoint that computes Today/WTD sales and theoretical COGS % and scheduled labour % using the existing schema. If any datum is missing, return null so the UI can gracefully show “—”.
+
+File: app/api/metrics/kpis/route.ts
+
+import { NextResponse } from "next/server";
+import { db } from "@/server/db"; // adjust import to your Drizzle instance
+import { sql, and, eq, gte, lte } from "drizzle-orm";
+import { daily_sales, menu_items, shifts, staff } from "@/server/schema"; // adjust paths/names as in repo
+
+// Helper: get start of week (Mon) in server TZ
+function startOfWeek(d = new Date()) {
+  const day = d.getDay(); // 0..6 Sun..Sat
+  const diff = (day === 0 ? -6 : 1) - day; // move to Monday
+  const s = new Date(d);
+  s.setHours(0,0,0,0);
+  s.setDate(s.getDate() + diff);
+  return s;
+}
+function startOfDay(d = new Date()) {
+  const s = new Date(d); s.setHours(0,0,0,0); return s;
+}
+function endOfDay(d = new Date()) {
+  const e = new Date(d); e.setHours(23,59,59,999); return e;
+}
+
+export async function GET(req: Request) {
+  try {
+    // TODO: read venueId from session or querystring; fallback to first venue in session
+    const url = new URL(req.url);
+    const venueId = url.searchParams.get("venueId");
+
+    const todayStart = startOfDay();
+    const todayEnd = endOfDay();
+    const weekStart = startOfWeek();
+
+    // Revenue = sum(qty * sell price)
+    const todaySalesRes = await db
+      .select({ value: sql<number>`COALESCE(SUM(ds.quantity * mi.price), 0)` })
+      .from(daily_sales as any) // alias if needed
+      .leftJoin(menu_items as any, eq((daily_sales as any).menu_item_id, (menu_items as any).id))
+      .where(and(
+        gte((daily_sales as any).date, todayStart),
+        lte((daily_sales as any).date, todayEnd),
+        venueId ? eq((daily_sales as any).venue_id, venueId) : sql`TRUE`
+      ));
+
+    const wtdSalesRes = await db
+      .select({ value: sql<number>`COALESCE(SUM(ds.quantity * mi.price), 0)` })
+      .from(daily_sales as any)
+      .leftJoin(menu_items as any, eq((daily_sales as any).menu_item_id, (menu_items as any).id))
+      .where(and(
+        gte((daily_sales as any).date, weekStart),
+        lte((daily_sales as any).date, todayEnd),
+        venueId ? eq((daily_sales as any).venue_id, venueId) : sql`TRUE`
+      ));
+
+    const salesToday = Number(todaySalesRes?.[0]?.value ?? 0);
+    const salesWTD = Number(wtdSalesRes?.[0]?.value ?? 0);
+
+    // Theoretical COGS% (if a calculated cost column exists on menu_items -> use it; else null)
+    let cogsPct: number | null = null;
+    try {
+      const cogsRes = await db
+        .select({ cost: sql<number>`COALESCE(SUM(ds.quantity * mi.theoretical_cost), 0)` })
+        .from(daily_sales as any)
+        .leftJoin(menu_items as any, eq((daily_sales as any).menu_item_id, (menu_items as any).id))
+        .where(and(
+          gte((daily_sales as any).date, weekStart),
+          lte((daily_sales as any).date, todayEnd),
+          venueId ? eq((daily_sales as any).venue_id, venueId) : sql`TRUE`
+        ));
+      const cost = Number(cogsRes?.[0]?.cost ?? 0);
+      cogsPct = salesWTD > 0 ? +(100 * cost / salesWTD).toFixed(1) : null;
+    } catch (_) {
+      cogsPct = null;
+    }
+
+    // Scheduled labour % (sum scheduled wage cost this week / WTD sales)
+    let labourPct: number | null = null;
+    try {
+      const labourRes = await db
+        .select({
+          value: sql<number>`COALESCE(SUM(EXTRACT(EPOCH FROM (sh.end_at - sh.start_at))/3600 * st.hourly_rate),0)`
+        })
+        .from(shifts as any)
+        .leftJoin(staff as any, eq((shifts as any).staff_id, (staff as any).id))
+        .where(and(
+          gte((shifts as any).start_at, weekStart),
+          lte((shifts as any).start_at, todayEnd),
+          venueId ? eq((shifts as any).venue_id, venueId) : sql`TRUE`
+        ));
+      const labour = Number(labourRes?.[0]?.value ?? 0);
+      labourPct = salesWTD > 0 ? +(100 * labour / salesWTD).toFixed(1) : null;
+    } catch (_) {
+      labourPct = null;
+    }
+
+    return NextResponse.json({
+      salesToday, salesWTD, cogsPct, labourPct
+    }, { status: 200 });
+  } catch (e) {
+    return NextResponse.json({ error: "kpi_error" }, { status: 500 });
+  }
+}
+
+
+If your schema uses different table/column names, search & adjust (Replit agent: look for daily_sales, menu_items.price, menu_items.theoretical_cost, shifts, staff.hourly_rate). If theoretical_cost doesn’t exist, set cogsPct = null.
+
+3) Suggestions API (placeholder for the right panel)
+
+File: app/api/automation/suggestions/route.ts
+
+import { NextResponse } from "next/server";
+
+// Placeholder: returns stable dummy suggestions we can render now.
+// We'll replace this with the real guardrails engine later.
+export async function GET() {
+  return NextResponse.json({
+    items: [
+      { id: "sg-1", type: "inventory", title: "Order 2 x Beef Chuck (5kg)", reason: "Forecast shortfall Fri–Sun", impact: "+$420 sales protected" },
+      { id: "sg-2", type: "labour", title: "Trim 1 FOH 14:00–16:00 Tue", reason: "Demand below schedule", impact: "Save ~$48 wages" },
+      { id: "sg-3", type: "menu", title: "Raise Caesar Salad to $17.5", reason: "Food cost 39% > 35% target", impact: "+$0.70 GP / unit" }
+    ]
+  });
+}
+
+4) Dashboard page upgrade
+
+File: app/dashboard/page.tsx (replace the page body—not the route)
+
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { KpiCard } from "@/components/ui/KpiCard";
+
+async function getKpis() {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/metrics/kpis`, { cache: "no-store" })
+    .catch(() => null);
+  if (!res || !res.ok) return { salesToday: 0, salesWTD: 0, cogsPct: null, labourPct: null };
+  return res.json();
+}
+
+async function getSuggestions() {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/automation/suggestions`, { cache: "no-store" })
+    .catch(() => null);
+  if (!res || !res.ok) return { items: [] as any[] };
+  return res.json();
+}
+
+export default async function DashboardPage() {
+  const [{ salesToday, salesWTD, cogsPct, labourPct }, { items: suggestions }] = await Promise.all([
+    getKpis(), getSuggestions()
+  ]);
+
+  const fmt = (n: number) =>
+    n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+  return (
+    <div className="p-6">
+      <SectionHeader
+        title="Dashboard"
+        description="Overview of your venue performance"
+      />
+
+      {/* KPI row */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <KpiCard label="Sales Today" value={fmt(salesToday)} />
+        <KpiCard label="Sales (WTD)" value={fmt(salesWTD)} />
+        <KpiCard label="Theoretical COGS %" value={cogsPct == null ? "—" : `${cogsPct}%`} />
+        <KpiCard label="Scheduled Labour %" value={labourPct == null ? "—" : `${labourPct}%`} />
+      </div>
+
+      {/* Content grid: chart left, suggestions right */}
+      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="xl:col-span-2 rounded-xl border border-black/5 bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
+          <div className="mb-2 text-sm font-medium">Sales vs Forecast</div>
+          {/* keep your existing chart here; if it was stubbed, leave as-is for now */}
+          {/* TODO: wire to real forecast once forecasting endpoint lands */}
+          <div className="h-[320px] rounded-md bg-black/5" />
+        </div>
+
+        <div className="rounded-xl border border-black/5 bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="text-sm font-medium">Suggestions</div>
+          </div>
+          <div className="space-y-3">
+            {suggestions.length === 0 ? (
+              <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+                Nothing urgent. You’re in great shape.
+              </div>
+            ) : suggestions.map((s: any) => (
+              <div key={s.id} className="rounded-lg border border-black/5 bg-white p-3 shadow-[0_4px_16px_rgba(0,0,0,0.04)]">
+                <div className="text-sm font-medium">{s.title}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{s.reason}</div>
+                <div className="mt-2 flex items-center justify-between text-xs">
+                  <span className="rounded-full bg-[hsl(var(--accent))]/15 px-2 py-0.5 font-medium text-[color-mix(in oklab,hsl(var(--accent)) 70%, black)]">
+                    {s.impact}
+                  </span>
+                  <div className="space-x-2">
+                    <button className="rounded-md bg-black/5 px-2 py-1 text-xs hover:bg-black/10">Ignore</button>
+                    <button className="rounded-md bg-[hsl(var(--accent))] px-2 py-1 text-xs text-white/90 hover:opacity-90">Approve</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Keep existing Top Products / tables beneath, reusing your previous components */}
+    </div>
+  );
+}
+
+
+If NEXT_PUBLIC_APP_URL isn’t set, Next can call internal APIs with a relative path; if your setup requires an absolute URL, set NEXT_PUBLIC_APP_URL to the app origin in Replit secrets.
+
+5) Hook suggestions count into the sidebar badge (optional if easy)
+
+In app/layout.tsx, fetch /api/automation/suggestions server‑side and pass badges={{ suggestions: items.length }} into <Sidebar />.
+
+If your layout is already a Server Component, you can await fetch directly; otherwise skip for now.
+
+6) Build & verify
+
+Open /dashboard.
+
+Verify the four KPIs render real values (or “—” where data isn’t present).
+
+Suggestions panel shows three placeholder items.
+
+Existing “Sales vs Forecast” chart block remains; we’ll replace its data when the forecasting engine lands.
+
+Acceptance criteria
+
+GET /api/metrics/kpis returns JSON with salesToday, salesWTD, cogsPct|null, labourPct|null.
+
+Dashboard shows four KpiCards with values/“—”, no console errors.
+
+Right column Suggestions list renders from /api/automation/suggestions.
+
+Layout uses the new SectionHeader and matches the light/glow styling.

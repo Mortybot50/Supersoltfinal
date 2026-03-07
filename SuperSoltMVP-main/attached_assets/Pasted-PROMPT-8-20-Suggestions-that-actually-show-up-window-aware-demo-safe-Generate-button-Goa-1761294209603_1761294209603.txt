@@ -1,0 +1,148 @@
+PROMPT 8 / 20 — Suggestions that actually show up (window-aware, demo-safe) + “Generate” button
+
+Goal: make the Suggestions panel reliably produce useful recommendations for the selected Day/Week/Month window. Add a “Generate suggestions” action tied to DateNav, tune thresholds for dev so you always see something, and make Approve/Ignore flows feel instant.
+
+1) Make guardrails window-aware and dev-friendly
+
+Edit: lib/guardrails-config.ts (create if missing)
+
+Add env-aware thresholds and minimum data rules:
+
+export const TARGET_COGS_PCT = 0.35;            // 35% COGS → 65% GP target
+export const DEV = process.env.NODE_ENV !== "production";
+
+export const MIN_MENU_OBS = DEV ? 1 : 3;        // min sales lines to consider an item
+export const LABOUR_TOLERANCE = DEV ? 0.10 : 0.20; // ±10% in dev, ±20% in prod
+export const SHORTFALL_LOOKAHEAD_DAYS = 7;      // inventory horizon
+export const PRICE_NUDGE_STEP = 0.05;           // propose +5% price steps until GP target
+
+
+Edit: lib/guardrails.ts
+
+Accept a { start: Date, end: Date, period: "day"|"week"|"month", venueId } parameter.
+
+Use your new unified dashboard inputs instead of ad-hoc queries:
+
+Pull actual revenue and forecast revenue/qty for the window with the same logic as /api/dashboard/summary.
+
+For PRICE_NUDGE, compute item_gp = 1 - (theoretical_ingredient_cost / price).
+If item_gp < (1 - TARGET_COGS_PCT) and observations >= MIN_MENU_OBS, emit a suggestion.
+Suggested new price = price * (1 + PRICE_NUDGE_STEP) repeated until GP≥target (cap +20%).
+
+For LABOUR_ADD/TRIM, compare scheduled labour cost vs sales for window.
+If labourPct > target + LABOUR_TOLERANCE → LABOUR_TRIM;
+if < target - LABOUR_TOLERANCE (and forecast high in certain hours) → LABOUR_ADD.
+
+For ORDER_SHORTFALL, call the order-guide calculator with {start,end} (or SHORTFALL_LOOKAHEAD_DAYS if period is day) and emit a suggestion if any ingredient recommended_packs > 0.
+
+Always return an array (possibly empty), never throw on “not enough data”.
+
+2) Wire a Generate endpoint that uses DateNav window
+
+Edit: app/api/ops/suggestions/generate/route.ts
+
+export const runtime = "nodejs";
+import { NextResponse } from "next/server";
+import { requireOrg } from "@/lib/authz";
+import { getWindow } from "@/lib/date-window";
+import { runGuardrails } from "@/lib/guardrails"; // make sure this exists/exports
+
+export async function POST(req: Request) {
+  const { venueId } = await requireOrg({ role: "manager" });
+  const url = new URL(req.url);
+  const period = (url.searchParams.get("period") || "week") as "day"|"week"|"month";
+  const startISO = url.searchParams.get("start") || new Date().toISOString();
+  const { start, end } = getWindow(period, startISO);
+
+  const suggestions = await runGuardrails({ start, end, period, venueId });
+  // persist NEW suggestions into ops_suggestions with payload JSONB if not already present (idempotent on (venueId,type,title,start,end))
+  // return list of NEW suggestions
+  return NextResponse.json({ suggestions });
+}
+
+
+Ensure idempotency: don’t create duplicates for the same (venue, type, title, window).
+
+3) Add a Generate button + empty state in the panel
+
+Edit: components/SuggestionsPanel.tsx (or wherever you render suggestions)
+
+Read period/start from the same state your DateNav controls.
+
+Add a button:
+
+"use client";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+export function SuggestionsPanel() {
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const sp = useSearchParams();
+  const period = sp.get("period") ?? "week";
+  const start = sp.get("start") ?? new Date().toISOString();
+
+  async function generate() {
+    setLoading(true);
+    const qs = new URLSearchParams({ period, start });
+    const res = await fetch(`/api/ops/suggestions/generate?`+qs.toString(), { method: "POST" });
+    setLoading(false);
+    if (res.ok) router.refresh(); // re-fetch list
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="font-medium">Suggestions</h3>
+        <button onClick={generate} disabled={loading} className="rounded-md border px-3 py-1.5 text-sm">
+          {loading ? "Generating…" : "Generate"}
+        </button>
+      </div>
+      {/* existing list rendering */}
+      {/* empty state */}
+      {/* if list length === 0, show a hint: */}
+      <div className="text-sm text-muted-foreground">
+        No suggestions yet. Add costs/recipes/schedule, then click <b>Generate</b>.
+      </div>
+    </div>
+  );
+}
+
+
+On Approve/Ignore, keep your existing endpoints, but update UI optimistically (remove row immediately).
+
+4) Make the sidebar badge update
+
+Edit: app/nav.config.ts or wherever you calculate counts
+
+Add a lightweight endpoint GET /api/ops/suggestions/count?status=NEW (runtime nodejs, tenant-scoped).
+
+In the sidebar, fetch this on mount and after any Approve/Ignore/Generate (or just rely on router.refresh() if the sidebar is server-rendered and re-evaluated).
+
+5) Safer “Approve” implementations (no surprises)
+
+PRICE_NUDGE: when approving, recheck current price and theoretical cost; compute the exact new price stored in the suggestion payload; then update. Log to an audit table (ops_audit_log) with { userId, venueId, suggestionId, before, after }.
+
+LABOUR_ADD: create draft shifts only; don’t publish. Put role, start/end hours from payload.
+
+LABOUR_TRIM: mark shifts with a suggest_trim flag; don’t delete automatically.
+
+ORDER_SHORTFALL: no auto-PO yet; simply mark as APPROVED and keep a note so the Order Guide page highlights those ingredients.
+
+6) Acceptance (quick tests)
+
+With your current data, click Generate → you see at least one suggestion (PRICE_NUDGE usually appears first if recipes+costs exist; LABOUR_* shows with schedules; ORDER_SHORTFALL shows when upcoming forecast > on-hand).
+
+Approving a PRICE_NUDGE updates the item price; reloading dashboard changes revenue projections for future windows.
+
+Approving LABOUR_ADD creates draft shifts; TRIM flags shifts.
+
+Sidebar badge count decreases after actions.
+
+Empty state appears when no suggestions exist.
+
+7) (Optional) Tiny UX polish
+
+Show a small line under the panel header: “Window: Oct 20–26 (Week)”. Use your getWindow label.
+
+On Approve, show a toast “Applied. You can undo from Audit in Admin (coming soon).”

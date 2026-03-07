@@ -1,0 +1,190 @@
+Awesome momentum — nightly jobs + demand signals are in. Next up is onboarding your 10 venues fast.
+
+Here’s PROMPT 13 / 20 — CSV Import Wizard (Ingredients → Menu → Recipes → Staff → Sales → Stock-on-hand)
+
+Goal: a single, safe wizard to bulk-import core data. Supports Upload → Map Columns → Validate → Commit, with row-level errors, idempotent upserts, and templates. Do all steps exactly; don’t delete existing files. Keep Node runtime and tenant checks everywhere.
+
+⸻
+
+A) Minimal import job tables (idempotent)
+
+Add if missing (use your snake_case + Drizzle style):
+	•	import_jobs
+	•	id PK
+	•	venue_id FK
+	•	type text enum: ingredients|menu_items|recipes|staff|sales|stock
+	•	status enum: uploaded|mapping|validating|ready|importing|done|failed
+	•	filename text
+	•	total_rows int default 0
+	•	error_rows int default 0
+	•	created_by FK users
+	•	created_at timestamptz default now()
+	•	finished_at timestamptz nullable
+	•	import_job_rows
+	•	id PK
+	•	job_id FK import_jobs
+	•	row_number int
+	•	data_json jsonb
+	•	status enum: pending|ok|error|skipped|created|updated
+	•	message text nullable
+	•	Index on (job_id, row_number)
+
+If you already have an imports log, extend it with these fields; don’t duplicate.
+
+⸻
+
+B) Server parsers & mappers
+
+Create: lib/imports/parsers.ts
+	•	Server-side CSV parser (no client parsing). Use papaparse or csv-parse/sync.
+	•	Export:
+
+export type Parsed = { headers: string[]; rows: any[] }; // rows are objects keyed by headers
+export async function parseCsv(text:string): Promise<Parsed> { /* detect delimiter, handle BOM, trim headers */ }
+
+
+
+Create: lib/imports/mappers.ts
+	•	Export a mapper per type that takes { rows, mapping } and returns normalized rows (with units/cents coerced).
+	•	Common helpers:
+	•	toCents(v) accepts number/string like 12.50 → 1250.
+	•	parseUnit(v) maps kg/g/l/ml/each.
+	•	dateISO(v, tz='Australia/Melbourne') → YYYY-MM-DD (zeroed local).
+	•	Mappers (MVP fields):
+	•	ingredients: name, purchase_unit, preferred_supplier, supplier_sku, pack_size, pack_unit, pack_cost(¢|$), cost_per_unit_cents(optional)
+	•	menu_items: name, price(¢|$), tax(optional)
+	•	recipes: menu_item_name|id, ingredient_name|id, qty, unit, yield_pct(optional), wastage_pct(optional)
+	•	staff: name, email, role, hourly_rate(¢|$)
+	•	sales: date, menu_item_name|id, qty, unit_price(¢|$ optional) -> derive revenue_cents
+	•	stock: ingredient_name|id, qty, unit (on-hand snapshot)
+
+Return { ok: true, normalizedRows: [...] } or row-level { status:'error', message }.
+
+Create: lib/imports/committers.ts
+	•	Export one committer per type, each performing idempotent upserts scoped to venue (use name or external_id if provided). Wrap in a transaction.
+	•	ingredients:
+	•	Upsert ingredients on (venue_id, name).
+	•	If supplier fields given, upsert ingredient_suppliers (preferred) and compute cost_per_unit_cents = pack_cost_cents / pack_size_in_base_units.
+	•	menu_items:
+	•	Upsert menu_items (venue_id, name) with price_cents.
+	•	recipes:
+	•	Resolve menu_item_id and ingredient_id by name if ids not provided.
+	•	Upsert/remove recipe_lines so the recipe exactly matches the import slice for that menu_item_id.
+	•	staff:
+	•	Upsert users by email (create if missing), upsert memberships for venue/org, store hourly_rate_cents in staff table if you have one.
+	•	sales:
+	•	Upsert or insert daily_sales rows (aggregate by date + menu_item_id). If unit_price provided, set revenue_cents = qty * unit_price; else compute from menu price.
+	•	stock:
+	•	Insert stock_movements as a snapshot movement type (e.g., stock_take) to set on-hand to the given qty (compute delta if you already track balance).
+
+Return { created, updated, skipped, errors } and update import_jobs/import_job_rows.
+
+⸻
+
+C) Import APIs (Node runtime)
+
+1) Create job + upload CSV (raw text)
+app/api/imports/create/route.ts (POST)
+	•	Auth with requireOrg({ role: "manager" }).
+	•	Body: { type: "...", filename: "...", text: "CSV_CONTENTS" }.
+	•	Create import_jobs with status:'uploaded'.
+	•	Parse server-side → store first 200 rows into import_job_rows with status:'pending' and the raw JSON (do not store whole CSV; you can keep text in memory only).
+	•	Return { jobId, headers, sample: first 10 rows }.
+
+2) Save column mapping
+app/api/imports/[id]/mapping/route.ts (POST)
+	•	Body: { mapping: Record<string,string> } (header → canonical field).
+	•	Validate required fields for the type, set status:'validating'.
+	•	Run mapper on all staged rows (for MVP, run on the rows you staged; if you prefer full file parse, re-parse from the original text passed in step 1—store it temporarily in memory or encode it into job_rows in chunks).
+	•	For each row, write back status:'ok'|'error' + message.
+	•	If any errors, set job status:'ready' only when zero errors; otherwise keep status:'validating' and return the errors summary.
+	•	Return { ok:true, errorsCount, preview:[...] }.
+
+3) Commit import
+app/api/imports/[id]/commit/route.ts (POST)
+	•	Checks job status:'ready'.
+	•	Calls the relevant committer in a transaction.
+	•	Updates job to status:'importing' while running, then done or failed with finished_at.
+	•	Return per-type counts { created, updated, skipped, errors }.
+
+4) Job status
+app/api/imports/[id]/route.ts (GET)
+	•	Returns job, errors count, and a small sample of error rows.
+
+5) Templates
+app/api/imports/templates/route.ts (GET)
+	•	Query ?type=ingredients|menu_items|recipes|staff|sales|stock
+	•	Return a CSV string with header row and 3 example rows (use safe demo values).
+
+⸻
+
+D) UI — Wizard under Operations → Imports
+
+Nav: add Operations → Imports.
+
+Page: app/operations/imports/page.tsx
+Client component with 4 steps:
+	1.	Upload
+	•	Select Type (dropdown).
+	•	Paste CSV text or upload file (read as text client-side and send to endpoint).
+	•	POST to /api/imports/create. Show headers + small sample table.
+	2.	Map Columns
+	•	For each required canonical field, provide a Select mapped to headers; optional fields can be skipped.
+	•	POST to /api/imports/[id]/mapping. Show validation results (counts). If errors, render a table of first 30 error rows with messages.
+	3.	Validate & Preview
+	•	If zero errors → show “Ready to import” with a summary (will create X, update Y…).
+	•	Button: Commit Import → POST /api/imports/[id]/commit.
+	4.	Done
+	•	Show results + “Go to …” shortcuts:
+	•	Ingredients → /inventory
+	•	Menu → /menu
+	•	Recipes → /menu/recipes
+	•	Staff → /workforce
+	•	Sales → dashboard Week view
+	•	Stock → /inventory (or your stock page)
+
+UX detail: show a small badge AUD where monetary inputs are mapped; tooltips explaining cents vs dollars automatic conversion.
+
+⸻
+
+E) Validation rules (per type, enforced server-side)
+	•	ingredients: name (req), purchase_unit (one of g/kg/ml/l/each), if pack_cost is in dollars, convert to cents; compute cost_per_unit_cents if not provided.
+	•	menu_items: name (req), price in cents or dollars; tax optional.
+	•	recipes: must resolve menu item + ingredient; qty > 0; unit compatible with ingredient base; yield/wastage default to 100%/0%.
+	•	staff: unique email; role ∈ {FOH, BOH, Bar, Manager} (match your roles); hourly_rate required (convert).
+	•	sales: date valid; menu item resolvable; qty ≥ 1; if unit_price missing, pull menu price; insert aggregated by day+item.
+	•	stock: ingredient resolvable; unit compatible; update via stock movement snapshot (do not directly set balance).
+
+Always return 200 with structured row errors; never 400 for “bad data”.
+
+⸻
+
+F) Idempotency, safety, and audit
+	•	Scope all upserts by (venue_id, …).
+	•	Where you rely on names, trim().toLowerCase() for matching; keep original casing in stored names.
+	•	Add a small imports_audit log entry per job: { venue_id, job_id, type, created, updated, user_id, created_at }.
+	•	Wrap commit in a single transaction per type to avoid half-imports.
+	•	For recipes, replace entire set of lines for the menu item with the imported lines (atomic).
+
+⸻
+
+G) Acceptance (quick, realistic)
+	•	Import ingredients (CSV template) → you see suppliers and costs; Order Guide recognises them.
+	•	Import menu_items + recipes → COGS% shows on dashboard; Order Guide uses recipe BOMs.
+	•	Import staff → they appear in Workforce with rates.
+	•	Import sales (last 6–8 weeks) → dashboard chart + forecasting improve; Friday/Saturday spikes visible.
+	•	Import stock → Order Guide respects on-hand; Waste and Receiving adjust it thereafter.
+	•	Wizard shows row errors when you purposely break a few lines; fixing and re-committing succeeds.
+	•	Re-importing the same CSV is idempotent (mostly “updated/skipped”, not duplicates).
+
+⸻
+
+H) Tiny dev helpers (optional)
+	•	Add GET /api/imports/templates?type= and show Download template buttons for each type in step 1.
+	•	If a CSV has headers like “Price ($)” or “Pack Cost ($)”, infer cents automatically (strip $, ,, spaces).
+
+⸻
+
+When this lands, onboarding those 10 pilot venues becomes a same-day exercise: export from POS/suppliers → import → generate forecasts → you’re live.
+
+Tell me when this is in and I’ll hand you PROMPT 14 / 20 (your pick: Role enforcement & audit hardening or Performance + caching pass).

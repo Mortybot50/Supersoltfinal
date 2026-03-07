@@ -1,0 +1,190 @@
+Love it. With Waste & Counts live, the next smart move is to make scheduling “pilot-proof”: publishable rosters, cost overlays, and quick templates so managers can go from AI suggestions → a clean, sent rota in minutes.
+
+Here’s your next copy-paste prompt.
+
+⸻
+
+🔧 PROMPT 9 / 20 — Roster polish (labour cost overlay, publish/unpublish, templates, exports)
+
+Goal
+Upgrade the roster so managers can:
+	•	See coverage vs forecast and labour % per hour (cost overlay).
+	•	Publish / unpublish a week’s rota (lock shifts, notify staff).
+	•	Save any day as a template and apply templates to future days.
+	•	Export Payroll CSV (basic) for quick handoff.
+
+Keep everything multi-tenant. Don’t remove existing endpoints.
+
+⸻
+
+0) Schema additions (minimal & safe)
+
+File: db/schema.ts — add tables/columns (names can follow your current casing). Push after edits.
+
+// 1) Publication audit (one row per published week)
+export const roster_publications = pgTable("roster_publications", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  org_id: uuid("org_id").notNull(),
+  venue_id: uuid("venue_id").notNull(),
+  week_start: date("week_start").notNull(), // Monday start
+  version: integer("version").notNull().default(1),
+  published_by: uuid("published_by").notNull(),
+  published_at: timestamp("published_at", { mode: "date" }).defaultNow().notNull(),
+});
+createIndex("idx_roster_pub_org_venue_week").on(roster_publications, t => [t.org_id, t.venue_id, t.week_start]);
+
+// 2) Shift publish state snapshot
+// (If you already have status, keep it and just add published_at.)
+export const shifts = pgTable("shifts", {
+  // ...existing cols...
+  status: varchar("status", { length: 16 }).notNull().default("DRAFT"), // DRAFT|PUBLISHED
+  published_at: timestamp("published_at", { mode: "date" }),
+  // optional: snapshot wage at publish (prevents retro rate changes affecting history)
+  wage_rate_cents_snapshot: integer("wage_rate_cents_snapshot"),
+});
+
+// 3) Templates (venue-scoped)
+export const roster_templates = pgTable("roster_templates", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  org_id: uuid("org_id").notNull(),
+  venue_id: uuid("venue_id").notNull(),
+  name: varchar("name", { length: 120 }).notNull(), // e.g. "Busy Friday v1"
+  weekday: integer("weekday"), // 1..7 optional; null = any
+  created_by: uuid("created_by").notNull(),
+  created_at: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+export const roster_template_lines = pgTable("roster_template_lines", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  template_id: uuid("template_id").notNull(),
+  role: varchar("role", { length: 64 }).notNull(),
+  start_minute: integer("start_minute").notNull(), // minutes from midnight
+  end_minute: integer("end_minute").notNull(),
+  headcount: integer("headcount").notNull().default(1),
+});
+createIndex("idx_template_lines_template").on(roster_template_lines, t => [t.template_id]);
+
+If you store availability/PTO elsewhere, we’ll just warn on conflicts (no hard block).
+
+Run: npm run db:push
+
+⸻
+
+1) Labour overlay service (coverage & cost vs forecast)
+
+New lib: lib/labour-overlay.ts
+	•	Input: { orgId, venueId, weekStart }.
+	•	For each day 7×24 (or open→close hours):
+	•	From forecast: get expected orders/revenue per hour.
+	•	From shifts (DRAFT+PUBLISHED): sum scheduled cost per hour (rate × hours).
+	•	From labour_rules: derive target labour % and/or target headcount by role.
+	•	Output: grid for UI
+[{ date, hour, headcountByRole: Record<string, number>, scheduledCostCents, forecastRevenueCents, labourPct, targetPct, deficitByRole }].
+
+API: GET /api/labour/overlay?weekStart=YYYY-MM-DD
+	•	requireOrg({ role: 'manager' })
+	•	Returns the grid + a simple budget summary (total scheduled vs week forecast).
+
+⸻
+
+2) Publish / Unpublish & notifications
+
+APIs
+	•	POST /api/roster/publish
+Body: { weekStart }
+Steps (transaction):
+	1.	Find shifts in [weekStart .. weekStart+6] with status DRAFT.
+	2.	Set status='PUBLISHED', published_at=now(), snapshot wage_rate_cents_snapshot from staff or shift.
+	3.	Insert roster_publications (increment version if week already published).
+	4.	Send notifications (dev: console [DEV EMAIL]; staging: Resend if configured).
+	•	POST /api/roster/unpublish
+Body: { weekStart } (optional; allow only if all shifts are in the future). Set back to DRAFT, delete the latest roster_publications row for that week.
+
+Optional notification email (Resend):
+	•	Subject: “Your shifts for {Week of Oct 27}”
+	•	Body lists each staff member’s shifts; include an .ics attachment in the future (nice-to-have).
+
+⸻
+
+3) Templates: save/apply
+
+APIs
+	•	POST /api/roster/templates
+Body: { name, weekday? , sourceDate }
+	•	Reads that day’s shifts; groups by role; converts to template lines (minutes from midnight & headcount buckets by overlapping shifts).
+	•	GET /api/roster/templates?weekday?
+	•	POST /api/roster/templates/apply
+Body: { templateId, targetDate }
+	•	Creates DRAFT shifts at targetDate from template lines (expand headcount into that many role shifts; shift length from line window).
+	•	Respect open/close hours from labour_rules.
+
+If staff assignment is unknown, create unassigned role shifts (staffId null).
+
+⸻
+
+4) Payroll CSV export (basic)
+
+API: GET /api/workforce/payroll/export?start=YYYY-MM-DD&end=YYYY-MM-DD
+	•	Returns CSV with: staffName, staffExternalId?, date, role, start, end, hours, wageRate, costCents.
+	•	Use wage_rate_cents_snapshot if set; otherwise fallback to staff rate.
+
+⸻
+
+5) UI updates (roster page)
+
+Roster toolbar
+	•	Week picker (Monday start) — you likely already have nav; reuse it.
+	•	Toggle: Coverage & Cost overlay (heatmap).
+	•	Buttons: Publish, Unpublish, Templates (Save / Apply), Export Payroll CSV.
+
+Overlay
+	•	Mini legend: green = within target; amber = near; red = over target.
+	•	Hover one hour → tooltip with Revenue, Scheduled cost, Labour %, Targets, and role deficits.
+
+Templates modal
+	•	Save as Template (name, optional weekday) from current day.
+	•	Apply Template (choose template, select day).
+
+Warnings
+	•	If a published week has changes → show “This week has draft changes” badge until re-published.
+	•	Soft compliance checks: highlight staff with > X hours/day or < Y rest hours between shifts (warn only).
+
+⸻
+
+6) Analytics (client)
+
+Use your track() helper:
+	•	roster_publish { weekStart, shiftsPublished }
+	•	roster_unpublish { weekStart }
+	•	roster_overlay_toggled { on }
+	•	roster_template_saved { templateId, weekday }
+	•	roster_template_applied { templateId, targetDate, shiftsCreated }
+	•	payroll_exported { start, end, shifts }
+
+⸻
+
+7) Security & integrity
+	•	All routes requireOrg({ role: "manager" }).
+	•	Publish/unpublish restricted to the active venue.
+	•	Template apply runs in a transaction.
+	•	Overlay endpoint never leaks other venues.
+
+⸻
+
+8) Acceptance
+	•	Overlay loads for a chosen week; colours match labour % vs target; tooltip shows correct numbers.
+	•	Publish week → shifts change to PUBLISHED; publication record created; emails log in dev.
+	•	Unpublish future week → all shifts revert to DRAFT; publication entry removed (latest version).
+	•	Save template from a busy day; apply to another date → unassigned role shifts appear; labour rules respected.
+	•	Export payroll CSV → opens/downloads with correct totals.
+	•	PostHog shows the new events.
+
+⸻
+
+9) Nice-to-have (fast)
+	•	Clone day button in roster toolbar (copy all shifts to another day in the same week).
+	•	Bulk edit: select multiple shifts → change role or times in one action.
+
+⸻
+
+If you want, I’ll queue Prompt 10 / 20 — Multi-venue switcher & Org settings right after you run this. That gives you venue management UI, role controls, and defaults—handy for onboarding those 10 vendors.
