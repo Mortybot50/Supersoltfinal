@@ -71,7 +71,7 @@ export async function loadStaffFromDB(): Promise<Staff[]> {
       role: (s.org_members?.role as 'manager' | 'supervisor' | 'crew') || 'crew',
       employment_type: s.employment_type?.replace('_', '-') as 'full-time' | 'part-time' | 'casual' || 'casual',
       award_classification: s.award_classification,
-      hourly_rate: Math.round((s.base_hourly_rate || 25) * 100), // Convert to cents
+      hourly_rate: Math.round(s.base_hourly_rate || 2500), // Already in cents in DB
       start_date: s.start_date ? new Date(s.start_date) : new Date(),
       status: s.org_members?.is_active ? 'active' : 'inactive',
       onboarding_status: s.onboarding_status as Staff['onboarding_status'],
@@ -130,7 +130,7 @@ export async function createStaffInDB(staff: Staff): Promise<{ staff_id: string;
         phone: staff.phone || undefined,
         role: staff.role || 'crew',
         employment_type: (staff.employment_type || 'casual').replace('-', '_'),
-        base_hourly_rate: staff.hourly_rate ? staff.hourly_rate / 100 : undefined, // cents to dollars
+        base_hourly_rate: staff.hourly_rate ?? undefined, // Already in cents
         award_classification: staff.award_classification || undefined,
         position: staff.role || 'crew',
         start_date: staff.start_date instanceof Date
@@ -159,7 +159,7 @@ export async function updateStaffInDB(staffId: string, updates: Partial<Staff>):
   try {
     const staffUpdates: Record<string, unknown> = {}
 
-    if (updates.hourly_rate !== undefined) staffUpdates.base_hourly_rate = updates.hourly_rate / 100
+    if (updates.hourly_rate !== undefined) staffUpdates.base_hourly_rate = updates.hourly_rate // Already in cents
     if (updates.role) staffUpdates.position = updates.role
     if (updates.employment_type) staffUpdates.employment_type = updates.employment_type.replace('-', '_')
     if (updates.award_classification !== undefined) staffUpdates.award_classification = updates.award_classification

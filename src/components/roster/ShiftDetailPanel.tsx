@@ -26,6 +26,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { RosterShift } from '@/types'
 
 const PENALTY_LABELS: Record<string, string> = {
@@ -51,6 +61,8 @@ export function ShiftDetailPanel() {
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const shift = useMemo(
     () => shifts.find(s => s.id === selectedShiftId) || null,
@@ -135,9 +147,16 @@ export function ShiftDetailPanel() {
   }
 
   const handleDelete = async () => {
-    if (window.confirm('Delete this shift?')) {
+    if (!shift) return
+    setIsDeleting(true)
+    try {
       await deleteShift(shift.id)
       selectShift(null)
+    } catch (err) {
+      console.error('[ShiftDetailPanel] Delete failed:', err)
+    } finally {
+      setIsDeleting(false)
+      setConfirmDelete(false)
     }
   }
 
@@ -345,7 +364,7 @@ export function ShiftDetailPanel() {
             Convert to open shift
           </button>
           <button
-            onClick={handleDelete}
+            onClick={() => setConfirmDelete(true)}
             className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-red-50 transition-colors text-left border border-transparent hover:border-red-200 text-red-600"
           >
             <X className="h-3.5 w-3.5" />
@@ -354,6 +373,30 @@ export function ShiftDetailPanel() {
         </div>
 
       </div>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete shift?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {shift.staff_name}'s shift on{' '}
+              {format(shiftDate, 'd MMM')} ({formatTimeCompact(shift.start_time)}–
+              {formatTimeCompact(shift.end_time)}). This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {isDeleting ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </aside>
   )
 }

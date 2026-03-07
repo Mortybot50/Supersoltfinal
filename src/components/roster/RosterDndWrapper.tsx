@@ -2,8 +2,8 @@
  * RosterDndWrapper — provides DndContext that wraps both
  * StaffSidebar (drag source) and RosterGrid (drop targets).
  *
- * Previously DndContext lived inside RosterGrid, which meant
- * draggable StaffCards in StaffSidebar were outside the context.
+ * Shows ShiftCreateDialog on drag-and-drop to configure shift
+ * before creation (start/end time, role, break).
  */
 
 import { ReactNode, useCallback, useState } from 'react'
@@ -25,10 +25,12 @@ import { DRAGGABLE_STAFF_TYPE } from './StaffCard'
 import { ShiftBlock } from './ShiftBlock'
 import { parse, isSameDay } from 'date-fns'
 import { calculateShiftCostBreakdown } from '@/lib/utils/rosterCalculations'
+import { ShiftCreateDialog, PendingShiftInfo, ShiftConfig } from './ShiftCreateDialog'
 
 export function RosterDndWrapper({ children }: { children: ReactNode }) {
   const { staff, shifts, moveShift, addShift } = useRosterStore()
   const [draggingShift, setDraggingShift] = useState<RosterShift | null>(null)
+  const [pendingShift, setPendingShift] = useState<PendingShiftInfo | null>(null)
 
   const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 5 } })
   const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
@@ -62,30 +64,49 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
       moveShift(shift.id, targetStaffId, targetDate)
     } else if (activeData?.type === DRAGGABLE_STAFF_TYPE && targetStaff) {
       const staffMember = activeData.staff as Staff
-      const breakdown = calculateShiftCostBreakdown(
-        '09:00', '17:00', 30,
-        staffMember.hourly_rate,
-        targetStaff.venue_id || '',
-        targetDate,
-        staffMember.employment_type || 'casual',
-      )
-      addShift({
-        staff_id: staffMember.id,
-        staff_name: staffMember.name,
+      // Open dialog instead of creating shift directly
+      setPendingShift({
+        staffId: staffMember.id,
+        staffName: staffMember.name,
         date: targetDate,
-        start_time: '09:00',
-        end_time: '17:00',
-        break_minutes: 30,
-        role: staffMember.role,
-        total_hours: breakdown.base_hours,
-        base_cost: breakdown.base_cost_cents,
-        penalty_cost: breakdown.penalty_cost_cents,
-        total_cost: breakdown.total_cost_cents,
-        penalty_type: breakdown.penalty_type as RosterShift['penalty_type'] || 'none',
-        penalty_multiplier: breakdown.penalty_multiplier,
+        defaultRole: staffMember.role,
+        venueId: targetStaff.venue_id || '',
+        employmentType: staffMember.employment_type || 'casual',
+        hourlyRateCents: staffMember.hourly_rate,
       })
     }
-  }, [staff, moveShift, addShift])
+  }, [staff, moveShift])
+
+  const handleShiftConfirm = useCallback((config: ShiftConfig) => {
+    if (!pendingShift) return
+    const breakdown = calculateShiftCostBreakdown(
+      config.startTime, config.endTime, config.breakMinutes,
+      pendingShift.hourlyRateCents,
+      pendingShift.venueId,
+      pendingShift.date,
+      pendingShift.employmentType,
+    )
+    addShift({
+      staff_id: pendingShift.staffId,
+      staff_name: pendingShift.staffName,
+      date: pendingShift.date,
+      start_time: config.startTime,
+      end_time: config.endTime,
+      break_minutes: config.breakMinutes,
+      role: config.role,
+      total_hours: breakdown.base_hours,
+      base_cost: breakdown.base_cost_cents,
+      penalty_cost: breakdown.penalty_cost_cents,
+      total_cost: breakdown.total_cost_cents,
+      penalty_type: breakdown.penalty_type as RosterShift['penalty_type'] || 'none',
+      penalty_multiplier: breakdown.penalty_multiplier,
+    })
+    setPendingShift(null)
+  }, [pendingShift, addShift])
+
+  const handleShiftCancel = useCallback(() => {
+    setPendingShift(null)
+  }, [])
 
   return (
     <DndContext
@@ -102,6 +123,11 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
           </div>
         )}
       </DragOverlay>
+      <ShiftCreateDialog
+        pendingShift={pendingShift}
+        onConfirm={handleShiftConfirm}
+        onCancel={handleShiftCancel}
+      />
     </DndContext>
   )
 }
