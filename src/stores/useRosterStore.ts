@@ -42,6 +42,11 @@ export function getRoleColors(role: string) {
 }
 
 export function getDaypart(startTime: string): 'am' | 'lunch' | 'pm' | 'close' {
+  // Normalize timestamptz to HH:MM
+  if (startTime.includes('T')) {
+    const d = new Date(startTime)
+    if (!isNaN(d.getTime())) startTime = `${d.getUTCHours().toString().padStart(2, '0')}:${d.getUTCMinutes().toString().padStart(2, '0')}`
+  }
   const [h] = startTime.split(':').map(Number)
   if (h >= 6 && h < 11) return 'am'
   if (h >= 11 && h < 14) return 'lunch'
@@ -128,8 +133,8 @@ function mapShiftRow(row: any): RosterShift {
     staff_id: row.staff_id,
     staff_name: row.staff_name || '',
     date: new Date(row.shift_date || row.date),
-    start_time: row.start_time,
-    end_time: row.end_time,
+    start_time: normalizeTime(row.start_time),
+    end_time: normalizeTime(row.end_time),
     break_minutes: row.break_duration_mins ?? row.break_minutes ?? 0,
     role: row.position || row.role || 'crew',
     notes: row.notes,
@@ -145,7 +150,19 @@ function mapShiftRow(row: any): RosterShift {
   }
 }
 
+function normalizeTime(t: string): string {
+  if (!t) return '00:00'
+  if (t.includes('T')) {
+    const d = new Date(t)
+    if (isNaN(d.getTime())) return '00:00'
+    return `${d.getUTCHours().toString().padStart(2, '0')}:${d.getUTCMinutes().toString().padStart(2, '0')}`
+  }
+  return t
+}
+
 function calcHours(start: string, end: string, breakMins: number): number {
+  start = normalizeTime(start)
+  end = normalizeTime(end)
   const [sh, sm] = start.split(':').map(Number)
   const [eh, em] = end.split(':').map(Number)
   let mins = (eh * 60 + em) - (sh * 60 + sm)
