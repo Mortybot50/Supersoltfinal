@@ -56,7 +56,7 @@ const REASON_LABEL = Object.fromEntries(WASTE_REASONS.map((r) => [r.value, r.lab
 
 export default function Waste() {
   const { wasteLogs, ingredients, isLoading, addWasteEntry, deleteWasteEntry, loadWasteLogsFromDB, loadIngredientsFromDB } = useDataStore()
-  const { currentVenue, user, profile } = useAuth()
+  const { currentVenue, currentOrg, user, profile } = useAuth()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -214,6 +214,7 @@ export default function Waste() {
 
     const wasteEntry: WasteEntry = {
       id: crypto.randomUUID(),
+      org_id: currentOrg?.id,
       venue_id: currentVenue?.id || '',
       waste_date: new Date(),
       waste_time: format(new Date(), 'HH:mm'),

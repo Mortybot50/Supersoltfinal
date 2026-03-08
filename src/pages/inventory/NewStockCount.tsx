@@ -16,20 +16,11 @@ import { format } from 'date-fns'
 import { useAuth } from '@/contexts/AuthContext'
 import { PageShell, PageToolbar } from '@/components/shared'
 
-const CATEGORY_ORDER = ['produce', 'meat', 'seafood', 'dairy', 'dry-goods', 'beverages', 'other']
-const CATEGORY_LABELS: Record<string, string> = {
-  produce: 'Produce (Cool Room)',
-  meat: 'Protein (Cool Room)',
-  seafood: 'Seafood (Cool Room)',
-  dairy: 'Dairy (Cool Room)',
-  'dry-goods': 'Dry Goods (Dry Store)',
-  beverages: 'Beverages (Bar/Storage)',
-  other: 'Other',
-}
+// Categories are derived dynamically from ingredient data (not hardcoded)
 
 export default function NewStockCount() {
   const navigate = useNavigate()
-  const { user, profile, currentVenue } = useAuth()
+  const { user, profile, currentVenue, currentOrg } = useAuth()
   const { suppliers, ingredients, stockCounts, wasteLogs, purchaseOrders, addStockCount, completeStockCount, loadIngredientsFromDB } = useDataStore()
 
   const [countType, setCountType] = useState<'full' | 'cycle'>('full')
@@ -55,19 +46,24 @@ export default function NewStockCount() {
     return items
   }, [ingredients, supplierId, categoryFilter])
 
-  // Group by category for display
+  // All unique categories present in the full ingredient list (for the filter dropdown)
+  const availableCategories = useMemo(() => {
+    const cats = new Set(ingredients.filter((i) => i.active).map((i) => i.category || 'Other'))
+    return Array.from(cats).sort()
+  }, [ingredients])
+
+  // Group by category for display — dynamic, no hardcoded category list
   const groupedIngredients = useMemo(() => {
     const groups: Record<string, Ingredient[]> = {}
     ingredientsToCount.forEach((ing) => {
-      const cat = ing.category || 'other'
+      const cat = ing.category || 'Other'
       if (!groups[cat]) groups[cat] = []
       groups[cat].push(ing)
     })
-    // Sort by category order
-    const sorted: [string, Ingredient[]][] = CATEGORY_ORDER
-      .filter((cat) => groups[cat]?.length > 0)
-      .map((cat) => [cat, groups[cat].sort((a, b) => a.name.localeCompare(b.name))])
-    return sorted
+    // Sort categories alphabetically, items within each category by name
+    return Object.entries(groups)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([cat, items]) => [cat, items.sort((a, b) => a.name.localeCompare(b.name))] as [string, Ingredient[]])
   }, [ingredientsToCount])
 
   // Initialize counted quantities with current stock (intentionally excludes countedQuantities to avoid loop)
@@ -180,6 +176,7 @@ export default function NewStockCount() {
 
     const stockCount: StockCount = {
       id: crypto.randomUUID(),
+      org_id: currentOrg?.id,
       venue_id: currentVenue?.id || '',
       count_number: countNumber,
       count_date: new Date(),
@@ -293,9 +290,9 @@ export default function NewStockCount() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              {CATEGORY_ORDER.map((cat) => (
+              {availableCategories.map((cat) => (
                 <SelectItem key={cat} value={cat}>
-                  {CATEGORY_LABELS[cat] || cat}
+                  {cat}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -321,7 +318,7 @@ export default function NewStockCount() {
               <Card key={category} className="overflow-hidden">
                 <div className="bg-muted/50 px-4 py-2 border-b">
                   <h3 className="font-semibold text-sm">
-                    {CATEGORY_LABELS[category] || category}
+                    {category}
                     <Badge variant="outline" className="ml-2 text-xs">{items.length}</Badge>
                   </h3>
                 </div>
