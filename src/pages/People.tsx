@@ -101,10 +101,12 @@ export default function People() {
       }
     } else {
       // Add new — create full chain in DB via API
+      // Directly-added staff are immediately active; they bypass the invite flow
       const newStaff: Staff = {
         ...staff,
         organization_id: currentOrg?.id || '',
         venue_id: currentVenue?.id || '',
+        onboarding_status: 'roster_ready',
       }
       const result = await createStaffInDB(newStaff)
       if (result) {
