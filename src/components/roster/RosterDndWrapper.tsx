@@ -25,12 +25,11 @@ import { DRAGGABLE_STAFF_TYPE } from './StaffCard'
 import { ShiftBlock } from './ShiftBlock'
 import { parse, isSameDay } from 'date-fns'
 import { calculateShiftCostBreakdown } from '@/lib/utils/rosterCalculations'
-import { ShiftCreateDialog, PendingShiftInfo, ShiftConfig } from './ShiftCreateDialog'
+import { ShiftCreateDialog, ShiftConfig } from './ShiftCreateDialog'
 
 export function RosterDndWrapper({ children }: { children: ReactNode }) {
-  const { staff, shifts, moveShift, addShift } = useRosterStore()
+  const { staff, shifts, moveShift, addShift, pendingShift, setPendingShift } = useRosterStore()
   const [draggingShift, setDraggingShift] = useState<RosterShift | null>(null)
-  const [pendingShift, setPendingShift] = useState<PendingShiftInfo | null>(null)
 
   const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 5 } })
   const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
@@ -75,7 +74,7 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
         hourlyRateCents: staffMember.hourly_rate,
       })
     }
-  }, [staff, moveShift])
+  }, [staff, moveShift, setPendingShift])
 
   const handleShiftConfirm = useCallback((config: ShiftConfig) => {
     if (!pendingShift) return
@@ -102,11 +101,11 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
       penalty_multiplier: breakdown.penalty_multiplier,
     })
     setPendingShift(null)
-  }, [pendingShift, addShift])
+  }, [pendingShift, addShift, setPendingShift])
 
   const handleShiftCancel = useCallback(() => {
     setPendingShift(null)
-  }, [])
+  }, [setPendingShift])
 
   return (
     <DndContext

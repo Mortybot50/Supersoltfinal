@@ -6,6 +6,7 @@
 
 import { create } from 'zustand'
 import { RosterShift, Staff, StaffAvailability, ShiftTemplate } from '@/types'
+import type { PendingShiftInfo } from '@/components/roster/ShiftCreateDialog'
 import { supabase } from '@/integrations/supabase/client'
 import {
   loadStaffFromDB,
@@ -87,6 +88,7 @@ interface RosterStore {
   expandedRoles: Set<string>
   costBarExpanded: boolean
   sidebarOpen: boolean
+  pendingShift: PendingShiftInfo | null
 
   // ── Actions ──────────────────────────────────────────────────────────────
 
@@ -118,6 +120,7 @@ interface RosterStore {
   toggleCostBar: () => void
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
+  setPendingShift: (shift: PendingShiftInfo | null) => void
 
   // Real-time
   subscribeToChanges: () => () => void
@@ -196,7 +199,8 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
   selectedShiftId: null,
   expandedRoles: new Set<string>(),
   costBarExpanded: false,
-  sidebarOpen: false,
+  sidebarOpen: true,
+  pendingShift: null,
 
   // ── Bootstrap ──────────────────────────────────────────────────────────
 
@@ -426,6 +430,7 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
   toggleCostBar: () => set({ costBarExpanded: !get().costBarExpanded }),
   toggleSidebar: () => set({ sidebarOpen: !get().sidebarOpen }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
+  setPendingShift: (shift) => set({ pendingShift: shift }),
 
   // ── Real-time ───────────────────────────────────────────────────────────
 

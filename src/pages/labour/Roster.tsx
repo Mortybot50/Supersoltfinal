@@ -30,7 +30,7 @@ export default function Roster() {
     init, deleteShift, selectShift, selectedDate, loadWeek,
     sidebarOpen, selectedShiftId,
     shifts, availability, openShifts,
-    subscribeToChanges,
+    subscribeToChanges, staff, setPendingShift,
   } = useRosterStore()
 
   const [showCompliance, setShowCompliance] = useState(false)
@@ -64,8 +64,18 @@ export default function Roster() {
     }
   }, [currentVenue?.id, subscribeToChanges])
 
-  const handleAddShift = (_date: Date, _staffId: string) => {
-    toast.info('Drag a staff card from the sidebar to schedule, or use Auto-fill')
+  const handleAddShift = (date: Date, staffId: string) => {
+    const staffMember = staff.find(s => s.id === staffId)
+    if (!staffMember || !currentVenue?.id) return
+    setPendingShift({
+      staffId: staffMember.id,
+      staffName: staffMember.name,
+      date,
+      defaultRole: staffMember.role,
+      venueId: currentVenue.id,
+      employmentType: staffMember.employment_type || 'casual',
+      hourlyRateCents: staffMember.hourly_rate ?? 0,
+    })
   }
 
   const handleSelectShift = (shift: RosterShift) => {
