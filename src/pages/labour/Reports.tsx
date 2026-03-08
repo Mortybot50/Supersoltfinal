@@ -56,7 +56,7 @@ export default function LabourReports() {
   const { staff, rosterShifts, timesheets, laborBudgets } = useDataStore()
 
   const [period, setPeriod] = useState<ReportPeriod>("week")
-  const [currentDate, setCurrentDate] = useState(new Date())
+  const [currentDate, setCurrentDate] = useState(() => subWeeks(new Date(), 1))
 
   const activeStaff = staff.filter((s) => s.status === "active")
 
