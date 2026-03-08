@@ -250,7 +250,7 @@ export default function OrderGuide() {
         setCustomQuantities({})
       }
     } catch (error) {
-      toast.error('Failed to create purchase order')
+      toast.error(`Failed to create purchase order: ${error?.message || error}`)
       console.error(error)
     }
   }
