@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft,
   Building2,
