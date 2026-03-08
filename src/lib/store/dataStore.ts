@@ -685,6 +685,7 @@ export const useDataStore = create<DataState>()(
       
       const countData: StockCountRow = {
         id: count.id,
+        org_id: count.org_id,
         venue_id: count.venue_id,
         count_number: count.count_number,
         count_date: count.count_date.toISOString(),
@@ -855,6 +856,7 @@ export const useDataStore = create<DataState>()(
       
       const wasteData: WasteLogRow = {
         id: waste.id,
+        org_id: waste.org_id,
         venue_id: waste.venue_id,
         waste_date: waste.waste_date.toISOString(),
         waste_time: waste.waste_time,

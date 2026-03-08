@@ -302,6 +302,7 @@ export interface IngredientPriceHistory {
 
 export interface StockCount {
   id: string
+  org_id?: string
   venue_id: string
   count_number: string
   count_date: Date
@@ -328,6 +329,7 @@ export interface StockCountItem {
 
 export interface WasteEntry {
   id: string
+  org_id?: string
   venue_id: string
   waste_date: Date
   waste_time: string
