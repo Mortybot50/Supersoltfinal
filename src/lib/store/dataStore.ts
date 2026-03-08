@@ -1700,9 +1700,10 @@ export const useDataStore = create<DataState>()(
       const { supabase } = await import('@/integrations/supabase/client')
       
       // Insert PO
-      const poData: PurchaseOrderRow & { total_amount: number } = {
+      const poData = {
         id: po.id,
         po_number: po.po_number,
+        org_id: get().organization?.id || null,
         venue_id: po.venue_id,
         supplier_id: po.supplier_id,
         supplier_name: po.supplier_name,
@@ -1712,8 +1713,9 @@ export const useDataStore = create<DataState>()(
         subtotal: po.subtotal,
         tax_amount: po.tax_amount,
         total_amount: po.total,
-        total: po.total,
         notes: po.notes,
+        created_by: po.created_by || null,
+        created_by_name: po.created_by_name || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
