@@ -66,7 +66,7 @@ export default function Waste() {
   useEffect(() => {
     loadWasteLogsFromDB()
     loadIngredientsFromDB()
-  }, [])
+  }, [loadWasteLogsFromDB, loadIngredientsFromDB])
 
   const [wasteForm, setWasteForm] = useState({
     ingredient_id: '',

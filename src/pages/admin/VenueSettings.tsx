@@ -146,12 +146,13 @@ export default function VenueSettings() {
     if (currentVenue?.id && !selectedVenue) {
       setSelectedVenue(currentVenue.id);
     }
-  }, [currentVenue]);
+  }, [currentVenue, selectedVenue]);
 
   useEffect(() => {
     if (!selectedVenue) return;
     loadVenueSettings();
-  }, [selectedVenue]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedVenue]); // loadVenueSettings is a local function
 
   const loadVenueSettings = async () => {
     setIsLoading(true);

@@ -77,7 +77,7 @@ export default function Suppliers() {
   useEffect(() => {
     loadSuppliersFromDB()
     loadPurchaseOrdersFromDB()
-  }, [])
+  }, [loadSuppliersFromDB, loadPurchaseOrdersFromDB])
   
   const [formData, setFormData] = useState({
     name: '',

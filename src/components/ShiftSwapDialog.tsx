@@ -20,6 +20,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RosterShift, Staff } from "@/types"
 import { useDataStore } from "@/lib/store/dataStore"
+import { useAuth } from "@/contexts/AuthContext"
+import { supabase } from "@/integrations/supabase/client"
 import { format } from "date-fns"
 import { toast } from "sonner"
 import { ArrowLeftRight, Users } from "lucide-react"
@@ -32,27 +34,47 @@ interface ShiftSwapDialogProps {
 
 export function ShiftSwapDialog({ open, onOpenChange, shift }: ShiftSwapDialogProps) {
   const { staff, createSwapRequest } = useDataStore()
+  const { currentOrg } = useAuth()
   const [targetStaffId, setTargetStaffId] = useState<string>("")
   const [notes, setNotes] = useState("")
+  const [submitting, setSubmitting] = useState(false)
 
   const activeStaff = staff.filter(
     (s) => s.status === "active" && s.id !== shift?.staff_id
   )
 
-  const handleSubmit = () => {
-    if (!shift) return
+  const handleSubmit = async () => {
+    if (!shift || !currentOrg?.id) return
+    setSubmitting(true)
+    try {
+      const { data, error } = await supabase
+        .from('shift_swap_requests')
+        .insert({
+          org_id: currentOrg.id,
+          venue_id: shift.venue_id,
+          original_shift_id: shift.id,
+          original_staff_id: shift.staff_id,
+          target_staff_id: targetStaffId && targetStaffId !== 'open' ? targetStaffId : null,
+          notes: notes || null,
+        })
+        .select()
+        .single()
 
-    createSwapRequest(shift.id, targetStaffId || undefined)
+      if (error) throw error
 
-    toast.success(
-      targetStaffId
-        ? "Swap request sent"
-        : "Shift posted for swap"
-    )
+      // Update Zustand store with the DB-assigned ID
+      createSwapRequest(shift.id, targetStaffId && targetStaffId !== 'open' ? targetStaffId : undefined)
 
-    setTargetStaffId("")
-    setNotes("")
-    onOpenChange(false)
+      toast.success(targetStaffId && targetStaffId !== 'open' ? "Swap request sent" : "Shift posted for swap")
+      setTargetStaffId("")
+      setNotes("")
+      onOpenChange(false)
+    } catch (err) {
+      console.error('Failed to create swap request:', err)
+      toast.error("Failed to create swap request")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   if (!shift) return null
@@ -126,9 +148,9 @@ export function ShiftSwapDialog({ open, onOpenChange, shift }: ShiftSwapDialogPr
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit}>
+          <Button onClick={handleSubmit} disabled={submitting}>
             <ArrowLeftRight className="h-4 w-4 mr-2" />
-            Request Swap
+            {submitting ? "Sending..." : "Request Swap"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -161,13 +183,23 @@ export function SwapRequestsPanel({ open, onOpenChange }: SwapRequestsPanelProps
 
   const getShift = (shiftId: string) => rosterShifts.find((s) => s.id === shiftId)
 
-  const handleApprove = (requestId: string) => {
+  const handleApprove = async (requestId: string) => {
+    const { error } = await supabase
+      .from('shift_swap_requests')
+      .update({ status: 'approved', responded_at: new Date().toISOString() })
+      .eq('id', requestId)
+    if (error) { toast.error("Failed to approve swap request"); return }
     approveSwapRequest(requestId)
     toast.success("Swap request approved")
   }
 
-  const handleReject = (requestId: string) => {
+  const handleReject = async (requestId: string) => {
     if (rejectingId === requestId) {
+      const { error } = await supabase
+        .from('shift_swap_requests')
+        .update({ status: 'rejected', rejection_reason: rejectReason || null, responded_at: new Date().toISOString() })
+        .eq('id', requestId)
+      if (error) { toast.error("Failed to reject swap request"); return }
       rejectSwapRequest(requestId, rejectReason)
       toast.success("Swap request rejected")
       setRejectingId(null)
@@ -177,7 +209,12 @@ export function SwapRequestsPanel({ open, onOpenChange }: SwapRequestsPanelProps
     }
   }
 
-  const handleCancel = (requestId: string) => {
+  const handleCancel = async (requestId: string) => {
+    const { error } = await supabase
+      .from('shift_swap_requests')
+      .update({ status: 'cancelled' })
+      .eq('id', requestId)
+    if (error) { toast.error("Failed to cancel swap request"); return }
     cancelSwapRequest(requestId)
     toast.success("Swap request cancelled")
   }

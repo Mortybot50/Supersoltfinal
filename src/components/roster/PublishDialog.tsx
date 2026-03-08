@@ -37,7 +37,7 @@ export function PublishDialog({ open, onOpenChange }: PublishDialogProps) {
       const d = s.date instanceof Date ? s.date : new Date(s.date)
       return d >= selectedDate && d <= weekEnd
     })
-  }, [shifts, selectedDate])
+  }, [shifts, selectedDate, weekEnd])
 
   const draftShifts = weekShifts.filter(s => s.status === 'scheduled')
   const confirmedShifts = weekShifts.filter(s => s.status === 'confirmed')

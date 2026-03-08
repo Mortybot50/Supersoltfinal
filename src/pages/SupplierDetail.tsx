@@ -72,7 +72,7 @@ export default function SupplierDetail() {
     loadSuppliersFromDB()
     loadIngredientsFromDB()
     loadPurchaseOrdersFromDB()
-  }, [])
+  }, [loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB])
   
   const [productForm, setProductForm] = useState({
     name: '',

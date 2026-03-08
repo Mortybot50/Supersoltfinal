@@ -24,15 +24,18 @@ export function OpenShiftBanner() {
   const { openShifts, staff, updateShift, deleteShift, selectedDate } = useRosterStore()
 
   const weekStart = selectedDate
-  const weekEnd = new Date(weekStart)
-  weekEnd.setDate(weekEnd.getDate() + 6)
+  const weekEnd = useMemo(() => {
+    const d = new Date(weekStart)
+    d.setDate(d.getDate() + 6)
+    return d
+  }, [weekStart])
 
   const visibleOpenShifts = useMemo(() => {
     return openShifts.filter(s => {
       const d = s.date instanceof Date ? s.date : new Date(s.date)
       return d >= weekStart && d <= weekEnd && s.status !== 'cancelled'
     })
-  }, [openShifts, weekStart])
+  }, [openShifts, weekStart, weekEnd])
 
   if (visibleOpenShifts.length === 0) return null
 

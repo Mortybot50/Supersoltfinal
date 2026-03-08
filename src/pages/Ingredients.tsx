@@ -72,7 +72,7 @@ export default function Ingredients() {
 
   useEffect(() => {
     loadIngredientsFromDB()
-  }, [])
+  }, [loadIngredientsFromDB])
 
   const gpThreshold = getDefaultOrgSettings().below_gp_threshold_alert_percent ?? 60
 

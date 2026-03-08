@@ -56,11 +56,13 @@ export default function AccessRoles() {
   useEffect(() => {
     if (!orgId) return;
     loadMembers();
-  }, [orgId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId]); // loadMembers is a local function — adding it would cause infinite re-render
 
   useEffect(() => {
     filterMembers();
-  }, [members, memberSearch, memberStatusFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [members, memberSearch, memberStatusFilter]); // filterMembers is a local function
 
   const loadMembers = async () => {
     const { data, error } = await supabase

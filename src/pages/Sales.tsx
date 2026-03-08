@@ -463,13 +463,7 @@ export default function Sales() {
                       {paymentLabel(o.payment_method)}
                     </TableCell>
                     <TableCell>
-                      {false ? (
-                        <span className="text-xs font-medium text-blue-600 bg-blue-50 dark:bg-blue-950 px-1.5 py-0.5 rounded">Square</span>
-                      ) : false ? (
-                        <span className="text-xs font-medium text-purple-600 bg-purple-50 dark:bg-purple-950 px-1.5 py-0.5 rounded">CSV</span>
-                      ) : (
-                        <span className="text-xs font-medium text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">Manual</span>
-                      )}
+                      <span className="text-xs font-medium text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">Manual</span>
                     </TableCell>
                     <TableCell>
                       {isVoid ? (
