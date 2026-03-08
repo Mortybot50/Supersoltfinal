@@ -343,6 +343,7 @@ export interface WasteEntry {
 }
 
 export interface PurchaseOrder {
+  org_id?: string
   id: string
   po_number: string
   venue_id: string

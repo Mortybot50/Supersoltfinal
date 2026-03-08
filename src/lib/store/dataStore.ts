@@ -1703,7 +1703,7 @@ export const useDataStore = create<DataState>()(
       const poData = {
         id: po.id,
         po_number: po.po_number,
-        org_id: get().organization?.id || null,
+        org_id: po.org_id || null,
         venue_id: po.venue_id,
         supplier_id: po.supplier_id,
         supplier_name: po.supplier_name,

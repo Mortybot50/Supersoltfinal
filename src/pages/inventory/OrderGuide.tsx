@@ -46,7 +46,7 @@ function getDaysOfStockBadge(days: number) {
 
 export default function OrderGuide() {
   const navigate = useNavigate()
-  const { currentVenue, user, profile } = useAuth()
+  const { currentVenue, currentOrg, user, profile } = useAuth()
   const { suppliers, ingredients, purchaseOrders, orders, loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB } = useDataStore()
 
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('')
@@ -204,6 +204,7 @@ export default function OrderGuide() {
     const po: PurchaseOrder = {
       id: poId,
       po_number: generatePONumber(purchaseOrders),
+      org_id: currentOrg?.id || undefined,
       venue_id: currentVenue?.id || '',
       supplier_id: supplier.id,
       supplier_name: supplier.name,
