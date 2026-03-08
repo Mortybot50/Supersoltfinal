@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useDataStore } from '@/lib/store/dataStore'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   calculateUsagePerThousandSales,
   calculateEstimatedUsage,
@@ -45,6 +46,7 @@ function getDaysOfStockBadge(days: number) {
 
 export default function OrderGuide() {
   const navigate = useNavigate()
+  const { currentVenue, user, profile } = useAuth()
   const { suppliers, ingredients, purchaseOrders, orders, loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB } = useDataStore()
 
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('')
@@ -202,7 +204,7 @@ export default function OrderGuide() {
     const po: PurchaseOrder = {
       id: poId,
       po_number: generatePONumber(purchaseOrders),
-      venue_id: 'main-venue',
+      venue_id: currentVenue?.id || '',
       supplier_id: supplier.id,
       supplier_name: supplier.name,
       order_date: new Date(),
@@ -212,8 +214,8 @@ export default function OrderGuide() {
       tax_amount: taxAmount,
       total,
       notes: '',
-      created_by: 'current-user',
-      created_by_name: 'Manager',
+      created_by: user?.id || '',
+      created_by_name: profile ? `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || 'Manager' : 'Manager',
       created_at: new Date(),
       updated_at: new Date(),
     }
@@ -229,6 +231,11 @@ export default function OrderGuide() {
 
   const handleCreateOrder = async () => {
     if (!selectedSupplier) return
+
+    if (!currentVenue?.id || currentVenue.id === 'all') {
+      toast.error('Select a specific venue before creating a purchase order')
+      return
+    }
 
     if (selectedProducts.size === 0) {
       toast.error('Select at least one product')
@@ -250,6 +257,10 @@ export default function OrderGuide() {
 
   // Generate All Orders — creates POs for all suppliers with critical/low items
   const handleGenerateAllOrders = async () => {
+    if (!currentVenue?.id || currentVenue.id === 'all') {
+      toast.error('Select a specific venue before generating purchase orders')
+      return
+    }
     const activeSuppliers = suppliers.filter((s) => s.active)
     let ordersCreated = 0
 
