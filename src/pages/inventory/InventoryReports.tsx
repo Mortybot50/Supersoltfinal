@@ -49,7 +49,7 @@ export default function InventoryReports() {
     loadWasteLogsFromDB()
     loadPurchaseOrdersFromDB()
     loadStockCountsFromDB()
-  }, [])
+  }, [loadIngredientsFromDB, loadWasteLogsFromDB, loadPurchaseOrdersFromDB, loadStockCountsFromDB])
 
   const activeIngredients = useMemo(() => {
     let filtered = ingredients.filter((i) => i.active)
@@ -174,7 +174,7 @@ export default function InventoryReports() {
     }
 
     return Object.values(categories).sort((a, b) => b.total_stock_value - a.total_stock_value)
-  }, [activeIngredients, wasteEntries, dateStart])
+  }, [activeIngredients, wasteEntries, dateStart, ingredients])
 
   // Summary stats
   const summaryStats = useMemo(() => {

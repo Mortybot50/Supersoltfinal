@@ -41,7 +41,7 @@ export default function NewStockCount() {
 
   useEffect(() => {
     loadIngredientsFromDB()
-  }, [])
+  }, [loadIngredientsFromDB])
 
   // Get ingredients to count based on filters
   const ingredientsToCount = useMemo(() => {
@@ -70,7 +70,7 @@ export default function NewStockCount() {
     return sorted
   }, [ingredientsToCount])
 
-  // Initialize counted quantities with current stock
+  // Initialize counted quantities with current stock (intentionally excludes countedQuantities to avoid loop)
   useMemo(() => {
     const initial: Record<string, number> = {}
     ingredientsToCount.forEach((ingredient) => {
@@ -81,7 +81,8 @@ export default function NewStockCount() {
     if (Object.keys(initial).length > 0) {
       setCountedQuantities(prev => ({ ...prev, ...initial }))
     }
-  }, [ingredientsToCount])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ingredientsToCount]) // countedQuantities intentionally excluded to prevent re-init loop
 
   const handleQuantityChange = (ingredientId: string, value: number) => {
     setCountedQuantities({

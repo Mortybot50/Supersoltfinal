@@ -92,7 +92,7 @@ export default function PurchaseOrders() {
   useEffect(() => {
     loadPurchaseOrdersFromDB()
     loadSuppliersFromDB()
-  }, [])
+  }, [loadPurchaseOrdersFromDB, loadSuppliersFromDB])
 
   const filteredPOs = useMemo(() => {
     let filtered = purchaseOrders

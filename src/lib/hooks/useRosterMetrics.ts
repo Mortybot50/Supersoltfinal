@@ -35,7 +35,8 @@ export function useRosterMetrics() {
 
   const currentBudget = useMemo(
     () => getLaborBudgetForWeek(currentWeekStart),
-    [currentWeekStart, laborBudgets]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentWeekStart, laborBudgets] // getLaborBudgetForWeek is a stable Zustand selector
   )
 
   const budgetVariance = useMemo(

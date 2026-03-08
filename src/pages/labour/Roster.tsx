@@ -43,7 +43,7 @@ export default function Roster() {
     if (currentVenue?.id && currentOrg?.id) {
       init(currentVenue.id, currentOrg.id)
     }
-  }, [currentVenue?.id, currentOrg?.id])
+  }, [currentVenue?.id, currentOrg?.id, init])
 
   const selectedDateTs = selectedDate?.getTime()
   useEffect(() => {
@@ -62,7 +62,7 @@ export default function Roster() {
       unsubscribe()
       setIsLive(false)
     }
-  }, [currentVenue?.id])
+  }, [currentVenue?.id, subscribeToChanges])
 
   const handleAddShift = (_date: Date, _staffId: string) => {
     toast.info('Drag a staff card from the sidebar to schedule, or use Auto-fill')

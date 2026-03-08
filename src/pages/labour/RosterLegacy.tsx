@@ -146,7 +146,7 @@ export default function Roster() {
     const start = currentDates[0]
     const end = currentDates[currentDates.length - 1]
     return getShiftsForDateRange(rosterShifts, start, end)
-  }, [viewMode, rosterShifts, currentWeekStart, selectedDay, weekShifts, currentDates])
+  }, [viewMode, rosterShifts, selectedDay, weekShifts, currentDates])
 
   // Fortnight dates and shifts for day view navigation strip
   const fortnightDates = useMemo(() => getFortnightDates(getWeekStart(selectedDay)), [selectedDay])
@@ -172,7 +172,8 @@ export default function Roster() {
 
   const currentBudget = useMemo(
     () => getLaborBudgetForWeek(currentWeekStart),
-    [currentWeekStart, laborBudgets]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentWeekStart, laborBudgets] // getLaborBudgetForWeek is a stable Zustand selector
   )
 
   const budgetVariance = useMemo(

@@ -156,7 +156,8 @@ export default function Locations() {
     if (!currentVenueId) return
     loadLocations()
     loadSchedules()
-  }, [currentVenueId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentVenueId]) // loadLocations/loadSchedules are local functions
 
   const loadLocations = async () => {
     setLoading(true)

@@ -91,7 +91,7 @@ export default function PurchaseOrderDetail() {
   useEffect(() => {
     loadPurchaseOrdersFromDB()
     loadSuppliersFromDB()
-  }, [])
+  }, [loadPurchaseOrdersFromDB, loadSuppliersFromDB])
 
   const po = purchaseOrders.find((p: PurchaseOrder) => p.id === poId)
   const supplier = po ? suppliers.find((s) => s.id === po.supplier_id) : null

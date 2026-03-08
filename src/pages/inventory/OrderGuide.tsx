@@ -56,7 +56,7 @@ export default function OrderGuide() {
     loadSuppliersFromDB()
     loadIngredientsFromDB()
     loadPurchaseOrdersFromDB()
-  }, [])
+  }, [loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB])
 
   const selectedSupplier = suppliers.find((s) => s.id === selectedSupplierId)
 
@@ -127,7 +127,7 @@ export default function OrderGuide() {
       const urgencyOrder = { critical: 0, low: 1, adequate: 2, overstocked: 3 }
       return urgencyOrder[a.urgency] - urgencyOrder[b.urgency]
     })
-  }, [selectedSupplier, ingredients, orders, salesForecast])
+  }, [selectedSupplier, selectedSupplierId, ingredients, orders, salesForecast])
 
   const handleToggleProduct = (productId: string) => {
     setSelectedProducts((prev) => {
@@ -338,7 +338,8 @@ export default function OrderGuide() {
       sum += quantity * recommendation.product.cost_per_unit
     })
     return sum
-  }, [selectedProducts, orderRecommendations, customQuantities])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProducts, orderRecommendations, customQuantities]) // getOrderQuantity only reads customQuantities (already listed)
 
   // Stats across all suppliers
   const globalStats = useMemo(() => {

@@ -69,7 +69,7 @@ export default function OrgSettings() {
       }
     }
     loadOrgSettings()
-  }, [currentOrg?.id])
+  }, [currentOrg?.id, updateOrganization])
 
   // Initialize defaults on mount, and sync real org name from auth
   useEffect(() => {
@@ -77,7 +77,7 @@ export default function OrgSettings() {
     if (currentOrg?.name && (!organization?.name || organization.name === 'My Restaurant Group')) {
       updateOrganization({ name: currentOrg.name })
     }
-  }, [initializeOrgDefaults, currentOrg])
+  }, [initializeOrgDefaults, currentOrg, organization?.name, updateOrganization])
   
   // Local form state (to track unsaved changes)
   const [formData, setFormData] = useState<{
