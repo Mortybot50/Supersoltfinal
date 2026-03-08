@@ -114,10 +114,11 @@ const paymentLabel = (pm: string | null) => {
 
 // ─── Component ──────────────────────────────────────
 export default function Sales() {
-  const { currentVenue } = useAuth()
+  const { currentVenue, currentOrg } = useAuth()
   const venueId = currentVenue?.id
+  const isAllVenues = venueId === 'all'
 
-  const [datePreset, setDatePreset] = useState<DatePreset>("today")
+  const [datePreset, setDatePreset] = useState<DatePreset>("last-week")
   const [channelFilter, setChannelFilter] = useState<string>("all")
   const [paymentFilter, setPaymentFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
@@ -128,15 +129,18 @@ export default function Sales() {
 
   // ─── Query ──────────────────────────────────────
   const { data: orders = [], isLoading, refetch } = useQuery({
-    queryKey: ["salesOrders", venueId, dateRange.start.toISOString(), dateRange.end.toISOString()],
+    queryKey: ["salesOrders", venueId, currentOrg?.id, dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("orders")
         .select("id, order_number, order_datetime, channel, gross_amount, tax_amount, net_amount, discount_amount, is_void, is_refund, refund_reason, payment_method")
-        .eq("venue_id", venueId!)
         .gte("order_datetime", dateRange.start.toISOString())
         .lte("order_datetime", dateRange.end.toISOString())
         .order("order_datetime", { ascending: false })
+      if (!isAllVenues && venueId) {
+        query = query.eq("venue_id", venueId)
+      }
+      const { data, error } = await query
       if (error) throw error
       return (data || []) as OrderRow[]
     },

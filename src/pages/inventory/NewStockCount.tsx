@@ -29,7 +29,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 export default function NewStockCount() {
   const navigate = useNavigate()
-  const { profile, currentVenue } = useAuth()
+  const { user, profile, currentVenue } = useAuth()
   const { suppliers, ingredients, stockCounts, wasteLogs, purchaseOrders, addStockCount, completeStockCount, loadIngredientsFromDB } = useDataStore()
 
   const [countType, setCountType] = useState<'full' | 'cycle'>('full')
@@ -115,6 +115,11 @@ export default function NewStockCount() {
   }, [ingredientsToCount, countedQuantities])
 
   const handleSave = async (status: 'in-progress' | 'completed') => {
+    if (!currentVenue?.id || currentVenue.id === 'all') {
+      toast.error('Select a specific venue before saving a stock count')
+      return
+    }
+
     if (ingredientsToCount.length === 0) {
       toast.error('No ingredients to count')
       return
@@ -180,7 +185,7 @@ export default function NewStockCount() {
       count_date: new Date(),
       count_type: countType,
       status,
-      counted_by_user_id: 'current-user',
+      counted_by_user_id: user?.id || '',
       counted_by_name: userName,
       items,
       total_variance_value: totalVarianceValue,
