@@ -172,7 +172,7 @@ CREATE POLICY "invoices_storage_select"
     bucket_id = 'invoices'
     AND (storage.foldername(name))[1] IN (
       SELECT id::text FROM organizations
-      WHERE id IN (SELECT unnest(get_user_org_ids()))
+      WHERE id = ANY(get_user_org_ids())
     )
   );
 
@@ -183,7 +183,7 @@ CREATE POLICY "invoices_storage_insert"
     bucket_id = 'invoices'
     AND (storage.foldername(name))[1] IN (
       SELECT id::text FROM organizations
-      WHERE id IN (SELECT unnest(get_user_org_ids()))
+      WHERE id = ANY(get_user_org_ids())
     )
   );
 
@@ -194,7 +194,7 @@ CREATE POLICY "invoices_storage_delete"
     bucket_id = 'invoices'
     AND (storage.foldername(name))[1] IN (
       SELECT id::text FROM organizations
-      WHERE id IN (SELECT unnest(get_user_org_ids()))
+      WHERE id = ANY(get_user_org_ids())
     )
   );
 
@@ -214,25 +214,25 @@ ALTER TABLE reconciliation_line_items ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "invoices_select" ON invoices;
 CREATE POLICY "invoices_select" ON invoices
   FOR SELECT USING (
-    org_id IN (SELECT unnest(get_user_org_ids()))
+    org_id = ANY(get_user_org_ids())
   );
 
 DROP POLICY IF EXISTS "invoices_insert" ON invoices;
 CREATE POLICY "invoices_insert" ON invoices
   FOR INSERT WITH CHECK (
-    org_id IN (SELECT unnest(get_user_org_ids()))
+    org_id = ANY(get_user_org_ids())
   );
 
 DROP POLICY IF EXISTS "invoices_update" ON invoices;
 CREATE POLICY "invoices_update" ON invoices
   FOR UPDATE USING (
-    org_id IN (SELECT unnest(get_user_org_ids()))
+    org_id = ANY(get_user_org_ids())
   );
 
 DROP POLICY IF EXISTS "invoices_delete" ON invoices;
 CREATE POLICY "invoices_delete" ON invoices
   FOR DELETE USING (
-    org_id IN (SELECT unnest(get_user_org_ids()))
+    org_id = ANY(get_user_org_ids())
   );
 
 -- ═══════════════════════════════════════════════════════════
@@ -243,7 +243,7 @@ DROP POLICY IF EXISTS "invoice_line_items_select" ON invoice_line_items;
 CREATE POLICY "invoice_line_items_select" ON invoice_line_items
   FOR SELECT USING (
     invoice_id IN (
-      SELECT id FROM invoices WHERE org_id IN (SELECT unnest(get_user_org_ids()))
+      SELECT id FROM invoices WHERE org_id = ANY(get_user_org_ids())
     )
   );
 
@@ -251,7 +251,7 @@ DROP POLICY IF EXISTS "invoice_line_items_insert" ON invoice_line_items;
 CREATE POLICY "invoice_line_items_insert" ON invoice_line_items
   FOR INSERT WITH CHECK (
     invoice_id IN (
-      SELECT id FROM invoices WHERE org_id IN (SELECT unnest(get_user_org_ids()))
+      SELECT id FROM invoices WHERE org_id = ANY(get_user_org_ids())
     )
   );
 
@@ -259,7 +259,7 @@ DROP POLICY IF EXISTS "invoice_line_items_update" ON invoice_line_items;
 CREATE POLICY "invoice_line_items_update" ON invoice_line_items
   FOR UPDATE USING (
     invoice_id IN (
-      SELECT id FROM invoices WHERE org_id IN (SELECT unnest(get_user_org_ids()))
+      SELECT id FROM invoices WHERE org_id = ANY(get_user_org_ids())
     )
   );
 
@@ -267,7 +267,7 @@ DROP POLICY IF EXISTS "invoice_line_items_delete" ON invoice_line_items;
 CREATE POLICY "invoice_line_items_delete" ON invoice_line_items
   FOR DELETE USING (
     invoice_id IN (
-      SELECT id FROM invoices WHERE org_id IN (SELECT unnest(get_user_org_ids()))
+      SELECT id FROM invoices WHERE org_id = ANY(get_user_org_ids())
     )
   );
 
@@ -279,7 +279,7 @@ DROP POLICY IF EXISTS "reconciliation_logs_select" ON reconciliation_logs;
 CREATE POLICY "reconciliation_logs_select" ON reconciliation_logs
   FOR SELECT USING (
     venue_id IN (
-      SELECT v.id FROM venues v WHERE v.org_id IN (SELECT unnest(get_user_org_ids()))
+      SELECT v.id FROM venues v WHERE v.org_id = ANY(get_user_org_ids())
     )
   );
 
@@ -287,7 +287,7 @@ DROP POLICY IF EXISTS "reconciliation_logs_insert" ON reconciliation_logs;
 CREATE POLICY "reconciliation_logs_insert" ON reconciliation_logs
   FOR INSERT WITH CHECK (
     venue_id IN (
-      SELECT v.id FROM venues v WHERE v.org_id IN (SELECT unnest(get_user_org_ids()))
+      SELECT v.id FROM venues v WHERE v.org_id = ANY(get_user_org_ids())
     )
   );
 
@@ -295,7 +295,7 @@ DROP POLICY IF EXISTS "reconciliation_logs_update" ON reconciliation_logs;
 CREATE POLICY "reconciliation_logs_update" ON reconciliation_logs
   FOR UPDATE USING (
     venue_id IN (
-      SELECT v.id FROM venues v WHERE v.org_id IN (SELECT unnest(get_user_org_ids()))
+      SELECT v.id FROM venues v WHERE v.org_id = ANY(get_user_org_ids())
     )
   );
 
@@ -303,7 +303,7 @@ DROP POLICY IF EXISTS "reconciliation_logs_delete" ON reconciliation_logs;
 CREATE POLICY "reconciliation_logs_delete" ON reconciliation_logs
   FOR DELETE USING (
     venue_id IN (
-      SELECT v.id FROM venues v WHERE v.org_id IN (SELECT unnest(get_user_org_ids()))
+      SELECT v.id FROM venues v WHERE v.org_id = ANY(get_user_org_ids())
     )
   );
 
@@ -317,7 +317,7 @@ CREATE POLICY "reconciliation_line_items_select" ON reconciliation_line_items
     reconciliation_id IN (
       SELECT r.id FROM reconciliation_logs r
       JOIN venues v ON v.id = r.venue_id
-      WHERE v.org_id IN (SELECT unnest(get_user_org_ids()))
+      WHERE v.org_id = ANY(get_user_org_ids())
     )
   );
 
@@ -327,7 +327,7 @@ CREATE POLICY "reconciliation_line_items_insert" ON reconciliation_line_items
     reconciliation_id IN (
       SELECT r.id FROM reconciliation_logs r
       JOIN venues v ON v.id = r.venue_id
-      WHERE v.org_id IN (SELECT unnest(get_user_org_ids()))
+      WHERE v.org_id = ANY(get_user_org_ids())
     )
   );
 
@@ -337,7 +337,7 @@ CREATE POLICY "reconciliation_line_items_update" ON reconciliation_line_items
     reconciliation_id IN (
       SELECT r.id FROM reconciliation_logs r
       JOIN venues v ON v.id = r.venue_id
-      WHERE v.org_id IN (SELECT unnest(get_user_org_ids()))
+      WHERE v.org_id = ANY(get_user_org_ids())
     )
   );
 
@@ -347,7 +347,7 @@ CREATE POLICY "reconciliation_line_items_delete" ON reconciliation_line_items
     reconciliation_id IN (
       SELECT r.id FROM reconciliation_logs r
       JOIN venues v ON v.id = r.venue_id
-      WHERE v.org_id IN (SELECT unnest(get_user_org_ids()))
+      WHERE v.org_id = ANY(get_user_org_ids())
     )
   );
 
