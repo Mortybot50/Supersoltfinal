@@ -1480,6 +1480,95 @@ export interface HourlyStaffing {
   predictedDemand: number
 }
 
+// ============================================
+// INVOICE INTELLIGENCE TYPES
+// ============================================
+
+export interface Invoice {
+  id: string
+  org_id: string
+  venue_id: string
+  supplier_id?: string
+  source: 'upload' | 'email'
+  original_file_url?: string
+  original_filename?: string
+  invoice_number?: string
+  invoice_date?: string  // ISO date string
+  due_date?: string
+  subtotal?: number
+  tax_amount?: number
+  total_amount?: number
+  currency: string
+  document_type: 'invoice' | 'credit_note' | 'statement'
+  status: 'pending_review' | 'confirmed' | 'disputed' | 'duplicate'
+  matched_po_id?: string
+  sender_email?: string
+  processing_metadata?: Record<string, unknown>
+  confirmed_by?: string
+  confirmed_at?: string
+  notes?: string
+  created_at: string
+  updated_at: string
+  // Joined fields (not in DB)
+  supplier_name?: string
+  line_items?: InvoiceLineItem[]
+}
+
+export interface InvoiceLineItem {
+  id: string
+  invoice_id: string
+  ingredient_id?: string
+  raw_description: string
+  extracted_quantity?: number
+  extracted_unit?: string
+  extracted_unit_price?: number
+  extracted_line_total?: number
+  extracted_tax?: number
+  extracted_discount?: number
+  confidence_score?: number
+  match_status: 'auto_matched' | 'manual_matched' | 'new_ingredient' | 'unmatched'
+  confirmed_quantity?: number
+  confirmed_unit_price?: number
+  variance_notes?: string
+  created_at: string
+  // Joined fields
+  ingredient_name?: string
+}
+
+export interface ReconciliationLog {
+  id: string
+  invoice_id: string
+  purchase_order_id?: string
+  venue_id: string
+  reconciled_by?: string
+  reconciled_at: string
+  total_expected_value?: number
+  total_received_value?: number
+  total_variance?: number
+  status: 'fully_received' | 'partial' | 'disputed'
+  notes?: string
+  // Joined fields
+  line_items?: ReconciliationLineItem[]
+}
+
+export interface ReconciliationLineItem {
+  id: string
+  reconciliation_id: string
+  invoice_line_item_id?: string
+  po_line_item_id?: string
+  ingredient_id?: string
+  expected_quantity?: number
+  received_quantity?: number
+  expected_unit_price?: number
+  actual_unit_price?: number
+  quantity_variance?: number
+  price_variance?: number
+  status: 'received_full' | 'received_partial' | 'not_received' | 'unexpected'
+  notes?: string
+  // Joined fields
+  ingredient_name?: string
+}
+
 export interface DayStats {
   date: Date
   totalHours: number

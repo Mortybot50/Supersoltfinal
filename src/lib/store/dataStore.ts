@@ -317,6 +317,17 @@ interface DataState {
   // Advanced Rostering - Open Shifts
   claimOpenShift: (shiftId: string, staffId: string, staffName: string) => void
   createOpenShift: (shift: Omit<Types.RosterShift, 'id' | 'staff_id' | 'staff_name'>) => void
+
+  // Invoice Intelligence
+  invoices: Types.Invoice[]
+  invoiceLineItems: Types.InvoiceLineItem[]
+  reconciliationLogs: Types.ReconciliationLog[]
+  loadInvoicesFromDB: (venueId: string) => Promise<void>
+  addInvoice: (invoice: Types.Invoice, lineItems: Types.InvoiceLineItem[]) => Promise<void>
+  updateInvoice: (id: string, updates: Partial<Types.Invoice>) => Promise<void>
+  updateInvoiceLineItem: (id: string, updates: Partial<Types.InvoiceLineItem>) => Promise<void>
+  addReconciliation: (log: Types.ReconciliationLog, lineItems: Types.ReconciliationLineItem[]) => Promise<void>
+  loadReconciliationsFromDB: (venueId: string) => Promise<void>
 }
 
 export const useDataStore = create<DataState>()(
@@ -365,6 +376,10 @@ export const useDataStore = create<DataState>()(
   staffAvailability: [],
   shiftSwapRequests: [],
   laborBudgets: [],
+  // Invoice Intelligence
+  invoices: [],
+  invoiceLineItems: [],
+  reconciliationLogs: [],
   automationRules: [],
   forecasts: [],
   targets: [],
@@ -2699,6 +2714,209 @@ export const useDataStore = create<DataState>()(
       rosterShifts: [...state.rosterShifts, openShift],
     }))
   },
+
+  // ─── Invoice Intelligence ──────────────────────────────────────────
+
+  loadInvoicesFromDB: async (venueId) => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client')
+      const { data: invoiceData, error: invoiceError } = await supabase
+        .from('invoices')
+        .select('*, suppliers(name)')
+        .eq('venue_id', venueId)
+        .order('created_at', { ascending: false })
+
+      if (invoiceError) throw invoiceError
+
+      if (invoiceData) {
+        const { data: lineData, error: lineError } = await supabase
+          .from('invoice_line_items')
+          .select('*, ingredients(name)')
+          .in('invoice_id', invoiceData.map(i => i.id))
+
+        if (lineError) throw lineError
+
+        const linesByInvoice = (lineData || []).reduce((acc, l) => {
+          if (!acc[l.invoice_id]) acc[l.invoice_id] = []
+          acc[l.invoice_id].push({
+            ...l,
+            ingredient_name: (l.ingredients as { name: string } | null)?.name,
+          })
+          return acc
+        }, {} as Record<string, Types.InvoiceLineItem[]>)
+
+        const formatted = invoiceData.map(inv => ({
+          ...inv,
+          supplier_name: (inv.suppliers as { name: string } | null)?.name,
+          line_items: linesByInvoice[inv.id] || [],
+        })) as Types.Invoice[]
+
+        set({ invoices: formatted, invoiceLineItems: lineData as Types.InvoiceLineItem[] || [] })
+      }
+    } catch (error) {
+      console.error('Failed to load invoices:', dbError(error))
+      toast.error('Failed to load invoices. Please refresh.')
+    }
+  },
+
+  addInvoice: async (invoice, lineItems) => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client')
+
+       
+      const { line_items: _li, supplier_name: _sn, ...invoiceRow } = invoice
+      const { error: invError } = await supabase
+        .from('invoices')
+        .insert(invoiceRow)
+
+      if (invError) throw invError
+
+      if (lineItems.length > 0) {
+         
+        const rows = lineItems.map(({ ingredient_name: _ing, ...rest }) => rest)
+        const { error: lineError } = await supabase
+          .from('invoice_line_items')
+          .insert(rows)
+        if (lineError) throw lineError
+      }
+
+      set(state => ({
+        invoices: [{ ...invoice, line_items: lineItems }, ...state.invoices],
+        invoiceLineItems: [...lineItems, ...state.invoiceLineItems],
+      }))
+      toast.success('Invoice saved.')
+    } catch (error) {
+      console.error('Failed to add invoice:', dbError(error))
+      toast.error('Failed to save invoice: ' + dbError(error))
+      throw error
+    }
+  },
+
+  updateInvoice: async (id, updates) => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client')
+       
+      const { line_items: _li, supplier_name: _sn, ...safeUpdates } = updates as Types.Invoice
+      const { error } = await supabase
+        .from('invoices')
+        .update({ ...safeUpdates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+
+      if (error) throw error
+
+      set(state => ({
+        invoices: state.invoices.map(inv =>
+          inv.id === id ? { ...inv, ...updates } : inv
+        ),
+      }))
+    } catch (error) {
+      console.error('Failed to update invoice:', dbError(error))
+      toast.error('Failed to update invoice: ' + dbError(error))
+      throw error
+    }
+  },
+
+  updateInvoiceLineItem: async (id, updates) => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client')
+       
+      const { ingredient_name: _ing, ...safeUpdates } = updates as Types.InvoiceLineItem
+      const { error } = await supabase
+        .from('invoice_line_items')
+        .update(safeUpdates)
+        .eq('id', id)
+
+      if (error) throw error
+
+      set(state => ({
+        invoiceLineItems: state.invoiceLineItems.map(li =>
+          li.id === id ? { ...li, ...updates } : li
+        ),
+        invoices: state.invoices.map(inv => ({
+          ...inv,
+          line_items: inv.line_items?.map(li =>
+            li.id === id ? { ...li, ...updates } : li
+          ),
+        })),
+      }))
+    } catch (error) {
+      console.error('Failed to update invoice line item:', dbError(error))
+      toast.error('Failed to update line item: ' + dbError(error))
+      throw error
+    }
+  },
+
+  addReconciliation: async (log, lineItems) => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client')
+       
+      const { line_items: _li, ...logRow } = log
+      const { error: logError } = await supabase
+        .from('reconciliation_logs')
+        .insert(logRow)
+
+      if (logError) throw logError
+
+      if (lineItems.length > 0) {
+         
+        const rows = lineItems.map(({ ingredient_name: _ing, ...rest }) => rest)
+        const { error: lineError } = await supabase
+          .from('reconciliation_line_items')
+          .insert(rows)
+        if (lineError) throw lineError
+      }
+
+      set(state => ({
+        reconciliationLogs: [{ ...log, line_items: lineItems }, ...state.reconciliationLogs],
+      }))
+      toast.success('Reconciliation confirmed.')
+    } catch (error) {
+      console.error('Failed to add reconciliation:', dbError(error))
+      toast.error('Failed to save reconciliation: ' + dbError(error))
+      throw error
+    }
+  },
+
+  loadReconciliationsFromDB: async (venueId) => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client')
+      const { data, error } = await supabase
+        .from('reconciliation_logs')
+        .select('*')
+        .eq('venue_id', venueId)
+        .order('reconciled_at', { ascending: false })
+
+      if (error) throw error
+
+      if (data) {
+        const { data: lineData, error: lineError } = await supabase
+          .from('reconciliation_line_items')
+          .select('*, ingredients(name)')
+          .in('reconciliation_id', data.map(r => r.id))
+
+        if (lineError) throw lineError
+
+        const linesByRecon = (lineData || []).reduce((acc, l) => {
+          if (!acc[l.reconciliation_id]) acc[l.reconciliation_id] = []
+          acc[l.reconciliation_id].push({
+            ...l,
+            ingredient_name: (l.ingredients as { name: string } | null)?.name,
+          })
+          return acc
+        }, {} as Record<string, Types.ReconciliationLineItem[]>)
+
+        const formatted = data.map(r => ({
+          ...r,
+          line_items: linesByRecon[r.id] || [],
+        })) as Types.ReconciliationLog[]
+
+        set({ reconciliationLogs: formatted })
+      }
+    } catch (error) {
+      console.error('Failed to load reconciliations:', dbError(error))
+      toast.error('Failed to load reconciliations. Please refresh.')
+    }
+  },
 }),
 {
   name: 'data-store',
@@ -2751,6 +2969,11 @@ export const useDataStore = create<DataState>()(
     staffAvailability: state.staffAvailability,
     shiftSwapRequests: state.shiftSwapRequests,
     laborBudgets: state.laborBudgets,
+
+    // Invoice Intelligence
+    invoices: state.invoices,
+    invoiceLineItems: state.invoiceLineItems,
+    reconciliationLogs: state.reconciliationLogs,
 
     // Persist metadata
     _version: state._version,
