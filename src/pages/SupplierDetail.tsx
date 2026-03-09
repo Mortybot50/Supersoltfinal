@@ -11,6 +11,8 @@ import {
   Trash2,
   Search,
   ShoppingCart,
+  FileText,
+  Upload,
 } from 'lucide-react'
 import { getBaseUnit, calculatePackToBaseFactor, calculateCostPerBaseUnit, formatPackSizeText, formatBaseUnitCost } from '@/lib/utils/unitConversions'
 import { Button } from '@/components/ui/button'
@@ -50,7 +52,7 @@ export default function SupplierDetail() {
   const { currentVenue } = useAuth()
   const { supplierId } = useParams()
   const navigate = useNavigate()
-  const { suppliers, ingredients, purchaseOrders, addIngredient, updateIngredient, deleteIngredient, loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB } = useDataStore()
+  const { suppliers, ingredients, purchaseOrders, invoices, addIngredient, updateIngredient, deleteIngredient, loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB } = useDataStore()
   
   const supplier = suppliers.find((s) => s.id === supplierId)
   
@@ -362,6 +364,10 @@ export default function SupplierDetail() {
             <ShoppingCart className="h-4 w-4 mr-2" />
             Orders ({supplierPOs.length})
           </TabsTrigger>
+          <TabsTrigger value="invoices">
+            <FileText className="h-4 w-4 mr-2" />
+            Invoices
+          </TabsTrigger>
           <TabsTrigger value="info">
             <Building2 className="h-4 w-4 mr-2" />
             Info
@@ -637,8 +643,82 @@ export default function SupplierDetail() {
             )}
           </div>
         </TabsContent>
+
+        {/* ── Invoices Tab ─────────────────────────────────────── */}
+        <TabsContent value="invoices" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Recent invoices from {supplier.name}
+            </p>
+            <Button
+              size="sm"
+              onClick={() => navigate(`/inventory/invoices/upload?supplier=${supplier.id}`)}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Upload Invoice
+            </Button>
+          </div>
+          {(() => {
+            const supplierInvoices = invoices
+              .filter(inv => inv.supplier_id === supplier.id)
+              .slice(0, 10)
+            if (supplierInvoices.length === 0) {
+              return (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground border rounded-lg">
+                  <FileText className="h-10 w-10 opacity-30 mb-2" />
+                  <p className="text-sm">No invoices yet.</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => navigate(`/inventory/invoices/upload?supplier=${supplier.id}`)}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload First Invoice
+                  </Button>
+                </div>
+              )
+            }
+            return (
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Date</th>
+                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Invoice #</th>
+                      <th className="text-right px-4 py-2 font-medium text-muted-foreground">Total</th>
+                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Status</th>
+                      <th className="px-4 py-2" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {supplierInvoices.map(inv => (
+                      <tr
+                        key={inv.id}
+                        className="border-t hover:bg-muted/30 cursor-pointer"
+                        onClick={() => navigate(`/inventory/invoices/${inv.id}`)}
+                      >
+                        <td className="px-4 py-2">{inv.invoice_date ?? '—'}</td>
+                        <td className="px-4 py-2 font-mono">{inv.invoice_number ?? '—'}</td>
+                        <td className="px-4 py-2 text-right">
+                          {inv.total_amount != null ? `$${inv.total_amount.toFixed(2)}` : '—'}
+                        </td>
+                        <td className="px-4 py-2 capitalize">{inv.status.replace('_', ' ')}</td>
+                        <td className="px-4 py-2 text-right">
+                          <Button variant="ghost" size="sm" className="h-7 text-xs">
+                            View
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          })()}
+        </TabsContent>
       </Tabs>
-      
+
       <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
