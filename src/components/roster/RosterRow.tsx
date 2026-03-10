@@ -16,6 +16,8 @@ interface RosterRowProps {
   ghostShifts?: RosterShift[]
   weeklyHours: number
   compact?: boolean
+  viewMode?: 'staff' | 'compact' | 'stats'
+  dimmedIds?: Set<string>
   onAddShift?: (date: Date, staffId: string) => void
   onSelectShift?: (shift: RosterShift) => void
   onDeleteShift?: (shift: RosterShift) => void
@@ -28,6 +30,8 @@ export function RosterRow({
   ghostShifts = [],
   weeklyHours,
   compact = false,
+  viewMode = 'staff',
+  dimmedIds = new Set(),
   onAddShift,
   onSelectShift,
   onDeleteShift,
@@ -94,6 +98,8 @@ export function RosterRow({
             isToday={isToday(date)}
             isWeekend={isWeekend(date)}
             compact={compact}
+            viewMode={viewMode}
+            dimmedIds={dimmedIds}
             onAddShift={onAddShift}
             onSelectShift={onSelectShift}
             onDeleteShift={onDeleteShift}
