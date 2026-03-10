@@ -629,7 +629,8 @@ export async function loadShiftTemplatesFromDB(venueId?: string): Promise<ShiftT
 
     if (!data) return []
 
-    return data.map((t) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- template_shifts is a new JSONB column not yet in auto-gen types
+    return data.map((t: any) => ({
       id: t.id,
       organization_id: t.org_id,
       venue_id: t.venue_id,
@@ -640,6 +641,7 @@ export async function loadShiftTemplatesFromDB(venueId?: string): Promise<ShiftT
       break_minutes: t.break_minutes || 0,
       role: t.position as 'manager' | 'supervisor' | 'crew',
       days_of_week: t.days_of_week || [],
+      template_shifts: (t.template_shifts as TemplateShiftDef[]) || [],
       usage_count: t.usage_count || 0,
       last_used_at: t.last_used_at ? new Date(t.last_used_at) : undefined,
       created_at: new Date(t.created_at),
@@ -654,7 +656,8 @@ export async function loadShiftTemplatesFromDB(venueId?: string): Promise<ShiftT
 
 export async function addShiftTemplateToDB(template: ShiftTemplate): Promise<ShiftTemplate | null> {
   try {
-    const templateData: Partial<DBShiftTemplate> = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- template_shifts is a new JSONB column not yet in auto-gen types
+    const templateData: any = {
       id: template.id,
       org_id: template.organization_id,
       venue_id: template.venue_id,
@@ -665,6 +668,7 @@ export async function addShiftTemplateToDB(template: ShiftTemplate): Promise<Shi
       break_minutes: template.break_minutes,
       position: template.role,
       days_of_week: template.days_of_week,
+      template_shifts: template.template_shifts || [],
       usage_count: 0,
       is_active: true,
     }
