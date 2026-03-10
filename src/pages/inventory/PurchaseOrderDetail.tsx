@@ -421,7 +421,7 @@ Team`
             </Badge>
           )}
           {canReceive && (
-            <Button onClick={handleReceive} variant="outline" size="sm">
+            <Button onClick={() => navigate(`/inventory/purchase-orders/${po.id}/receive`)} variant="outline" size="sm">
               <Package className="h-4 w-4 mr-2" />
               Receive
             </Button>

@@ -369,6 +369,7 @@ export interface PurchaseOrder {
   cancellation_reason?: string
   created_at?: Date
   updated_at?: Date
+  received_by_name?: string
 }
 
 export interface PurchaseOrderItem {
