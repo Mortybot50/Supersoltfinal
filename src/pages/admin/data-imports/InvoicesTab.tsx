@@ -23,7 +23,7 @@ import { useInvoiceIntakeStore } from '@/stores/useInvoiceIntakeStore'
 import { InvoiceUploadDrawer } from './InvoiceUploadDrawer'
 import { InvoiceReviewModal } from './InvoiceReviewModal'
 import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval } from 'date-fns'
-import { formatCurrency } from '@/lib/currency'
+import { formatCurrency } from '@/lib/utils/formatters'
 
 const STATUS_COLORS: Record<string, string> = {
   queued: 'bg-gray-100 text-gray-700',

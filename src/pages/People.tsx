@@ -19,7 +19,7 @@ import {
 import { Search, Plus, MoreVertical, Mail, Phone, FileText, Calendar, Send, Copy, Check, Clock, UserPlus, Users, Upload } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { Staff, OnboardingInvite, OnboardingStep } from "@/types"
-import { formatCurrency } from "@/lib/currency"
+import { formatCurrency } from "@/lib/utils/formatters"
 import { StaffDialog } from "@/components/StaffDialog"
 import { BulkStaffImport } from "@/components/BulkStaffImport"
 import { useDataStore } from "@/lib/store/dataStore"

@@ -30,7 +30,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
-import { formatCurrency } from '@/lib/currency'
+import { formatCurrency } from '@/lib/utils/formatters'
 import { ONBOARDING_STEPS } from '@/lib/constants/onboarding'
 import { updateStaffInDB } from '@/lib/services/labourService'
 import { Staff } from '@/types'
