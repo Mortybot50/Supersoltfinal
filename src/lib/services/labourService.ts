@@ -14,6 +14,8 @@ import type {
   StaffAvailability,
   ShiftSwapRequest,
   LaborBudget,
+  RosterPattern,
+  TemplateShiftDef,
 } from '@/types'
 
 /** Extract readable error message from Supabase/Postgres errors */
@@ -723,6 +725,123 @@ export async function deleteShiftTemplateFromDB(id: string): Promise<boolean> {
   } catch (error) {
     console.error('Failed to delete shift template from DB:', dbError(error))
     toast.error('Failed to delete shift template.')
+    return false
+  }
+}
+
+// ============================================
+// ROSTER PATTERNS OPERATIONS
+// ============================================
+
+export async function loadRosterPatternsFromDB(venueId: string): Promise<RosterPattern[]> {
+  try {
+    const { data, error } = await (supabase as unknown as {
+      from: (t: string) => {
+        select: (s: string) => {
+          eq: (col: string, val: string) => {
+            eq: (col: string, val: boolean) => {
+              order: (col: string) => Promise<{ data: RosterPattern[] | null; error: unknown }>
+            }
+          }
+        }
+      }
+    }).from('roster_patterns').select('*').eq('venue_id', venueId).eq('is_active', true).order('name')
+
+    if (error) throw error
+    if (!data) return []
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data as any[]).map((p) => ({
+      id: p.id as string,
+      organization_id: p.org_id as string,
+      venue_id: p.venue_id as string,
+      name: p.name as string,
+      description: p.description as string | undefined,
+      shifts: (Array.isArray(p.shifts) ? p.shifts : []) as TemplateShiftDef[],
+      is_active: (p.is_active ?? true) as boolean,
+      created_at: new Date(p.created_at as string),
+      updated_at: new Date(p.updated_at as string),
+    }))
+  } catch (error) {
+    console.error('Failed to load roster patterns from DB:', dbError(error))
+    return []
+  }
+}
+
+export async function addRosterPatternToDB(
+  pattern: Omit<RosterPattern, 'id' | 'created_at' | 'updated_at'>,
+  orgId: string,
+): Promise<RosterPattern | null> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('roster_patterns')
+      .insert([{
+        org_id: orgId,
+        venue_id: pattern.venue_id,
+        name: pattern.name,
+        description: pattern.description,
+        shifts: pattern.shifts,
+        is_active: pattern.is_active ?? true,
+      }])
+      .select()
+      .single()
+
+    if (error) throw error
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const row = data as any
+    return {
+      id: row.id as string,
+      organization_id: row.org_id as string,
+      venue_id: row.venue_id as string,
+      name: row.name as string,
+      description: row.description as string | undefined,
+      shifts: (Array.isArray(row.shifts) ? row.shifts : []) as TemplateShiftDef[],
+      is_active: (row.is_active ?? true) as boolean,
+      created_at: new Date(row.created_at as string),
+      updated_at: new Date(row.updated_at as string),
+    }
+  } catch (error) {
+    console.error('Failed to add roster pattern to DB:', dbError(error))
+    toast.error('Failed to save roster pattern.')
+    return null
+  }
+}
+
+export async function updateRosterPatternInDB(
+  id: string,
+  updates: Partial<Pick<RosterPattern, 'name' | 'description' | 'shifts'>>,
+): Promise<boolean> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any)
+      .from('roster_patterns')
+      .update(updates)
+      .eq('id', id)
+
+    if (error) throw error
+    return true
+  } catch (error) {
+    console.error('Failed to update roster pattern in DB:', dbError(error))
+    toast.error('Failed to update roster pattern.')
+    return false
+  }
+}
+
+export async function deleteRosterPatternFromDB(id: string): Promise<boolean> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any)
+      .from('roster_patterns')
+      .update({ is_active: false })
+      .eq('id', id)
+
+    if (error) throw error
+    return true
+  } catch (error) {
+    console.error('Failed to delete roster pattern from DB:', dbError(error))
+    toast.error('Failed to delete roster pattern.')
     return false
   }
 }
