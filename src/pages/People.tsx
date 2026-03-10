@@ -45,6 +45,9 @@ export default function People() {
   const rosterMetrics = useRosterMetrics()
   const [searchQuery, setSearchQuery] = useState("")
   const debouncedSearch = useDebounce(searchQuery, 300)
+  const [filterRole, setFilterRole] = useState<string>("all")
+  const [filterEmpType, setFilterEmpType] = useState<string>("all")
+  const [sortBy, setSortBy] = useState<"name" | "start_date">("name")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingStaff, setEditingStaff] = useState<Staff | undefined>()
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
@@ -77,12 +80,23 @@ export default function People() {
     })
   }, [staffList, onboardingInvites, onboardingSteps])
 
-  const filteredActiveStaff = activeStaff.filter(staff => {
-    const name = staff.name.toLowerCase()
-    return name.includes(debouncedSearch.toLowerCase()) ||
-      staff.email.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      staff.role.toLowerCase().includes(debouncedSearch.toLowerCase())
-  })
+  const filteredActiveStaff = useMemo(() => {
+    const q = debouncedSearch.toLowerCase()
+    return activeStaff
+      .filter(s => {
+        const matchSearch = s.name.toLowerCase().includes(q) ||
+          s.email.toLowerCase().includes(q) ||
+          s.role.toLowerCase().includes(q)
+        const matchRole = filterRole === "all" || s.role === filterRole
+        const matchEmp  = filterEmpType === "all" || s.employment_type === filterEmpType
+        return matchSearch && matchRole && matchEmp
+      })
+      .sort((a, b) =>
+        sortBy === "start_date"
+          ? new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+          : a.name.localeCompare(b.name)
+      )
+  }, [activeStaff, debouncedSearch, filterRole, filterEmpType, sortBy])
 
   const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").toUpperCase()
 
@@ -318,47 +332,57 @@ export default function People() {
     })
   }
 
-  const StaffTable = ({ staff }: { staff: Staff[] }) => (
+  const StaffTable = ({ staff: tableStaff }: { staff: Staff[] }) => (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead>Staff Member</TableHead>
           <TableHead>Role</TableHead>
+          <TableHead>Employment</TableHead>
           <TableHead>Contact</TableHead>
-          <TableHead>Hourly Rate</TableHead>
+          <TableHead>Rate</TableHead>
           <TableHead>Next Shift</TableHead>
           <TableHead>Status</TableHead>
           <TableHead className="text-right">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {staff.length === 0 ? (
+        {tableStaff.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={7} className="text-center text-muted-foreground h-32">
-              No staff members found. Click 'Add Staff Member' to get started.
+            <TableCell colSpan={8} className="text-center text-muted-foreground h-32">
+              No staff members found.
             </TableCell>
           </TableRow>
         ) : (
-          staff.map((person) => {
+          tableStaff.map((person) => {
             const upcoming = rosterMetrics.getUpcomingShiftsForStaff(person.id)
             const nextShift = upcoming[0]
             return (
               <TableRow key={person.id}>
                 <TableCell>
-                  <div className="flex items-center gap-3 cursor-pointer hover:opacity-70 transition-opacity" onClick={() => navigate(`/workforce/people/${person.id}`)}>
+                  <div className="flex items-center gap-3 cursor-pointer hover:opacity-70 transition-opacity" onClick={() => navigate(`/labour/staff/${person.id}`)}>
                     <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-medium">
                       {getInitials(person.name)}
                     </div>
                     <div>
                       <div className="font-medium">{person.name}</div>
                       <div className="text-sm text-muted-foreground">
-                        Started {new Date(person.start_date).toLocaleDateString("en-AU", { month: "short", year: "numeric" })}
+                        Since {new Date(person.start_date).toLocaleDateString("en-AU", { month: "short", year: "numeric" })}
                       </div>
                     </div>
                   </div>
                 </TableCell>
                 <TableCell>
                   <StatusBadge status={person.role as "manager" | "supervisor" | "crew"} />
+                </TableCell>
+                <TableCell>
+                  {person.employment_type ? (
+                    <Badge variant="outline" className="capitalize text-xs">
+                      {person.employment_type.replace("-", " ")}
+                    </Badge>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <div className="space-y-1">
@@ -394,7 +418,7 @@ export default function People() {
                       <Button variant="ghost" size="icon" aria-label="More actions"><MoreVertical className="h-4 w-4" /></Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => navigate(`/workforce/people/${person.id}`)}>
+                      <DropdownMenuItem onClick={() => navigate(`/labour/staff/${person.id}`)}>
                         <FileText className="h-4 w-4 mr-2" /> View Profile
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => navigate('/workforce/roster')}>
@@ -423,14 +447,41 @@ export default function People() {
     <PageToolbar
       title="People"
       filters={
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search staff..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8 w-[200px] pl-8 text-sm"
-          />
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search staff..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-8 w-[180px] pl-8 text-sm"
+            />
+          </div>
+          <Select value={filterRole} onValueChange={setFilterRole}>
+            <SelectTrigger className="h-8 w-[120px] text-sm"><SelectValue placeholder="Role" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Roles</SelectItem>
+              <SelectItem value="manager">Manager</SelectItem>
+              <SelectItem value="supervisor">Supervisor</SelectItem>
+              <SelectItem value="crew">Crew</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterEmpType} onValueChange={setFilterEmpType}>
+            <SelectTrigger className="h-8 w-[130px] text-sm"><SelectValue placeholder="Type" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="full-time">Full-time</SelectItem>
+              <SelectItem value="part-time">Part-time</SelectItem>
+              <SelectItem value="casual">Casual</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={sortBy} onValueChange={v => setSortBy(v as "name" | "start_date")}>
+            <SelectTrigger className="h-8 w-[130px] text-sm"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name">Sort: Name</SelectItem>
+              <SelectItem value="start_date">Sort: Start Date</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       }
       actions={
