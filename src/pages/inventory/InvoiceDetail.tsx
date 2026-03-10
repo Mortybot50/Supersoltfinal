@@ -12,6 +12,7 @@ import {
   Hash,
   Upload,
   Mail,
+  ShoppingCart,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -111,6 +112,19 @@ export default function InvoiceDetail() {
           <ChevronLeft className="h-4 w-4 mr-1" />
           Back
         </Button>
+      }
+      actions={
+        invoice.status !== 'confirmed' && invoice.status !== 'duplicate' ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8"
+            onClick={() => navigate(`/inventory/purchases/from-invoice/${invoice.id}`)}
+          >
+            <ShoppingCart className="h-4 w-4 mr-2" />
+            Create Purchase
+          </Button>
+        ) : undefined
       }
       primaryAction={
         invoice.status === 'pending_review'
@@ -325,13 +339,22 @@ export default function InvoiceDetail() {
         )}
 
         {/* ── Actions ─────────────────────────────────────────────── */}
-        {invoice.status === 'pending_review' && (
+        {invoice.status !== 'confirmed' && invoice.status !== 'duplicate' && (
           <div className="flex justify-end gap-3">
+            {invoice.status === 'pending_review' && (
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/inventory/invoices/${invoice.id}/reconcile`)}
+              >
+                <GitMerge className="h-4 w-4 mr-2" />
+                Reconcile Invoice
+              </Button>
+            )}
             <Button
-              onClick={() => navigate(`/inventory/invoices/${invoice.id}/reconcile`)}
+              onClick={() => navigate(`/inventory/purchases/from-invoice/${invoice.id}`)}
             >
-              <GitMerge className="h-4 w-4 mr-2" />
-              Reconcile Invoice
+              <ShoppingCart className="h-4 w-4 mr-2" />
+              Create Purchase
             </Button>
           </div>
         )}

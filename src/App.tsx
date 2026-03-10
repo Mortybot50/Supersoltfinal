@@ -34,6 +34,8 @@ import Invoices from "./pages/inventory/Invoices"
 import InvoiceUpload from "./pages/inventory/InvoiceUpload"
 import InvoiceDetail from "./pages/inventory/InvoiceDetail"
 import Reconciliation from "./pages/inventory/Reconciliation"
+import PurchaseByInvoice from "./pages/inventory/PurchaseByInvoice"
+import PurchaseFromInvoice from "./pages/inventory/PurchaseFromInvoice"
 
 // Menu & Costing
 import MenuItems from "./pages/MenuItems"
@@ -124,6 +126,8 @@ const App = () => (
               <Route path="inventory/invoices/upload" element={<InvoiceUpload />} />
               <Route path="inventory/invoices/:invoiceId" element={<InvoiceDetail />} />
               <Route path="inventory/invoices/:invoiceId/reconcile" element={<Reconciliation />} />
+              <Route path="inventory/purchase-by-invoice" element={<PurchaseByInvoice />} />
+              <Route path="inventory/purchases/from-invoice/:invoiceId" element={<PurchaseFromInvoice />} />
 
               {/* Menu & Costing */}
               <Route path="menu/items" element={<MenuItems />} />
