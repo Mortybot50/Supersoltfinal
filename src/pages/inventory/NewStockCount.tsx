@@ -1,118 +1,501 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Save, AlertTriangle } from 'lucide-react'
+import {
+  ArrowLeft,
+  Save,
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  CheckCircle2,
+  Package,
+  Loader2,
+  MapPin,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { useDataStore } from '@/lib/store/dataStore'
-import { StockCount, StockCountItem, Ingredient } from '@/types'
+import { Progress } from '@/components/ui/progress'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { useAuth } from '@/contexts/AuthContext'
-import { PageShell, PageToolbar } from '@/components/shared'
+import { PageShell } from '@/components/shared'
+import { formatCurrency } from '@/lib/utils/formatters'
+import {
+  useCountIngredients,
+  useInvLocations,
+  useStockCountsList,
+  useCreateStockCount,
+  useCompleteStockCount,
+  type IngredientWithLocation,
+} from '@/lib/hooks/useStockCounts'
+import {
+  calculateVariancePercent,
+  calculateVarianceValue,
+  isLargeVariance,
+  convertUnit,
+  generateCountNumber,
+} from '@/lib/utils/inventoryCalculations'
+import type { StockCount, StockCountItem } from '@/types'
 
-// Categories are derived dynamically from ingredient data (not hardcoded)
+// ── Setup Modal ─────────────────────────────────────────────────────
+
+function SetupModal({
+  open,
+  onStart,
+}: {
+  open: boolean
+  onStart: (type: 'full' | 'cycle', category?: string) => void
+}) {
+  const [countType, setCountType] = useState<'full' | 'cycle'>('full')
+  const [category, setCategory] = useState<string>('all')
+  const { data: ingredients = [] } = useCountIngredients()
+
+  const categories = useMemo(() => {
+    const cats = new Set(ingredients.map((i) => i.category || 'Other'))
+    return Array.from(cats).sort()
+  }, [ingredients])
+
+  return (
+    <Dialog open={open} onOpenChange={() => {}}>
+      <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Package className="h-5 w-5" />
+            New Stock Count
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label>Count Type</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setCountType('full')}
+                className={`p-4 rounded-lg border-2 text-left transition-colors ${
+                  countType === 'full'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-muted hover:border-muted-foreground/30'
+                }`}
+              >
+                <p className="font-semibold text-sm">Full Count</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  All active ingredients
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCountType('cycle')}
+                className={`p-4 rounded-lg border-2 text-left transition-colors ${
+                  countType === 'cycle'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-muted hover:border-muted-foreground/30'
+                }`}
+              >
+                <p className="font-semibold text-sm">Cycle Count</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Selected category only
+                </p>
+              </button>
+            </div>
+          </div>
+
+          {countType === 'cycle' && (
+            <div className="space-y-2">
+              <Label>Category</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button
+            className="w-full"
+            onClick={() =>
+              onStart(
+                countType,
+                countType === 'cycle' && category !== 'all' ? category : undefined
+              )
+            }
+            disabled={countType === 'cycle' && category === 'all'}
+          >
+            Start Counting
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Ingredient Row (mobile-first) ───────────────────────────────────
+
+function IngredientRow({
+  ingredient,
+  countedQty,
+  altQty,
+  onPrimaryChange,
+  onAltChange,
+  varianceNote,
+  onVarianceNoteChange,
+}: {
+  ingredient: IngredientWithLocation
+  countedQty: number
+  altQty: number
+  onPrimaryChange: (val: number) => void
+  onAltChange: (val: number) => void
+  varianceNote: string
+  onVarianceNoteChange: (val: string) => void
+}) {
+  const expected = ingredient.current_stock
+  const variance = countedQty - expected
+  const varPct = calculateVariancePercent(countedQty, expected)
+  const varValue = calculateVarianceValue(countedQty, expected, ingredient.cost_per_unit)
+  const hasLargeVar = isLargeVariance(
+    countedQty,
+    expected,
+    ingredient.cost_per_unit
+  )
+  const hasFactor = (ingredient.pack_to_base_factor ?? 0) > 0
+
+  return (
+    <div
+      className={`p-3 md:p-4 border-b last:border-b-0 transition-colors ${
+        hasLargeVar ? 'bg-red-50/60 dark:bg-red-950/20' : ''
+      }`}
+    >
+      {/* Top row: name + variance badge */}
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-sm truncate">{ingredient.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {ingredient.product_code ? `${ingredient.product_code} · ` : ''}
+            System: {expected} {ingredient.unit}
+            {ingredient.par_level > 0 && ` · Par: ${ingredient.par_level}`}
+          </p>
+        </div>
+        {variance !== 0 && (
+          <span
+            className={`text-xs font-semibold whitespace-nowrap ${
+              hasLargeVar
+                ? 'text-red-600'
+                : variance > 0
+                  ? 'text-green-600'
+                  : 'text-amber-600'
+            }`}
+          >
+            {variance > 0 ? '+' : ''}
+            {varPct.toFixed(0)}% ({formatCurrency(varValue)})
+          </span>
+        )}
+      </div>
+
+      {/* Input row — large touch targets for mobile */}
+      <div className="flex items-end gap-3">
+        {/* Primary unit input */}
+        <div className="flex-1">
+          <Label className="text-xs text-muted-foreground mb-1 block">
+            {ingredient.unit}
+          </Label>
+          <Input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.1"
+            value={countedQty || ''}
+            onChange={(e) => onPrimaryChange(parseFloat(e.target.value) || 0)}
+            className={`h-12 text-lg font-medium text-center md:h-10 md:text-base ${
+              hasLargeVar ? 'border-red-400 focus-visible:ring-red-400' : ''
+            }`}
+            placeholder="0"
+          />
+        </div>
+
+        {/* Alt unit input (packs) */}
+        {hasFactor && (
+          <div className="w-28 md:w-24">
+            <Label className="text-xs text-muted-foreground mb-1 block">
+              {ingredient.pack_size_text || 'packs'}
+            </Label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.1"
+              value={altQty || ''}
+              onChange={(e) => onAltChange(parseFloat(e.target.value) || 0)}
+              className="h-12 text-lg font-medium text-center md:h-10 md:text-base"
+              placeholder="0"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Variance note (shown for large variances) */}
+      {hasLargeVar && (
+        <div className="mt-2">
+          <Input
+            placeholder="Explain variance..."
+            value={varianceNote}
+            onChange={(e) => onVarianceNoteChange(e.target.value)}
+            className="h-9 text-xs border-red-300"
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Location Section (collapsible) ──────────────────────────────────
+
+function LocationSection({
+  title,
+  icon,
+  items,
+  countedQuantities,
+  altQuantities,
+  varianceNotes,
+  onPrimaryChange,
+  onAltChange,
+  onVarianceNoteChange,
+  defaultOpen,
+}: {
+  title: string
+  icon?: React.ReactNode
+  items: IngredientWithLocation[]
+  countedQuantities: Record<string, number>
+  altQuantities: Record<string, number>
+  varianceNotes: Record<string, string>
+  onPrimaryChange: (id: string, val: number) => void
+  onAltChange: (id: string, val: number) => void
+  onVarianceNoteChange: (id: string, val: string) => void
+  defaultOpen?: boolean
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen ?? true)
+
+  const counted = items.filter(
+    (i) => (countedQuantities[i.id] ?? 0) !== i.current_stock
+  ).length
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Card className="overflow-hidden">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="w-full flex items-center gap-2 px-4 py-3 bg-muted/50 hover:bg-muted/80 transition-colors text-left"
+          >
+            {isOpen ? (
+              <ChevronDown className="h-4 w-4 shrink-0" />
+            ) : (
+              <ChevronRight className="h-4 w-4 shrink-0" />
+            )}
+            {icon}
+            <span className="font-semibold text-sm flex-1">{title}</span>
+            <Badge variant="outline" className="text-xs">
+              {counted}/{items.length}
+            </Badge>
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          {items.map((ingredient) => (
+            <IngredientRow
+              key={ingredient.id}
+              ingredient={ingredient}
+              countedQty={countedQuantities[ingredient.id] ?? 0}
+              altQty={altQuantities[ingredient.id] ?? 0}
+              onPrimaryChange={(val) => onPrimaryChange(ingredient.id, val)}
+              onAltChange={(val) => onAltChange(ingredient.id, val)}
+              varianceNote={varianceNotes[ingredient.id] ?? ''}
+              onVarianceNoteChange={(val) =>
+                onVarianceNoteChange(ingredient.id, val)
+              }
+            />
+          ))}
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
+  )
+}
+
+// ── Main NewStockCount page ─────────────────────────────────────────
 
 export default function NewStockCount() {
   const navigate = useNavigate()
   const { user, profile, currentVenue, currentOrg } = useAuth()
-  const { suppliers, ingredients, stockCounts, wasteLogs, purchaseOrders, addStockCount, completeStockCount, loadIngredientsFromDB } = useDataStore()
+  const { data: ingredients = [], isLoading: ingredientsLoading } =
+    useCountIngredients()
+  const { data: locations = [] } = useInvLocations()
+  const { data: existingCounts = [] } = useStockCountsList()
+  const createCount = useCreateStockCount()
+  const completeCount = useCompleteStockCount()
 
+  // Setup state
+  const [showSetup, setShowSetup] = useState(true)
   const [countType, setCountType] = useState<'full' | 'cycle'>('full')
-  const [supplierId, setSupplierId] = useState<string>('all')
-  const [categoryFilter, setCategoryFilter] = useState<string>('all')
-  const [notes, setNotes] = useState('')
-  const [countedQuantities, setCountedQuantities] = useState<Record<string, number>>({})
+  const [categoryFilter, setCategoryFilter] = useState<string | undefined>()
+
+  // Count state
+  const [countedQuantities, setCountedQuantities] = useState<
+    Record<string, number>
+  >({})
+  const [altQuantities, setAltQuantities] = useState<Record<string, number>>({})
   const [varianceNotes, setVarianceNotes] = useState<Record<string, string>>({})
+  const [notes, setNotes] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
 
-  useEffect(() => {
-    loadIngredientsFromDB()
-  }, [loadIngredientsFromDB])
-
-  // Get ingredients to count based on filters
+  // Filter ingredients
   const ingredientsToCount = useMemo(() => {
-    let items = ingredients.filter((i) => i.active)
-    if (supplierId !== 'all') {
-      items = items.filter((i) => i.supplier_id === supplierId)
-    }
-    if (categoryFilter !== 'all') {
+    let items = ingredients
+    if (categoryFilter) {
       items = items.filter((i) => i.category === categoryFilter)
     }
     return items
-  }, [ingredients, supplierId, categoryFilter])
+  }, [ingredients, categoryFilter])
 
-  // All unique categories present in the full ingredient list (for the filter dropdown)
-  const availableCategories = useMemo(() => {
-    const cats = new Set(ingredients.filter((i) => i.active).map((i) => i.category || 'Other'))
-    return Array.from(cats).sort()
-  }, [ingredients])
+  // Group by category (since ingredient_location_assignments don't exist yet,
+  // we group by ingredient category as storage location proxy)
+  const groupedItems = useMemo(() => {
+    const groups: Record<string, IngredientWithLocation[]> = {}
 
-  // Group by category for display — dynamic, no hardcoded category list
-  const groupedIngredients = useMemo(() => {
-    const groups: Record<string, Ingredient[]> = {}
-    ingredientsToCount.forEach((ing) => {
-      const cat = ing.category || 'Other'
-      if (!groups[cat]) groups[cat] = []
-      groups[cat].push(ing)
-    })
-    // Sort categories alphabetically, items within each category by name
+    for (const ing of ingredientsToCount) {
+      const key = ing.category || 'Other'
+      if (!groups[key]) groups[key] = []
+      groups[key].push(ing)
+    }
+
     return Object.entries(groups)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([cat, items]) => [cat, items.sort((a, b) => a.name.localeCompare(b.name))] as [string, Ingredient[]])
+      .map(([name, items]) => ({
+        name,
+        items: items.sort((a, b) => a.name.localeCompare(b.name)),
+      }))
   }, [ingredientsToCount])
 
-  // Initialize counted quantities with current stock (intentionally excludes countedQuantities to avoid loop)
-  useMemo(() => {
+  // Initialize counted quantities on setup start
+  const handleSetupStart = (
+    type: 'full' | 'cycle',
+    category?: string
+  ) => {
+    setCountType(type)
+    setCategoryFilter(category)
+
+    // Pre-fill with current_stock
     const initial: Record<string, number> = {}
-    ingredientsToCount.forEach((ingredient) => {
-      if (!(ingredient.id in countedQuantities)) {
-        initial[ingredient.id] = ingredient.current_stock
-      }
-    })
-    if (Object.keys(initial).length > 0) {
-      setCountedQuantities(prev => ({ ...prev, ...initial }))
+    const filteredIngs = category
+      ? ingredients.filter((i) => i.category === category)
+      : ingredients
+
+    for (const ing of filteredIngs) {
+      initial[ing.id] = ing.current_stock
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ingredientsToCount]) // countedQuantities intentionally excluded to prevent re-init loop
-
-  const handleQuantityChange = (ingredientId: string, value: number) => {
-    setCountedQuantities({
-      ...countedQuantities,
-      [ingredientId]: value,
-    })
+    setCountedQuantities(initial)
+    setShowSetup(false)
   }
 
-  // Calculate variance percentage for highlighting
-  const getVariancePercent = (expected: number, actual: number) => {
-    if (expected === 0) return actual > 0 ? 100 : 0
-    return ((actual - expected) / expected) * 100
-  }
+  // Handle primary unit change
+  const handlePrimaryChange = useCallback(
+    (id: string, val: number) => {
+      setCountedQuantities((prev) => ({ ...prev, [id]: val }))
+      // Auto-convert to alt unit
+      const ing = ingredients.find((i) => i.id === id)
+      if (ing?.pack_to_base_factor && ing.pack_to_base_factor > 0) {
+        const altVal = convertUnit(val, ing.pack_to_base_factor, false)
+        setAltQuantities((prev) => ({ ...prev, [id]: Math.round(altVal * 100) / 100 }))
+      }
+    },
+    [ingredients]
+  )
 
-  // Compute running totals
+  // Handle alt unit change (packs → base)
+  const handleAltChange = useCallback(
+    (id: string, val: number) => {
+      setAltQuantities((prev) => ({ ...prev, [id]: val }))
+      const ing = ingredients.find((i) => i.id === id)
+      if (ing?.pack_to_base_factor && ing.pack_to_base_factor > 0) {
+        const primaryVal = convertUnit(val, ing.pack_to_base_factor, true)
+        setCountedQuantities((prev) => ({
+          ...prev,
+          [id]: Math.round(primaryVal * 100) / 100,
+        }))
+      }
+    },
+    [ingredients]
+  )
+
+  const handleVarianceNoteChange = useCallback(
+    (id: string, val: string) => {
+      setVarianceNotes((prev) => ({ ...prev, [id]: val }))
+    },
+    []
+  )
+
+  // Totals
   const totals = useMemo(() => {
     let totalValue = 0
     let totalVariance = 0
     let largeVarianceCount = 0
-    ingredientsToCount.forEach((ing) => {
-      const counted = countedQuantities[ing.id] || 0
-      const value = counted * ing.cost_per_unit
-      totalValue += value
-      const variance = (counted - ing.current_stock) * ing.cost_per_unit
-      totalVariance += variance
-      const varPct = Math.abs(getVariancePercent(ing.current_stock, counted))
-      if (varPct > 10 && ing.current_stock > 0) largeVarianceCount++
-    })
-    return { totalValue, totalVariance, largeVarianceCount }
+    let countedItems = 0
+
+    for (const ing of ingredientsToCount) {
+      const counted = countedQuantities[ing.id] ?? 0
+      totalValue += counted * ing.cost_per_unit
+      const varVal = (counted - ing.current_stock) * ing.cost_per_unit
+      totalVariance += varVal
+
+      if (isLargeVariance(counted, ing.current_stock, ing.cost_per_unit)) {
+        largeVarianceCount++
+      }
+
+      if (counted !== ing.current_stock) {
+        countedItems++
+      }
+    }
+
+    const progress =
+      ingredientsToCount.length > 0
+        ? (countedItems / ingredientsToCount.length) * 100
+        : 0
+
+    return { totalValue, totalVariance, largeVarianceCount, countedItems, progress }
   }, [ingredientsToCount, countedQuantities])
 
+  // Save handler
   const handleSave = async (status: 'in-progress' | 'completed') => {
     if (!currentVenue?.id || currentVenue.id === 'all') {
-      toast.error('Select a specific venue before saving a stock count')
+      toast.error('Select a specific venue before saving')
       return
     }
 
@@ -121,314 +504,267 @@ export default function NewStockCount() {
       return
     }
 
-    // Check for large variances needing notes
+    // Validate variance notes for completion
     if (status === 'completed') {
-      const missingNotes: string[] = []
-      ingredientsToCount.forEach((ing) => {
-        const counted = countedQuantities[ing.id] || 0
-        const varPct = Math.abs(getVariancePercent(ing.current_stock, counted))
-        if (varPct > 10 && ing.current_stock > 0 && !varianceNotes[ing.id]) {
-          missingNotes.push(ing.name)
-        }
+      const missing = ingredientsToCount.filter((ing) => {
+        const counted = countedQuantities[ing.id] ?? 0
+        return (
+          isLargeVariance(counted, ing.current_stock, ing.cost_per_unit) &&
+          !varianceNotes[ing.id]?.trim()
+        )
       })
-      if (missingNotes.length > 0 && missingNotes.length <= 3) {
-        toast.error(`Add variance notes for: ${missingNotes.join(', ')}`)
-        return
-      }
-      if (missingNotes.length > 3) {
-        toast.error(`${missingNotes.length} items with large variances need notes`)
+
+      if (missing.length > 0) {
+        toast.error(
+          missing.length <= 3
+            ? `Add variance notes for: ${missing.map((i) => i.name).join(', ')}`
+            : `${missing.length} items with large variances need notes`
+        )
         return
       }
     }
 
-    const today = format(new Date(), 'yyyyMMdd')
-    const todayCounts = stockCounts.filter((sc) => sc.count_number.includes(today))
-    const sequence = todayCounts.length + 1
-    const countNumber = `SC-${today}-${sequence.toString().padStart(3, '0')}`
-
-    const userName = profile?.first_name
-      ? `${profile.first_name} ${profile.last_name || ''}`.trim()
-      : 'Manager'
-
-    const items: StockCountItem[] = ingredientsToCount.map((ingredient) => {
-      const countedQty = countedQuantities[ingredient.id] || 0
-      const expectedQty = ingredient.current_stock
-      const variance = countedQty - expectedQty
-      const varianceValue = variance * ingredient.cost_per_unit
-
-      return {
-        id: crypto.randomUUID(),
-        stock_count_id: '',
-        ingredient_id: ingredient.id,
-        ingredient_name: ingredient.name,
-        expected_quantity: expectedQty,
-        actual_quantity: countedQty,
-        variance,
-        variance_value: varianceValue,
-      }
-    })
-
-    const totalVarianceValue = items.reduce((sum, item) => sum + item.variance_value, 0)
-    const totalCountValue = items.reduce((sum, item) => {
-      const ing = ingredients.find(i => i.id === item.ingredient_id)
-      return sum + (item.actual_quantity * (ing?.cost_per_unit || 0))
-    }, 0)
-
-    const stockCount: StockCount = {
-      id: crypto.randomUUID(),
-      org_id: currentOrg?.id,
-      venue_id: currentVenue?.id || '',
-      count_number: countNumber,
-      count_date: new Date(),
-      count_type: countType,
-      status,
-      counted_by_user_id: user?.id || '',
-      counted_by_name: userName,
-      items,
-      total_variance_value: totalVarianceValue,
-      total_count_value: totalCountValue,
-      notes: notes || undefined,
-    }
-
-    items.forEach(item => item.stock_count_id = stockCount.id)
+    setIsSaving(true)
 
     try {
-      await addStockCount(stockCount)
+      const today = format(new Date(), 'yyyyMMdd')
+      const todayCounts = existingCounts.filter((sc) =>
+        sc.count_number.includes(today)
+      )
+      const countNumber = generateCountNumber(todayCounts.length)
+
+      const userName = profile?.first_name
+        ? `${profile.first_name} ${profile.last_name || ''}`.trim()
+        : 'Manager'
+
+      const countId = crypto.randomUUID()
+
+      const items: StockCountItem[] = ingredientsToCount.map((ing) => {
+        const countedQty = countedQuantities[ing.id] ?? 0
+        const expectedQty = ing.current_stock
+        const variance = countedQty - expectedQty
+        const varianceValue = variance * ing.cost_per_unit
+
+        return {
+          id: crypto.randomUUID(),
+          stock_count_id: countId,
+          ingredient_id: ing.id,
+          ingredient_name: ing.name,
+          expected_quantity: expectedQty,
+          actual_quantity: countedQty,
+          variance,
+          variance_value: varianceValue,
+        }
+      })
+
+      const totalVarianceValue = items.reduce(
+        (sum, item) => sum + item.variance_value,
+        0
+      )
+
+      const stockCount: StockCount = {
+        id: countId,
+        org_id: currentOrg?.id,
+        venue_id: currentVenue.id,
+        count_number: countNumber,
+        count_date: new Date(),
+        count_type: countType,
+        status,
+        counted_by_user_id: user?.id || '',
+        counted_by_name: userName,
+        items,
+        total_variance_value: totalVarianceValue,
+        total_count_value: totals.totalValue,
+        notes: notes || undefined,
+      }
+
+      await createCount.mutateAsync(stockCount)
 
       if (status === 'completed') {
-        await completeStockCount(stockCount.id)
+        await completeCount.mutateAsync({
+          countId,
+          items,
+        })
         toast.success('Stock count completed and inventory updated')
       } else {
         toast.success('Stock count saved as draft')
       }
 
       navigate('/inventory/stock-counts')
-    } catch (error) {
+    } catch {
       toast.error('Failed to save stock count')
-      console.error(error)
+    } finally {
+      setIsSaving(false)
     }
   }
 
-  const toolbar = (
-    <PageToolbar
-      title="New Stock Count"
-      actions={
-        <>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/inventory/stock-counts')}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Back
-          </Button>
-          <div className="flex items-center gap-4 text-sm">
-            <div>
-              <span className="text-muted-foreground">Value: </span>
-              <span className="font-bold">${(totals.totalValue / 100).toFixed(2)}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Variance: </span>
-              <span className={`font-bold ${totals.totalVariance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {totals.totalVariance >= 0 ? '+' : ''}${(Math.abs(totals.totalVariance) / 100).toFixed(2)}
-              </span>
-            </div>
-            {totals.largeVarianceCount > 0 && (
-              <Badge variant="destructive" className="gap-1">
-                <AlertTriangle className="h-3 w-3" />
-                {totals.largeVarianceCount} large
-              </Badge>
-            )}
-          </div>
-          <Button variant="outline" size="sm" onClick={() => handleSave('in-progress')}>
-            <Save className="h-4 w-4 mr-2" />
-            Save Draft
-          </Button>
-        </>
-      }
-      primaryAction={{
-        label: 'Complete Count',
-        onClick: () => handleSave('completed'),
-        variant: 'primary',
-      }}
-    />
-  )
+  // Show setup modal
+  if (showSetup) {
+    return (
+      <PageShell>
+        <SetupModal open={showSetup} onStart={handleSetupStart} />
+      </PageShell>
+    )
+  }
 
   return (
-    <PageShell toolbar={toolbar}>
+    <PageShell>
+      {/* Sticky header + progress */}
+      <div className="sticky top-0 z-10 bg-white dark:bg-gray-800 border-b shadow-sm">
+        {/* Top bar */}
+        <div className="px-4 py-3 flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="shrink-0"
+            onClick={() => navigate('/inventory/stock-counts')}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base font-semibold truncate">
+              {countType === 'full' ? 'Full Count' : `Cycle: ${categoryFilter}`}
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              {ingredientsToCount.length} items · {format(new Date(), 'dd MMM yyyy')}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleSave('in-progress')}
+              disabled={isSaving}
+            >
+              <Save className="h-4 w-4 md:mr-1" />
+              <span className="hidden md:inline">Draft</span>
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => handleSave('completed')}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin md:mr-1" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 md:mr-1" />
+              )}
+              <span className="hidden md:inline">Complete</span>
+            </Button>
+          </div>
+        </div>
 
-      {/* Settings bar */}
-      <div className="bg-white dark:bg-gray-800 border-b px-6 py-2 flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <Label className="text-xs">Type:</Label>
-          <Select value={countType} onValueChange={(v: 'full' | 'cycle') => setCountType(v)}>
-            <SelectTrigger className="h-7 w-[100px] text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="full">Full Count</SelectItem>
-              <SelectItem value="cycle">Cycle Count</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-center gap-2">
-          <Label className="text-xs">Supplier:</Label>
-          <Select value={supplierId} onValueChange={setSupplierId}>
-            <SelectTrigger className="h-7 w-[150px] text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Suppliers</SelectItem>
-              {suppliers.map((supplier) => (
-                <SelectItem key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-center gap-2">
-          <Label className="text-xs">Category:</Label>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="h-7 w-[150px] text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {availableCategories.map((cat) => (
-                <SelectItem key={cat} value={cat}>
-                  {cat}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-center gap-2 ml-auto">
-          <Label className="text-xs">Items:</Label>
-          <span className="text-sm font-bold">{ingredientsToCount.length}</span>
+        {/* Sticky progress bar */}
+        <div className="px-4 pb-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+            <span>
+              {totals.countedItems}/{ingredientsToCount.length} counted
+            </span>
+            <div className="flex items-center gap-3">
+              <span>
+                Value:{' '}
+                <span className="font-semibold text-foreground">
+                  {formatCurrency(totals.totalValue)}
+                </span>
+              </span>
+              <span>
+                Var:{' '}
+                <span
+                  className={`font-semibold ${
+                    totals.totalVariance < 0
+                      ? 'text-red-600'
+                      : totals.totalVariance > 0
+                        ? 'text-green-600'
+                        : 'text-foreground'
+                  }`}
+                >
+                  {totals.totalVariance >= 0 ? '+' : ''}
+                  {formatCurrency(totals.totalVariance)}
+                </span>
+              </span>
+              {totals.largeVarianceCount > 0 && (
+                <Badge variant="destructive" className="gap-0.5 text-xs">
+                  <AlertTriangle className="h-3 w-3" />
+                  {totals.largeVarianceCount}
+                </Badge>
+              )}
+            </div>
+          </div>
+          <Progress value={totals.progress} className="h-1.5" />
         </div>
       </div>
 
-      {/* Count Table */}
-      <div className="flex-1 overflow-auto p-4">
-        {ingredientsToCount.length === 0 ? (
+      {/* Count sheets grouped by location/category */}
+      <div className="p-3 md:p-6 space-y-3 pb-24">
+        {ingredientsLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : groupedItems.length === 0 ? (
           <Card className="p-12 text-center">
             <p className="text-muted-foreground">
-              No ingredients available. Select a different supplier or category, or add ingredients first.
+              No ingredients available. Add ingredients first.
             </p>
           </Card>
         ) : (
-          <div className="space-y-6">
-            {groupedIngredients.map(([category, items]) => (
-              <Card key={category} className="overflow-hidden">
-                <div className="bg-muted/50 px-4 py-2 border-b">
-                  <h3 className="font-semibold text-sm">
-                    {category}
-                    <Badge variant="outline" className="ml-2 text-xs">{items.length}</Badge>
-                  </h3>
-                </div>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[250px]">Ingredient</TableHead>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Unit</TableHead>
-                      <TableHead>System Qty</TableHead>
-                      <TableHead>Counted Qty</TableHead>
-                      <TableHead>Variance</TableHead>
-                      <TableHead>Var %</TableHead>
-                      <TableHead>Value</TableHead>
-                      <TableHead>Note</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {items.map((ingredient) => {
-                      const countedQty = countedQuantities[ingredient.id] || 0
-                      const expectedQty = ingredient.current_stock
-                      const variance = countedQty - expectedQty
-                      const varianceValue = variance * ingredient.cost_per_unit
-                      const varPct = getVariancePercent(expectedQty, countedQty)
-                      const isLargeVariance = Math.abs(varPct) > 10 && expectedQty > 0
-
-                      return (
-                        <TableRow
-                          key={ingredient.id}
-                          className={isLargeVariance ? 'bg-red-50/50 dark:bg-red-950/20' : ''}
-                        >
-                          <TableCell className="font-medium">{ingredient.name}</TableCell>
-                          <TableCell className="text-muted-foreground text-xs">
-                            {ingredient.product_code || '—'}
-                          </TableCell>
-                          <TableCell>{ingredient.unit}</TableCell>
-                          <TableCell className="text-muted-foreground">{expectedQty}</TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.1"
-                              value={countedQty}
-                              onChange={(e) =>
-                                handleQuantityChange(ingredient.id, parseFloat(e.target.value) || 0)
-                              }
-                              className={`w-24 ${isLargeVariance ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <span
-                              className={`font-semibold ${
-                                variance > 0 ? 'text-green-600' : variance < 0 ? 'text-red-600' : ''
-                              }`}
-                            >
-                              {variance > 0 ? '+' : ''}{variance.toFixed(1)}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span
-                              className={`text-xs font-semibold ${
-                                isLargeVariance ? 'text-red-600' : ''
-                              }`}
-                            >
-                              {varPct > 0 ? '+' : ''}{varPct.toFixed(0)}%
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span
-                              className={`text-xs font-semibold ${
-                                varianceValue > 0 ? 'text-green-600' : varianceValue < 0 ? 'text-red-600' : ''
-                              }`}
-                            >
-                              {varianceValue > 0 ? '+' : ''}${(Math.abs(varianceValue) / 100).toFixed(2)}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            {isLargeVariance && (
-                              <Input
-                                placeholder="Explain..."
-                                value={varianceNotes[ingredient.id] || ''}
-                                onChange={(e) =>
-                                  setVarianceNotes({ ...varianceNotes, [ingredient.id]: e.target.value })
-                                }
-                                className="w-32 h-7 text-xs border-red-300"
-                              />
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </Card>
-            ))}
-
-            {/* Notes */}
-            <Card className="p-4">
-              <Label htmlFor="notes">Count Notes</Label>
-              <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Any notes about this count..."
-                rows={2}
-                className="mt-2"
-              />
-            </Card>
-          </div>
+          groupedItems.map((group, idx) => (
+            <LocationSection
+              key={group.name}
+              title={group.name}
+              icon={<MapPin className="h-4 w-4 text-muted-foreground" />}
+              items={group.items}
+              countedQuantities={countedQuantities}
+              altQuantities={altQuantities}
+              varianceNotes={varianceNotes}
+              onPrimaryChange={handlePrimaryChange}
+              onAltChange={handleAltChange}
+              onVarianceNoteChange={handleVarianceNoteChange}
+              defaultOpen={idx === 0}
+            />
+          ))
         )}
+
+        {/* Notes */}
+        {!ingredientsLoading && groupedItems.length > 0 && (
+          <Card className="p-4">
+            <Label htmlFor="count-notes" className="text-sm font-medium">
+              Count Notes
+            </Label>
+            <Textarea
+              id="count-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Any notes about this count..."
+              rows={2}
+              className="mt-2"
+            />
+          </Card>
+        )}
+      </div>
+
+      {/* Mobile floating action bar */}
+      <div className="fixed bottom-0 left-0 right-0 md:hidden bg-white dark:bg-gray-800 border-t p-3 flex gap-2 z-20">
+        <Button
+          variant="outline"
+          className="flex-1 h-12"
+          onClick={() => handleSave('in-progress')}
+          disabled={isSaving}
+        >
+          <Save className="h-4 w-4 mr-2" />
+          Save Draft
+        </Button>
+        <Button
+          className="flex-1 h-12"
+          onClick={() => handleSave('completed')}
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+          )}
+          Complete Count
+        </Button>
       </div>
     </PageShell>
   )
