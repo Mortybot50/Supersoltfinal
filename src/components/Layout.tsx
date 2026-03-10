@@ -81,6 +81,7 @@ const mainGroups: NavGroup[] = [
     items: [
       { title: "People", url: "/workforce/people" },
       { title: "Roster", url: "/workforce/roster" },
+      { title: "Availability & Leave", url: "/workforce/availability" },
       { title: "Timesheets", url: "/workforce/timesheets" },
       { title: "Payroll Export", url: "/workforce/payroll-export" },
     ],

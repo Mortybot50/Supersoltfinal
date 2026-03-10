@@ -1,6 +1,6 @@
 /**
  * RosterCell — a single day cell for one staff member.
- * Supports: viewMode (staff/compact/stats), spotlight dimming.
+ * Supports: viewMode (staff/compact/stats), spotlight dimming, approved leave indicator.
  */
 
 import { useDroppable } from '@dnd-kit/core'
@@ -26,6 +26,8 @@ interface RosterCellProps {
   compact?: boolean
   viewMode?: 'staff' | 'compact' | 'stats'
   dimmedIds?: Set<string>
+  /** When true, renders an "On Leave" overlay and blocks shift creation */
+  approvedLeave?: boolean
   onAddShift?: (date: Date, staffId: string) => void
   onSelectShift?: (shift: RosterShift) => void
   onDeleteShift?: (shift: RosterShift) => void
@@ -41,6 +43,7 @@ export function RosterCell({
   compact = false,
   viewMode = 'staff',
   dimmedIds = new Set(),
+  approvedLeave = false,
   onAddShift,
   onSelectShift,
   onDeleteShift,
@@ -70,9 +73,19 @@ export function RosterCell({
       )}
       onClick={e => {
         if ((e.target as HTMLElement).closest('[role="button"]')) return
+        if (approvedLeave) return // staff is on approved leave
         onAddShift?.(date, staffId)
       }}
     >
+      {/* On Leave overlay — shown when staff has approved leave for this date */}
+      {approvedLeave && (
+        <div className="absolute inset-0 flex items-center justify-center bg-rose-50/80 z-10 pointer-events-none">
+          <span className="text-[10px] font-semibold text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded-full border border-rose-200">
+            On Leave
+          </span>
+        </div>
+      )}
+
       {/* Ghost shifts (last week, faded) */}
       {ghostShifts.map(gs => (
         <ShiftBlock
@@ -122,8 +135,8 @@ export function RosterCell({
         </div>
       )}
 
-      {/* Add shift button */}
-      {onAddShift && (
+      {/* Add shift button — hidden when staff is on approved leave */}
+      {onAddShift && !approvedLeave && (
         <button
           onClick={e => { e.stopPropagation(); onAddShift(date, staffId) }}
           className={cn(
