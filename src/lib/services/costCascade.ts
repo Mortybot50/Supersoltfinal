@@ -78,6 +78,9 @@ export async function fetchPriceHistory(
 /**
  * Run the full cost cascade after an ingredient price change.
  * Updates store state directly — call this AFTER the ingredient is saved to DB.
+ *
+ * Also cascades through sub-recipes: if any affected recipe is used as a sub-recipe
+ * in another recipe, the parent recipe's cost is recalculated too.
  */
 export function runCostCascade(
   ingredientId: string,
@@ -103,66 +106,133 @@ export function runCostCascade(
     gpAlerts: [],
   }
 
-  // 1. Find all recipe_ingredient lines using this ingredient
-  const affectedLines = recipeIngredients.filter(
+  // Tracks new cost_per_serve for each affected recipe (including sub-recipes)
+  const newCostPerServeByRecipeId = new Map<string, number>()
+
+  // 1. Find all recipe_ingredient lines directly using this ingredient
+  const directAffectedLines = recipeIngredients.filter(
     (ri) => ri.product_id === ingredientId && !ri.is_sub_recipe
   )
 
-  // 2. Get unique recipe IDs
-  const affectedRecipeIds = [...new Set(affectedLines.map((ri) => ri.recipe_id))]
+  // 2. Get unique recipe IDs (direct first-level)
+  const directAffectedRecipeIds = [...new Set(directAffectedLines.map((ri) => ri.recipe_id))]
 
-  // 3. Recalculate each affected recipe
-  for (const recipeId of affectedRecipeIds) {
+  // 3. Recalculate each directly affected recipe
+  for (const recipeId of directAffectedRecipeIds) {
     const recipe = recipes.find((r) => r.id === recipeId)
     if (!recipe) continue
 
     const oldCostPerServe = recipe.cost_per_serve
     const allLinesForRecipe = recipeIngredients.filter((ri) => ri.recipe_id === recipeId)
 
-    // Recalculate line costs
     let newTotalCost = 0
     for (const line of allLinesForRecipe) {
       if (line.product_id === ingredientId && !line.is_sub_recipe) {
-        // This line uses the changed ingredient — recalculate
-        const newLineCost = calculateLineCost(line.quantity, line.unit, newUnitCostExBase)
-        newTotalCost += newLineCost
+        newTotalCost += calculateLineCost(line.quantity, line.unit, newUnitCostExBase)
       } else {
-        // Other ingredient lines — keep existing cost
         newTotalCost += line.line_cost
       }
     }
 
     const newCostPerServe = recipe.serves > 0 ? Math.round(newTotalCost / recipe.serves) : 0
+    newCostPerServeByRecipeId.set(recipeId, newCostPerServe)
 
-    result.affectedRecipes.push({
-      recipeId,
-      recipeName: recipe.name,
-      oldCostPerServe,
-      newCostPerServe,
-    })
+    result.affectedRecipes.push({ recipeId, recipeName: recipe.name, oldCostPerServe, newCostPerServe })
 
-    // 4. Check linked menu items
-    const linkedMenuItems = menuItems.filter((mi) => mi.recipe_id === recipeId)
-    for (const mi of linkedMenuItems) {
-      const priceExGst = mi.gst_mode === 'INC'
-        ? Math.round(mi.price / (1 + mi.gst_rate_percent / 100))
-        : mi.price
-      const newGpPercent = priceExGst > 0
-        ? ((priceExGst - newCostPerServe) / priceExGst) * 100
-        : 0
+    // Check linked menu items
+    _collectGpAlerts(recipe, newCostPerServe, menuItems, gpThreshold, result)
+  }
 
-      if (newGpPercent < gpThreshold) {
-        result.gpAlerts.push({
-          menuItemId: mi.id,
-          menuItemName: mi.name,
-          newGpPercent: Math.round(newGpPercent * 10) / 10,
-          targetGpPercent: mi.gp_target_percent || gpThreshold,
+  // 4. Sub-recipe cascade: find parent recipes that use any affected recipe as a sub-recipe
+  //    Repeat until no new parents are found (handles nested sub-recipes).
+  let newlyAffectedIds = [...directAffectedRecipeIds]
+  const visited = new Set<string>(directAffectedRecipeIds)
+
+  while (newlyAffectedIds.length > 0) {
+    const nextWave: string[] = []
+    for (const changedSubRecipeId of newlyAffectedIds) {
+      const newSubCostPerServe = newCostPerServeByRecipeId.get(changedSubRecipeId)
+      if (newSubCostPerServe === undefined) continue
+
+      // Find parent recipe lines that reference this sub-recipe
+      const parentLines = recipeIngredients.filter(
+        (ri) => ri.is_sub_recipe && ri.sub_recipe_id === changedSubRecipeId
+      )
+      const parentRecipeIds = [...new Set(parentLines.map((ri) => ri.recipe_id))].filter(
+        (id) => !visited.has(id)
+      )
+
+      for (const parentRecipeId of parentRecipeIds) {
+        const parentRecipe = recipes.find((r) => r.id === parentRecipeId)
+        if (!parentRecipe) continue
+
+        visited.add(parentRecipeId)
+        nextWave.push(parentRecipeId)
+
+        const allLinesForParent = recipeIngredients.filter((ri) => ri.recipe_id === parentRecipeId)
+        let newParentTotalCost = 0
+        for (const line of allLinesForParent) {
+          if (line.is_sub_recipe && line.sub_recipe_id) {
+            // Use updated cost if we've already recalculated this sub-recipe; else existing line_cost
+            const updatedSubCost = newCostPerServeByRecipeId.get(line.sub_recipe_id)
+            if (updatedSubCost !== undefined) {
+              newParentTotalCost += Math.round(updatedSubCost * line.quantity)
+            } else {
+              newParentTotalCost += line.line_cost
+            }
+          } else if (line.product_id === ingredientId && !line.is_sub_recipe) {
+            newParentTotalCost += calculateLineCost(line.quantity, line.unit, newUnitCostExBase)
+          } else {
+            newParentTotalCost += line.line_cost
+          }
+        }
+
+        const newParentCostPerServe =
+          parentRecipe.serves > 0 ? Math.round(newParentTotalCost / parentRecipe.serves) : 0
+        newCostPerServeByRecipeId.set(parentRecipeId, newParentCostPerServe)
+
+        result.affectedRecipes.push({
+          recipeId: parentRecipeId,
+          recipeName: parentRecipe.name,
+          oldCostPerServe: parentRecipe.cost_per_serve,
+          newCostPerServe: newParentCostPerServe,
         })
+
+        _collectGpAlerts(parentRecipe, newParentCostPerServe, menuItems, gpThreshold, result)
       }
     }
+    newlyAffectedIds = nextWave
   }
 
   return result
+}
+
+/** Internal helper — collects GP alerts for menu items linked to a recipe */
+function _collectGpAlerts(
+  recipe: Recipe,
+  newCostPerServe: number,
+  menuItems: MenuItem[],
+  gpThreshold: number,
+  result: CascadeResult
+): void {
+  const linkedMenuItems = menuItems.filter((mi) => mi.recipe_id === recipe.id)
+  for (const mi of linkedMenuItems) {
+    const priceExGst = mi.gst_mode === 'INC'
+      ? Math.round(mi.price / (1 + mi.gst_rate_percent / 100))
+      : mi.price
+    const newGpPercent = priceExGst > 0
+      ? ((priceExGst - newCostPerServe) / priceExGst) * 100
+      : 0
+
+    if (newGpPercent < gpThreshold) {
+      result.gpAlerts.push({
+        menuItemId: mi.id,
+        menuItemName: mi.name,
+        newGpPercent: Math.round(newGpPercent * 10) / 10,
+        targetGpPercent: mi.gp_target_percent || gpThreshold,
+      })
+    }
+  }
 }
 
 /**
@@ -190,15 +260,34 @@ export function applyCascadeToState(
       : i
   )
 
+  // Build a map of sub-recipe new costs for fast lookup
+  const newSubRecipeCostMap = new Map<string, number>()
+  for (const ar of cascadeResult.affectedRecipes) {
+    newSubRecipeCostMap.set(ar.recipeId, ar.newCostPerServe)
+  }
+
   // Update recipe ingredient lines
   const updatedRecipeIngredients = recipeIngredients.map((ri) => {
     if (ri.product_id === cascadeResult.ingredientId && !ri.is_sub_recipe) {
+      // Direct ingredient line — recalculate using new base cost
       const newLineCost = calculateLineCost(ri.quantity, ri.unit, newUnitCostExBase)
       return {
         ...ri,
         line_cost: newLineCost,
         unit_cost_ex_base: newUnitCostExBase,
         product_cost: newCostPerUnit,
+      }
+    }
+    if (ri.is_sub_recipe && ri.sub_recipe_id) {
+      // Sub-recipe line — update line_cost if the sub-recipe's cost_per_serve changed
+      const newSubCost = newSubRecipeCostMap.get(ri.sub_recipe_id)
+      if (newSubCost !== undefined) {
+        return {
+          ...ri,
+          line_cost: Math.round(newSubCost * ri.quantity),
+          unit_cost_ex_base: newSubCost,
+          product_cost: newSubCost,
+        }
       }
     }
     return ri

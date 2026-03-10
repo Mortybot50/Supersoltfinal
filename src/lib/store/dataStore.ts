@@ -1847,9 +1847,8 @@ export const useDataStore = create<DataState>()(
       if (updates.notes !== undefined) updateData.notes = updates.notes
       
       // If updating items, handle separately
-      if (updateData.items) {
-        const items = updateData.items
-        delete updateData.items
+      if (updates.items) {
+        const items = updates.items
         
         // Update items in DB (simplified - in production would be more granular)
         await supabase

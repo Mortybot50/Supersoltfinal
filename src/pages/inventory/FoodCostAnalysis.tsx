@@ -130,15 +130,26 @@ export default function FoodCostAnalysis() {
 
     const closingValue = closingCount?.total_count_value ?? 0
 
-    const cogs = openingValue + purchasesValue - closingValue
+    // Waste logged in period
+    const wasteValue = wasteLogs
+      .filter(
+        (w) =>
+          isAfter(new Date(w.waste_date as unknown as string), from) &&
+          isBefore(new Date(w.waste_date as unknown as string), to)
+      )
+      .reduce((sum, w) => sum + w.value, 0)
+
+    // Full COGS formula: Opening + Purchases − Closing − Waste
+    const cogs = openingValue + purchasesValue - closingValue - wasteValue
     return {
       purchases: purchasesValue,
       openingStock: openingValue,
       closingStock: closingValue,
+      waste: wasteValue,
       total: Math.max(0, cogs),
       hasStockCounts: Boolean(openingCount || closingCount),
     }
-  }, [purchaseOrders, stockCounts, from, to])
+  }, [purchaseOrders, stockCounts, wasteLogs, from, to])
 
   // ─── Theoretical food cost ──────────────────────────────────────────────
   // Formula: sum over (sales qty × recipe ingredient qty × ingredient cost)
@@ -472,7 +483,7 @@ export default function FoodCostAnalysis() {
           <Card className="p-4 space-y-3">
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-sm">Actual COGS</h3>
-              <Badge variant="outline" className="text-xs">Opening + Purchases − Closing</Badge>
+              <Badge variant="outline" className="text-xs">Opening + Purchases − Closing − Waste</Badge>
             </div>
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
@@ -497,6 +508,14 @@ export default function FoodCostAnalysis() {
                     : <span className="text-muted-foreground italic">no stock count</span>}
                 </span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">− Waste Logged</span>
+                <span className="font-medium text-red-600">
+                  {actualCOGS.waste > 0
+                    ? `−$${(actualCOGS.waste / 100).toFixed(2)}`
+                    : <span className="text-muted-foreground">$0.00</span>}
+                </span>
+              </div>
               <div className="flex justify-between font-bold text-base border-t pt-1.5">
                 <span>Actual COGS</span>
                 <span>${(actualCOGS.total / 100).toFixed(2)}</span>
@@ -505,7 +524,7 @@ export default function FoodCostAnalysis() {
             {!actualCOGS.hasStockCounts && (
               <div className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950 rounded p-2">
                 <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                No stock counts for this period. COGS equals purchases received only.
+                No stock counts for this period. COGS = Purchases − Waste only.
               </div>
             )}
           </Card>

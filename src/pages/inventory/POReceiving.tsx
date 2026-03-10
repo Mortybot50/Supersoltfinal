@@ -30,7 +30,7 @@ import {
 import { PageShell, PageToolbar } from '@/components/shared'
 import { useDataStore } from '@/lib/store/dataStore'
 import { useAuth } from '@/contexts/AuthContext'
-import { logPriceChange, runCostCascade, applyCascadeToState } from '@/lib/services/costCascade'
+import { logPriceChange, runCostCascade, applyCascadeToState, persistCascadeResults } from '@/lib/services/costCascade'
 import { calculateCostPerBaseUnit, calculatePackToBaseFactor } from '@/lib/utils/unitConversions'
 import { getDefaultOrgSettings } from '@/lib/venueSettings'
 import { formatCurrency } from '@/lib/utils/formatters'
@@ -284,6 +284,8 @@ export default function POReceiving() {
           currentRecipes = applied.recipes
           currentRecipeIngredients = applied.recipeIngredients
           currentMenuItems = applied.menuItems
+          // Persist cascade results to Supabase (recipes + menu items)
+          await persistCascadeResults(cascade, applied.recipes, applied.menuItems)
           totalAffectedRecipes += cascade.affectedRecipes.length
           totalGpAlerts += cascade.gpAlerts.length
         }

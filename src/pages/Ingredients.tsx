@@ -12,7 +12,7 @@ import { useDataStore } from "@/lib/store/dataStore"
 import { useAuth } from "@/contexts/AuthContext"
 import { formatCurrency } from "@/lib/utils/formatters"
 import { formatBaseUnitCost, calculateCostPerBaseUnit, calculatePackToBaseFactor } from "@/lib/utils/unitConversions"
-import { logPriceChange, runCostCascade, applyCascadeToState } from "@/lib/services/costCascade"
+import { logPriceChange, runCostCascade, applyCascadeToState, persistCascadeResults } from "@/lib/services/costCascade"
 import { toast } from "sonner"
 import { PageShell, PageToolbar } from "@/components/shared"
 import { StatCards } from "@/components/ui/StatCards"
@@ -155,6 +155,8 @@ export default function Ingredients() {
             setRecipes(applied.recipes)
             setStoreRecipeIngredients(applied.recipeIngredients)
             setMenuItems(applied.menuItems)
+            // Persist cascade results to Supabase (recipes + menu items)
+            await persistCascadeResults(cascade, applied.recipes, applied.menuItems)
             const alertCount = cascade.gpAlerts.length
             toast.success(
               `Updated ${formData.name}. ${cascade.affectedRecipes.length} recipe(s) recalculated.${alertCount > 0 ? ` ${alertCount} GP alert(s)!` : ""}`

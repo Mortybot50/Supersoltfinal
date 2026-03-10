@@ -4,6 +4,8 @@
  *
  * Shows ShiftCreateDialog on drag-and-drop to configure shift
  * before creation (start/end time, role, break).
+ *
+ * Checks for expired qualifications at shift-save time (soft block).
  */
 
 import { ReactNode, useCallback, useState } from 'react'
@@ -23,13 +25,98 @@ import { RosterShift, Staff } from '@/types'
 import { DRAGGABLE_SHIFT_TYPE } from './ShiftBlock'
 import { DRAGGABLE_STAFF_TYPE } from './StaffCard'
 import { ShiftBlock } from './ShiftBlock'
-import { parse, isSameDay } from 'date-fns'
+import { parse, isSameDay, format } from 'date-fns'
 import { calculateShiftCostBreakdown } from '@/lib/utils/rosterCalculations'
 import { ShiftCreateDialog, ShiftConfig } from './ShiftCreateDialog'
+import { supabase } from '@/integrations/supabase/client'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { AlertTriangle } from 'lucide-react'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface ExpiredQualInfo {
+  name: string
+  expiry_date: string
+  status: 'expired' | 'expiring'
+}
+
+interface QualWarningState {
+  expiredQuals: ExpiredQualInfo[]
+  pendingConfig: ShiftConfig
+}
+
+// ─── Qualification checker ────────────────────────────────────────────────────
+
+async function checkExpiredQualifications(
+  staffId: string,
+  role: string
+): Promise<ExpiredQualInfo[]> {
+  try {
+    // Load qual types required for this role
+    const { data: qualTypes } = await supabase
+      .from('qualification_types')
+      .select('id, name, required_for_roles')
+
+    const requiredQualTypeIds = (qualTypes || [])
+      .filter((qt) => (qt.required_for_roles as string[]).includes(role))
+      .map((qt) => qt.id)
+
+    if (requiredQualTypeIds.length === 0) return []
+
+    // Load staff's qualifications for required types
+    const { data: staffQuals } = await supabase
+      .from('staff_qualifications')
+      .select('qualification_type_id, expiry_date, status')
+      .eq('staff_id', staffId)
+      .in('qualification_type_id', requiredQualTypeIds)
+
+    const now = new Date()
+    const in30 = new Date(now)
+    in30.setDate(in30.getDate() + 30)
+
+    const expired: ExpiredQualInfo[] = []
+    for (const qtId of requiredQualTypeIds) {
+      const qual = (staffQuals || []).find((q) => q.qualification_type_id === qtId)
+      const qtName = (qualTypes || []).find((qt) => qt.id === qtId)?.name || 'Unknown'
+
+      if (!qual) {
+        // Not on file at all — skip (separate gap check, not a hard block here)
+        continue
+      }
+
+      if (qual.expiry_date) {
+        const expiry = new Date(qual.expiry_date)
+        if (expiry < now) {
+          expired.push({ name: qtName, expiry_date: qual.expiry_date, status: 'expired' })
+        } else if (expiry <= in30) {
+          expired.push({ name: qtName, expiry_date: qual.expiry_date, status: 'expiring' })
+        }
+      }
+    }
+
+    return expired
+  } catch {
+    // Don't block shift creation if qual check fails
+    return []
+  }
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function RosterDndWrapper({ children }: { children: ReactNode }) {
   const { staff, shifts, moveShift, addShift, pendingShift, setPendingShift } = useRosterStore()
   const [draggingShift, setDraggingShift] = useState<RosterShift | null>(null)
+  const [qualWarning, setQualWarning] = useState<QualWarningState | null>(null)
 
   const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 5 } })
   const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
@@ -76,7 +163,9 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
     }
   }, [staff, moveShift, setPendingShift])
 
-  const handleShiftConfirm = useCallback((config: ShiftConfig) => {
+  // ── doAddShift — the actual shift creation, called after qual check ──────
+
+  const doAddShift = useCallback((config: ShiftConfig) => {
     if (!pendingShift) return
     const breakdown = calculateShiftCostBreakdown(
       config.startTime, config.endTime, config.breakMinutes,
@@ -103,9 +192,37 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
     setPendingShift(null)
   }, [pendingShift, addShift, setPendingShift])
 
+  // ── handleShiftConfirm — checks quals before creating ────────────────────
+
+  const handleShiftConfirm = useCallback(async (config: ShiftConfig) => {
+    if (!pendingShift) return
+
+    const expiredQuals = await checkExpiredQualifications(pendingShift.staffId, config.role)
+    if (expiredQuals.length > 0) {
+      setQualWarning({ expiredQuals, pendingConfig: config })
+      return
+    }
+
+    doAddShift(config)
+  }, [pendingShift, doAddShift])
+
   const handleShiftCancel = useCallback(() => {
     setPendingShift(null)
   }, [setPendingShift])
+
+  // ── Qual warning dialog handlers ─────────────────────────────────────────
+
+  const handleQualOverride = useCallback(() => {
+    if (!qualWarning) return
+    const config = qualWarning.pendingConfig
+    setQualWarning(null)
+    doAddShift(config)
+  }, [qualWarning, doAddShift])
+
+  const handleQualCancel = useCallback(() => {
+    setQualWarning(null)
+    // Keep the shift config dialog open by NOT calling setPendingShift(null)
+  }, [])
 
   return (
     <DndContext
@@ -127,6 +244,65 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
         onConfirm={handleShiftConfirm}
         onCancel={handleShiftCancel}
       />
+
+      {/* Expired qualification warning — soft block */}
+      <AlertDialog open={!!qualWarning} onOpenChange={(open) => !open && handleQualCancel()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Qualification Warning
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  <strong>{pendingShift?.staffName}</strong> has qualifications that are expired or
+                  expiring soon for the <strong>{qualWarning?.pendingConfig.role}</strong> role.
+                </p>
+                <div className="space-y-1.5">
+                  {qualWarning?.expiredQuals.map((q) => (
+                    <div
+                      key={q.name}
+                      className="flex items-center justify-between rounded border px-3 py-2 text-sm"
+                    >
+                      <span className="font-medium">{q.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground text-xs">
+                          {q.status === 'expired' ? 'Expired' : 'Expires'}{' '}
+                          {format(new Date(q.expiry_date), 'dd MMM yyyy')}
+                        </span>
+                        <Badge
+                          variant={q.status === 'expired' ? 'destructive' : 'outline'}
+                          className={
+                            q.status === 'expiring'
+                              ? 'border-amber-300 bg-amber-50 text-amber-800'
+                              : ''
+                          }
+                        >
+                          {q.status === 'expired' ? 'Expired' : 'Expiring'}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  You can override and save the shift anyway, or cancel to update qualifications
+                  first.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleQualCancel}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleQualOverride}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              Save Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DndContext>
   )
 }
