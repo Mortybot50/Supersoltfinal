@@ -10,7 +10,6 @@ import type { PendingShiftInfo } from '@/components/roster/ShiftCreateDialog'
 import { supabase } from '@/integrations/supabase/client'
 import {
   loadStaffFromDB,
-  loadRosterShiftsFromDB,
   loadShiftTemplatesFromDB,
   loadStaffAvailabilityFromDB,
   addRosterShiftToDB,
@@ -87,6 +86,9 @@ interface RosterStore {
   // Filters
   roleFilter: string | null
   searchQuery: string
+  spotlightFilter: string | null
+  groupBy: 'none' | 'role' | 'employment_type'
+  viewMode: 'staff' | 'compact' | 'stats'
 
   // UI state
   selectedShiftId: string | null
@@ -94,6 +96,7 @@ interface RosterStore {
   costBarExpanded: boolean
   sidebarOpen: boolean
   pendingShift: PendingShiftInfo | null
+  copiedShift: RosterShift | null
 
   // Clipboard
   copiedShift: RosterShift | null
