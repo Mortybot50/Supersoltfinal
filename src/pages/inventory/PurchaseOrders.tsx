@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   FileText,
   Search,
@@ -12,6 +12,7 @@ import {
   Package,
   AlertTriangle,
   Loader2,
+  Receipt,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -19,6 +20,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useDataStore } from '@/lib/store/dataStore'
 import { PurchaseOrder } from '@/types'
 import { format, differenceInDays, subDays, startOfMonth, isAfter, isBefore, isValid } from 'date-fns'
@@ -35,6 +37,24 @@ function safeFormat(date: unknown, fmt: string, fallback = '—'): string {
   } catch {
     return fallback
   }
+}
+
+/** Check if a PO is an invoice entry (INV- prefix convention) */
+function isInvoiceEntry(po: PurchaseOrder): boolean {
+  return (po.po_number ?? '').startsWith('INV-')
+}
+
+/** Invoice status derived from PO status */
+function getInvoiceStatus(po: PurchaseOrder): 'Entered' | 'Reconciled' | 'Closed' {
+  if (po.status === 'cancelled') return 'Closed'
+  if (po.status === 'confirmed') return 'Reconciled'
+  return 'Entered'
+}
+
+const INVOICE_STATUS_CONFIG = {
+  Entered: { variant: 'secondary' as const, color: 'text-blue-600' },
+  Reconciled: { variant: 'default' as const, color: 'text-green-600' },
+  Closed: { variant: 'outline' as const, color: 'text-muted-foreground' },
 }
 
 const STATUS_CONFIG = {
@@ -82,7 +102,24 @@ function isOverdue(po: PurchaseOrder): boolean {
 
 export default function PurchaseOrders() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { purchaseOrders, suppliers, isLoading, loadPurchaseOrdersFromDB, loadSuppliersFromDB } = useDataStore()
+
+  // Tab: 'orders' (default) or 'invoices'
+  const activeView = searchParams.get('view') === 'invoices' ? 'invoices' : 'orders'
+  const setActiveView = (view: string) => {
+    if (view === 'orders') {
+      searchParams.delete('view')
+      setSearchParams(searchParams)
+    } else {
+      setSearchParams({ view })
+    }
+    // Reset filters on tab switch
+    setSearchQuery('')
+    setStatusFilter('all')
+    setSupplierFilter('all')
+    setDateFilter('all')
+  }
 
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -94,8 +131,14 @@ export default function PurchaseOrders() {
     loadSuppliersFromDB()
   }, [loadPurchaseOrdersFromDB, loadSuppliersFromDB])
 
+  // Split POs and invoices
+  const regularPOs = useMemo(() => purchaseOrders.filter((po) => !isInvoiceEntry(po)), [purchaseOrders])
+  const invoiceEntries = useMemo(() => purchaseOrders.filter((po) => isInvoiceEntry(po)), [purchaseOrders])
+
+  // ── PO Filtering ──────────────────────────────────────────
+
   const filteredPOs = useMemo(() => {
-    let filtered = purchaseOrders
+    let filtered = regularPOs
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
@@ -144,60 +187,148 @@ export default function PurchaseOrders() {
     return filtered.sort(
       (a, b) => (new Date(b.order_date).getTime() || 0) - (new Date(a.order_date).getTime() || 0)
     )
-  }, [purchaseOrders, searchQuery, statusFilter, supplierFilter, dateFilter])
+  }, [regularPOs, searchQuery, statusFilter, supplierFilter, dateFilter])
+
+  // ── Invoice Filtering ─────────────────────────────────────
+
+  const filteredInvoices = useMemo(() => {
+    let filtered = invoiceEntries
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(
+        (po) =>
+          (po.po_number ?? '').toLowerCase().includes(query) ||
+          (po.supplier_name ?? '').toLowerCase().includes(query) ||
+          po.notes?.toLowerCase().includes(query)
+      )
+    }
+
+    if (supplierFilter !== 'all') {
+      filtered = filtered.filter((po) => po.supplier_id === supplierFilter)
+    }
+
+    if (dateFilter !== 'all') {
+      const now = new Date()
+      let startDate: Date
+      switch (dateFilter) {
+        case 'week':
+          startDate = subDays(now, 7)
+          break
+        case 'month':
+          startDate = startOfMonth(now)
+          break
+        case '3months':
+          startDate = subDays(now, 90)
+          break
+        default:
+          startDate = new Date(0)
+      }
+      filtered = filtered.filter((po) => {
+        try {
+          const d = new Date(po.order_date)
+          return isValid(d) && isAfter(d, startDate)
+        } catch { return true }
+      })
+    }
+
+    return filtered.sort(
+      (a, b) => (new Date(b.order_date).getTime() || 0) - (new Date(a.order_date).getTime() || 0)
+    )
+  }, [invoiceEntries, searchQuery, supplierFilter, dateFilter])
+
+  // ── Stats ─────────────────────────────────────────────────
 
   const stats = useMemo(() => {
-    const total = purchaseOrders.length
-    const draft = purchaseOrders.filter((po) => po.status === 'draft').length
-    const pending = purchaseOrders.filter((po) =>
+    const total = regularPOs.length
+    const draft = regularPOs.filter((po) => po.status === 'draft').length
+    const pending = regularPOs.filter((po) =>
       po.status === 'submitted' || po.status === 'confirmed'
     ).length
-    const overdue = purchaseOrders.filter((po) => isOverdue(po)).length
-    const delivered = purchaseOrders.filter((po) => po.status === 'delivered').length
-    const totalValue = purchaseOrders
+    const overdue = regularPOs.filter((po) => isOverdue(po)).length
+    const delivered = regularPOs.filter((po) => po.status === 'delivered').length
+    const totalValue = regularPOs
       .filter((po) => po.status !== 'cancelled')
       .reduce((sum, po) => sum + po.total, 0)
-    const pendingValue = purchaseOrders
+    const pendingValue = regularPOs
       .filter((po) => po.status === 'submitted' || po.status === 'confirmed')
       .reduce((sum, po) => sum + po.total, 0)
 
     return { total, draft, pending, overdue, delivered, totalValue, pendingValue }
-  }, [purchaseOrders])
+  }, [regularPOs])
+
+  const invoiceStats = useMemo(() => {
+    const total = invoiceEntries.length
+    const entered = invoiceEntries.filter((po) => getInvoiceStatus(po) === 'Entered').length
+    const reconciled = invoiceEntries.filter((po) => getInvoiceStatus(po) === 'Reconciled').length
+    const totalValue = invoiceEntries.reduce((sum, po) => sum + po.total, 0)
+    return { total, entered, reconciled, totalValue }
+  }, [invoiceEntries])
 
   const getStatusConfig = (status: string) => {
     return STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.draft
   }
 
+  // ── Toolbar ───────────────────────────────────────────────
+
   const toolbar = (
     <PageToolbar
-      title="Purchase Orders"
+      title="Purchasing"
       filters={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Tab toggle */}
+          <Tabs value={activeView} onValueChange={setActiveView}>
+            <TabsList className="h-8">
+              <TabsTrigger value="orders" className="text-xs px-3 h-7">
+                Purchase Orders
+                {regularPOs.length > 0 && (
+                  <Badge variant="secondary" className="ml-1.5 text-[10px] px-1 py-0 h-4">
+                    {regularPOs.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="invoices" className="text-xs px-3 h-7">
+                Invoices
+                {invoiceEntries.length > 0 && (
+                  <Badge variant="secondary" className="ml-1.5 text-[10px] px-1 py-0 h-4">
+                    {invoiceEntries.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {/* Search */}
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search PO..."
+              placeholder={activeView === 'orders' ? 'Search PO...' : 'Search invoices...'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-8 w-[180px] pl-8 text-sm"
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="h-8 w-[140px]">
-              <SelectValue placeholder="All Statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="submitted">Submitted</SelectItem>
-              <SelectItem value="confirmed">Confirmed</SelectItem>
-              <SelectItem value="delivered">Delivered</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-              <SelectItem value="overdue">
-                Overdue {stats.overdue > 0 && `(${stats.overdue})`}
-              </SelectItem>
-            </SelectContent>
-          </Select>
+
+          {/* Status filter — only for POs */}
+          {activeView === 'orders' && (
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-8 w-[140px]">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="submitted">Submitted</SelectItem>
+                <SelectItem value="confirmed">Confirmed</SelectItem>
+                <SelectItem value="delivered">Delivered</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="overdue">
+                  Overdue {stats.overdue > 0 && `(${stats.overdue})`}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+
           <Select value={supplierFilter} onValueChange={setSupplierFilter}>
             <SelectTrigger className="h-8 w-[130px]">
               <SelectValue placeholder="All Suppliers" />
@@ -224,155 +355,291 @@ export default function PurchaseOrders() {
           </Select>
         </div>
       }
-      primaryAction={{ label: "Create Order", icon: Plus, onClick: () => navigate('/inventory/order-guide'), variant: "primary" }}
+      actions={
+        activeView === 'orders' ? undefined : (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8"
+            onClick={() => navigate('/inventory/purchase-by-invoice')}
+          >
+            <Receipt className="h-4 w-4 mr-2" />
+            Log Invoice
+          </Button>
+        )
+      }
+      primaryAction={
+        activeView === 'orders'
+          ? { label: 'Create Order', icon: Plus, onClick: () => navigate('/inventory/order-guide'), variant: 'primary' }
+          : { label: 'Log Invoice', icon: Receipt, onClick: () => navigate('/inventory/purchase-by-invoice'), variant: 'primary' }
+      }
     />
   )
 
+  // ── Render ────────────────────────────────────────────────
+
   return (
     <PageShell toolbar={toolbar}>
-      <div className="px-4 pt-4 space-y-3">
-        <StatCards stats={[
-          { label: "Total", value: stats.total },
-          { label: "Draft", value: stats.draft },
-          { label: "Pending", value: stats.pending },
-          { label: "Delivered", value: stats.delivered },
-        ]} columns={4} />
-        <SecondaryStats stats={[
-          ...(stats.overdue > 0 ? [{ label: "Overdue", value: stats.overdue }] : []),
-          { label: "Pending Value", value: formatCurrency(stats.pendingValue) },
-          { label: "Total Value", value: formatCurrency(stats.totalValue) },
-        ]} />
-      </div>
-      <div className="p-4">
-      {/* Overdue alert banner */}
-      {stats.overdue > 0 && statusFilter !== 'overdue' && (
-        <div className="mb-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-red-600" />
-            <span className="text-sm font-medium text-red-800 dark:text-red-200">
-              {stats.overdue} purchase order{stats.overdue !== 1 ? 's' : ''} overdue
-            </span>
+      {/* ── Purchase Orders Tab ─────────────────────────────── */}
+      {activeView === 'orders' && (
+        <>
+          <div className="px-4 pt-4 space-y-3">
+            <StatCards stats={[
+              { label: 'Total', value: stats.total },
+              { label: 'Draft', value: stats.draft },
+              { label: 'Pending', value: stats.pending },
+              { label: 'Delivered', value: stats.delivered },
+            ]} columns={4} />
+            <SecondaryStats stats={[
+              ...(stats.overdue > 0 ? [{ label: 'Overdue', value: stats.overdue }] : []),
+              { label: 'Pending Value', value: formatCurrency(stats.pendingValue) },
+              { label: 'Total Value', value: formatCurrency(stats.totalValue) },
+            ]} />
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-red-600 hover:text-red-700"
-            onClick={() => setStatusFilter('overdue')}
-          >
-            View Overdue
-          </Button>
-        </div>
+          <div className="p-4">
+            {/* Overdue alert banner */}
+            {stats.overdue > 0 && statusFilter !== 'overdue' && (
+              <div className="mb-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                  <span className="text-sm font-medium text-red-800 dark:text-red-200">
+                    {stats.overdue} purchase order{stats.overdue !== 1 ? 's' : ''} overdue
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700"
+                  onClick={() => setStatusFilter('overdue')}
+                >
+                  View Overdue
+                </Button>
+              </div>
+            )}
+
+            {isLoading && regularPOs.length === 0 ? (
+              <Card className="p-12 text-center">
+                <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin opacity-50" />
+                <p className="text-muted-foreground">Loading purchase orders...</p>
+              </Card>
+            ) : filteredPOs.length === 0 ? (
+              <Card className="p-12 text-center">
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">
+                  {regularPOs.length === 0 ? 'No Purchase Orders Yet' : 'No Orders Found'}
+                </h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  {regularPOs.length === 0
+                    ? 'Create your first order from the Order Guide'
+                    : 'Try adjusting your filters'}
+                </p>
+                {regularPOs.length === 0 && (
+                  <Button onClick={() => navigate('/inventory/order-guide')}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create First Order
+                  </Button>
+                )}
+              </Card>
+            ) : (
+              <Card>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>PO Number</TableHead>
+                      <TableHead>Supplier</TableHead>
+                      <TableHead>Order Date</TableHead>
+                      <TableHead>Expected Delivery</TableHead>
+                      <TableHead>Items</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-24"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPOs.map((po: PurchaseOrder) => {
+                      const statusConfig = getStatusConfig(po.status)
+                      const StatusIcon = statusConfig.icon
+                      const overdue = isOverdue(po)
+                      const daysOverdue = overdue
+                        ? differenceInDays(new Date(), new Date(po.expected_delivery_date))
+                        : 0
+
+                      return (
+                        <TableRow
+                          key={po.id}
+                          className={`cursor-pointer hover:bg-muted/50 ${overdue ? 'bg-red-50/50 dark:bg-red-950/30' : ''}`}
+                          onClick={() => navigate(`/inventory/purchase-orders/${po.id}`)}
+                        >
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-medium">{po.po_number}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{po.supplier_name}</TableCell>
+                          <TableCell>
+                            {safeFormat(po.order_date, 'dd MMM yyyy')}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              <span className={overdue ? 'text-red-600 font-semibold' : ''}>
+                                {safeFormat(po.expected_delivery_date, 'dd MMM yyyy')}
+                              </span>
+                              {overdue && (
+                                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                                  {daysOverdue}d late
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{po.items?.length || 0} items</Badge>
+                          </TableCell>
+                          <TableCell className="font-semibold">
+                            {formatCurrency(po.total)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Badge variant={statusConfig.variant}>
+                                <StatusIcon className="h-3 w-3 mr-1" />
+                                {statusConfig.label}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                navigate(`/inventory/purchase-orders/${po.id}`)
+                              }}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </Card>
+            )}
+          </div>
+        </>
       )}
 
-      {isLoading && purchaseOrders.length === 0 ? (
-        <Card className="p-12 text-center">
-          <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin opacity-50" />
-          <p className="text-muted-foreground">Loading purchase orders...</p>
-        </Card>
-      ) : filteredPOs.length === 0 ? (
-        <Card className="p-12 text-center">
-          <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">
-            {purchaseOrders.length === 0 ? 'No Purchase Orders Yet' : 'No Orders Found'}
-          </h3>
-          <p className="text-sm text-muted-foreground mb-6">
-            {purchaseOrders.length === 0
-              ? 'Create your first order from the Order Guide'
-              : 'Try adjusting your filters'}
-          </p>
-          {purchaseOrders.length === 0 && (
-            <Button onClick={() => navigate('/inventory/order-guide')}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create First Order
-            </Button>
-          )}
-        </Card>
-      ) : (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>PO Number</TableHead>
-                <TableHead>Supplier</TableHead>
-                <TableHead>Order Date</TableHead>
-                <TableHead>Expected Delivery</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-24"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredPOs.map((po: PurchaseOrder) => {
-                const statusConfig = getStatusConfig(po.status)
-                const StatusIcon = statusConfig.icon
-                const overdue = isOverdue(po)
-                const daysOverdue = overdue
-                  ? differenceInDays(new Date(), new Date(po.expected_delivery_date))
-                  : 0
+      {/* ── Invoices Tab ────────────────────────────────────── */}
+      {activeView === 'invoices' && (
+        <>
+          <div className="px-4 pt-4 space-y-3">
+            <StatCards stats={[
+              { label: 'Total Invoices', value: invoiceStats.total },
+              { label: 'Entered', value: invoiceStats.entered },
+              { label: 'Reconciled', value: invoiceStats.reconciled },
+            ]} columns={3} />
+            <SecondaryStats stats={[
+              { label: 'Total Value', value: formatCurrency(invoiceStats.totalValue) },
+            ]} />
+          </div>
+          <div className="p-4">
+            {isLoading && invoiceEntries.length === 0 ? (
+              <Card className="p-12 text-center">
+                <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin opacity-50" />
+                <p className="text-muted-foreground">Loading invoices...</p>
+              </Card>
+            ) : filteredInvoices.length === 0 ? (
+              <Card className="p-12 text-center">
+                <Receipt className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">
+                  {invoiceEntries.length === 0 ? 'No Invoices Logged' : 'No Invoices Found'}
+                </h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  {invoiceEntries.length === 0
+                    ? 'Record deliveries that arrived without a purchase order'
+                    : 'Try adjusting your filters'}
+                </p>
+                {invoiceEntries.length === 0 && (
+                  <Button onClick={() => navigate('/inventory/purchase-by-invoice')}>
+                    <Receipt className="h-4 w-4 mr-2" />
+                    Log First Invoice
+                  </Button>
+                )}
+              </Card>
+            ) : (
+              <Card>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Invoice #</TableHead>
+                      <TableHead>Supplier</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Items</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Entry User</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-24"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredInvoices.map((po: PurchaseOrder) => {
+                      const invStatus = getInvoiceStatus(po)
+                      const statusCfg = INVOICE_STATUS_CONFIG[invStatus]
+                      // Strip "INV-" prefix for display
+                      const invoiceNum = (po.po_number ?? '').replace(/^INV-/, '')
 
-                return (
-                  <TableRow
-                    key={po.id}
-                    className={`cursor-pointer hover:bg-muted/50 ${overdue ? 'bg-red-50/50 dark:bg-red-950/30' : ''}`}
-                    onClick={() => navigate(`/inventory/purchase-orders/${po.id}`)}
-                  >
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{po.po_number}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{po.supplier_name}</TableCell>
-                    <TableCell>
-                      {safeFormat(po.order_date, 'dd MMM yyyy')}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <span className={overdue ? 'text-red-600 font-semibold' : ''}>
-                          {safeFormat(po.expected_delivery_date, 'dd MMM yyyy')}
-                        </span>
-                        {overdue && (
-                          <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                            {daysOverdue}d late
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{po.items?.length || 0} items</Badge>
-                    </TableCell>
-                    <TableCell className="font-semibold">
-                      {formatCurrency(po.total)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Badge variant={statusConfig.variant}>
-                          <StatusIcon className="h-3 w-3 mr-1" />
-                          {statusConfig.label}
-                        </Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          navigate(`/inventory/purchase-orders/${po.id}`)
-                        }}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </Card>
+                      return (
+                        <TableRow
+                          key={po.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => navigate(`/inventory/purchase-orders/${po.id}`)}
+                        >
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Receipt className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-medium font-mono text-sm">{invoiceNum}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{po.supplier_name}</TableCell>
+                          <TableCell>
+                            {safeFormat(po.order_date, 'dd MMM yyyy')}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{po.items?.length || 0} items</Badge>
+                          </TableCell>
+                          <TableCell className="font-semibold">
+                            {formatCurrency(po.total)}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {po.created_by_name || '—'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={statusCfg.variant}>
+                              {invStatus}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                navigate(`/inventory/purchase-orders/${po.id}`)
+                              }}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </Card>
+            )}
+          </div>
+        </>
       )}
-      </div>
     </PageShell>
   )
 }
