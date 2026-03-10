@@ -55,7 +55,7 @@ export default function MenuItems() {
     loadMenuSectionsFromDB()
     loadMenuItemsFromDB()
     loadRecipesFromDB()
-  }, [])
+  }, [loadMenuSectionsFromDB, loadMenuItemsFromDB, loadRecipesFromDB])
 
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -100,7 +100,10 @@ export default function MenuItems() {
     : null
   
   // Get items for selected section
-  const sectionItems = selectedSectionId ? getSectionItems(selectedSectionId) : []
+  const sectionItems = useMemo(
+    () => selectedSectionId ? getSectionItems(selectedSectionId) : [],
+    [selectedSectionId, getSectionItems]
+  )
   
   // Calculate section totals
   const sectionTotals = selectedSectionId

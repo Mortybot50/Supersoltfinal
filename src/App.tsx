@@ -29,6 +29,10 @@ import StockCounts from "./pages/inventory/StockCounts"
 import NewStockCount from "./pages/inventory/NewStockCount"
 import Waste from "./pages/inventory/Waste"
 import InventoryReports from "./pages/inventory/InventoryReports"
+import Invoices from "./pages/inventory/Invoices"
+import InvoiceUpload from "./pages/inventory/InvoiceUpload"
+import InvoiceDetail from "./pages/inventory/InvoiceDetail"
+import Reconciliation from "./pages/inventory/Reconciliation"
 
 // Menu & Costing
 import MenuItems from "./pages/MenuItems"
@@ -110,6 +114,10 @@ const App = () => (
               <Route path="inventory/stock-counts/new" element={<NewStockCount />} />
               <Route path="inventory/waste" element={<Waste />} />
               <Route path="inventory/reports" element={<InventoryReports />} />
+              <Route path="inventory/invoices" element={<Invoices />} />
+              <Route path="inventory/invoices/upload" element={<InvoiceUpload />} />
+              <Route path="inventory/invoices/:invoiceId" element={<InvoiceDetail />} />
+              <Route path="inventory/invoices/:invoiceId/reconcile" element={<Reconciliation />} />
 
               {/* Menu & Costing */}
               <Route path="menu/items" element={<MenuItems />} />

@@ -35,7 +35,9 @@ export function calculateShiftCostBreakdown(
 ): ShiftCostBreakdown {
   const warnings: string[] = []
 
-  // Parse times
+  // Parse times — normalize timestamptz to HH:MM
+  startTime = parseTimeToHHMM(startTime)
+  endTime = parseTimeToHHMM(endTime)
   const [startH, startM] = startTime.split(':').map(Number)
   const [endH, endM] = endTime.split(':').map(Number)
   let totalMinutes = (endH * 60 + endM) - (startH * 60 + startM)

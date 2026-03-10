@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useDataStore } from '@/lib/store/dataStore'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   calculateUsagePerThousandSales,
   calculateEstimatedUsage,
@@ -45,6 +46,7 @@ function getDaysOfStockBadge(days: number) {
 
 export default function OrderGuide() {
   const navigate = useNavigate()
+  const { currentVenue, currentOrg, user, profile } = useAuth()
   const { suppliers, ingredients, purchaseOrders, orders, loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB } = useDataStore()
 
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('')
@@ -56,7 +58,7 @@ export default function OrderGuide() {
     loadSuppliersFromDB()
     loadIngredientsFromDB()
     loadPurchaseOrdersFromDB()
-  }, [])
+  }, [loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB])
 
   const selectedSupplier = suppliers.find((s) => s.id === selectedSupplierId)
 
@@ -127,7 +129,7 @@ export default function OrderGuide() {
       const urgencyOrder = { critical: 0, low: 1, adequate: 2, overstocked: 3 }
       return urgencyOrder[a.urgency] - urgencyOrder[b.urgency]
     })
-  }, [selectedSupplier, ingredients, orders, salesForecast])
+  }, [selectedSupplier, selectedSupplierId, ingredients, orders, salesForecast])
 
   const handleToggleProduct = (productId: string) => {
     setSelectedProducts((prev) => {
@@ -202,7 +204,8 @@ export default function OrderGuide() {
     const po: PurchaseOrder = {
       id: poId,
       po_number: generatePONumber(purchaseOrders),
-      venue_id: 'main-venue',
+      org_id: currentOrg?.id || undefined,
+      venue_id: currentVenue?.id || '',
       supplier_id: supplier.id,
       supplier_name: supplier.name,
       order_date: new Date(),
@@ -212,8 +215,8 @@ export default function OrderGuide() {
       tax_amount: taxAmount,
       total,
       notes: '',
-      created_by: 'current-user',
-      created_by_name: 'Manager',
+      created_by: user?.id || '',
+      created_by_name: profile ? `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || 'Manager' : 'Manager',
       created_at: new Date(),
       updated_at: new Date(),
     }
@@ -230,6 +233,11 @@ export default function OrderGuide() {
   const handleCreateOrder = async () => {
     if (!selectedSupplier) return
 
+    if (!currentVenue?.id || currentVenue.id === 'all') {
+      toast.error('Select a specific venue before creating a purchase order')
+      return
+    }
+
     if (selectedProducts.size === 0) {
       toast.error('Select at least one product')
       return
@@ -243,13 +251,17 @@ export default function OrderGuide() {
         setCustomQuantities({})
       }
     } catch (error) {
-      toast.error('Failed to create purchase order')
+      toast.error(`Failed to create purchase order: ${error?.message || error}`)
       console.error(error)
     }
   }
 
   // Generate All Orders — creates POs for all suppliers with critical/low items
   const handleGenerateAllOrders = async () => {
+    if (!currentVenue?.id || currentVenue.id === 'all') {
+      toast.error('Select a specific venue before generating purchase orders')
+      return
+    }
     const activeSuppliers = suppliers.filter((s) => s.active)
     let ordersCreated = 0
 
@@ -338,7 +350,8 @@ export default function OrderGuide() {
       sum += quantity * recommendation.product.cost_per_unit
     })
     return sum
-  }, [selectedProducts, orderRecommendations, customQuantities])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProducts, orderRecommendations, customQuantities]) // getOrderQuantity only reads customQuantities (already listed)
 
   // Stats across all suppliers
   const globalStats = useMemo(() => {

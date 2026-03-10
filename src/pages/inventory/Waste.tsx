@@ -56,7 +56,7 @@ const REASON_LABEL = Object.fromEntries(WASTE_REASONS.map((r) => [r.value, r.lab
 
 export default function Waste() {
   const { wasteLogs, ingredients, isLoading, addWasteEntry, deleteWasteEntry, loadWasteLogsFromDB, loadIngredientsFromDB } = useDataStore()
-  const { currentVenue } = useAuth()
+  const { currentVenue, currentOrg, user, profile } = useAuth()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -66,7 +66,7 @@ export default function Waste() {
   useEffect(() => {
     loadWasteLogsFromDB()
     loadIngredientsFromDB()
-  }, [])
+  }, [loadWasteLogsFromDB, loadIngredientsFromDB])
 
   const [wasteForm, setWasteForm] = useState({
     ingredient_id: '',
@@ -182,6 +182,11 @@ export default function Waste() {
   }
 
   const handleSave = async () => {
+    if (!currentVenue?.id || currentVenue.id === 'all') {
+      toast.error('Select a specific venue before logging waste')
+      return
+    }
+
     if (!wasteForm.ingredient_id) {
       toast.error('Please select an ingredient')
       return
@@ -209,6 +214,7 @@ export default function Waste() {
 
     const wasteEntry: WasteEntry = {
       id: crypto.randomUUID(),
+      org_id: currentOrg?.id,
       venue_id: currentVenue?.id || '',
       waste_date: new Date(),
       waste_time: format(new Date(), 'HH:mm'),
@@ -219,8 +225,8 @@ export default function Waste() {
       value,
       reason: wasteForm.reason as WasteEntry['reason'],
       notes: wasteForm.notes || undefined,
-      recorded_by_user_id: 'current-user',
-      recorded_by_name: 'J Smith',
+      recorded_by_user_id: user?.id || '',
+      recorded_by_name: profile ? `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || 'Manager' : 'Manager',
     }
 
     try {

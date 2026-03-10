@@ -30,7 +30,7 @@ export default function Roster() {
     init, deleteShift, selectShift, selectedDate, loadWeek,
     sidebarOpen, selectedShiftId,
     shifts, availability, openShifts,
-    subscribeToChanges,
+    subscribeToChanges, staff, setPendingShift,
   } = useRosterStore()
 
   const [showCompliance, setShowCompliance] = useState(false)
@@ -43,7 +43,7 @@ export default function Roster() {
     if (currentVenue?.id && currentOrg?.id) {
       init(currentVenue.id, currentOrg.id)
     }
-  }, [currentVenue?.id, currentOrg?.id])
+  }, [currentVenue?.id, currentOrg?.id, init])
 
   const selectedDateTs = selectedDate?.getTime()
   useEffect(() => {
@@ -62,10 +62,20 @@ export default function Roster() {
       unsubscribe()
       setIsLive(false)
     }
-  }, [currentVenue?.id])
+  }, [currentVenue?.id, subscribeToChanges])
 
-  const handleAddShift = (_date: Date, _staffId: string) => {
-    toast.info('Drag a staff card from the sidebar to schedule, or use Auto-fill')
+  const handleAddShift = (date: Date, staffId: string) => {
+    const staffMember = staff.find(s => s.id === staffId)
+    if (!staffMember || !currentVenue?.id) return
+    setPendingShift({
+      staffId: staffMember.id,
+      staffName: staffMember.name,
+      date,
+      defaultRole: staffMember.role,
+      venueId: currentVenue.id,
+      employmentType: staffMember.employment_type || 'casual',
+      hourlyRateCents: staffMember.hourly_rate ?? 0,
+    })
   }
 
   const handleSelectShift = (shift: RosterShift) => {
@@ -73,11 +83,8 @@ export default function Roster() {
   }
 
   const handleDeleteShift = async (shift: RosterShift) => {
-    const d = shift.date instanceof Date ? shift.date : new Date(shift.date)
-    if (window.confirm(`Delete shift for ${shift.staff_name} on ${d.toDateString()}?`)) {
-      await deleteShift(shift.id)
-      toast.success('Shift deleted')
-    }
+    await deleteShift(shift.id)
+    toast.success('Shift deleted')
   }
 
   const warningCount = getAllRosterWarnings(shifts, availability).length

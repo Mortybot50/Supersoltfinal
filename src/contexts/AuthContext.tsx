@@ -217,7 +217,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally run once — auth listener must not re-subscribe on re-renders
 
   return (
     <AuthContext.Provider

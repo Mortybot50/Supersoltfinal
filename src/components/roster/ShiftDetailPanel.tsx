@@ -129,12 +129,6 @@ export function ShiftDetailPanel() {
     setEditingTime(false)
   }
 
-
-
-
-
-
-
   const handleReassign = async (newStaffId: string) => {
     const member = staff.find(s => s.id === newStaffId)
     if (!member) return
@@ -161,7 +155,7 @@ export function ShiftDetailPanel() {
   }
 
   return (
-    <aside className="w-80 shrink-0 bg-white border-l flex flex-col overflow-hidden shadow-lg z-20">
+    <aside className="w-80 shrink-0 bg-white border-l flex flex-col overflow-y-auto shadow-lg z-20">
       {/* Header */}
       <div className={cn('flex items-center justify-between px-4 py-3 border-b', colors.bg)}>
         <div>
@@ -353,25 +347,24 @@ export function ShiftDetailPanel() {
           </div>
         )}
 
-        {/* Quick actions */}
-        <div className="p-4 space-y-1.5">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Actions</p>
-          <button
-            onClick={handleConvertToOpen}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-gray-50 transition-colors text-left border"
-          >
-            <UserMinus className="h-3.5 w-3.5 text-gray-400" />
-            Convert to open shift
-          </button>
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-red-50 transition-colors text-left border border-transparent hover:border-red-200 text-red-600"
-          >
-            <X className="h-3.5 w-3.5" />
-            Delete shift
-          </button>
-        </div>
+      </div>
 
+      {/* Quick actions — sticky bottom */}
+      <div className="border-t bg-white p-3 space-y-1.5 mt-auto shrink-0">
+        <button
+          onClick={handleConvertToOpen}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-gray-50 transition-colors text-left border"
+        >
+          <UserMinus className="h-3.5 w-3.5 text-gray-400" />
+          Convert to open shift
+        </button>
+        <button
+          onClick={() => setConfirmDelete(true)}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-red-50 transition-colors text-left border border-transparent hover:border-red-200 text-red-600"
+        >
+          <X className="h-3.5 w-3.5" />
+          Delete shift
+        </button>
       </div>
 
       {/* Delete confirmation */}
@@ -388,7 +381,7 @@ export function ShiftDetailPanel() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
+              onClick={(e) => { e.preventDefault(); handleDelete(); }}
               disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
             >

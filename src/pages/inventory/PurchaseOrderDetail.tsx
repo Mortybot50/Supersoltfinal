@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft,
   Building2,
@@ -25,6 +25,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useDataStore } from '@/lib/store/dataStore'
+import { useAuth } from '@/contexts/AuthContext'
 import { PurchaseOrder, PurchaseOrderItem } from '@/types'
 import { logPriceChange, runCostCascade, applyCascadeToState } from '@/lib/services/costCascade'
 import { PageShell, PageToolbar } from '@/components/shared'
@@ -80,6 +81,7 @@ export default function PurchaseOrderDetail() {
     setRecipeIngredients: setStoreRecipeIngredients,
     setMenuItems,
   } = useDataStore()
+  const { user } = useAuth()
 
   const [submitDialogOpen, setSubmitDialogOpen] = useState(false)
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
@@ -91,7 +93,7 @@ export default function PurchaseOrderDetail() {
   useEffect(() => {
     loadPurchaseOrdersFromDB()
     loadSuppliersFromDB()
-  }, [])
+  }, [loadPurchaseOrdersFromDB, loadSuppliersFromDB])
 
   const po = purchaseOrders.find((p: PurchaseOrder) => p.id === poId)
   const supplier = po ? suppliers.find((s) => s.id === po.supplier_id) : null
@@ -163,7 +165,7 @@ Team`
       await updatePurchaseOrder(po.id, {
         status: 'submitted',
         submitted_at: new Date(),
-        submitted_by: 'current-user',
+        submitted_by: user?.id,
       })
 
       toast.success(`Purchase order sent to ${supplier?.email}`)

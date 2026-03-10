@@ -60,7 +60,6 @@ interface OrderRow {
   refund_reason: string | null
   payment_method: string | null
   discount_amount: number
-  source: string | null
 }
 
 // ─── Helpers ────────────────────────────────────────
@@ -115,10 +114,11 @@ const paymentLabel = (pm: string | null) => {
 
 // ─── Component ──────────────────────────────────────
 export default function Sales() {
-  const { currentVenue } = useAuth()
+  const { currentVenue, currentOrg } = useAuth()
   const venueId = currentVenue?.id
+  const isAllVenues = venueId === 'all'
 
-  const [datePreset, setDatePreset] = useState<DatePreset>("today")
+  const [datePreset, setDatePreset] = useState<DatePreset>("last-week")
   const [channelFilter, setChannelFilter] = useState<string>("all")
   const [paymentFilter, setPaymentFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
@@ -129,15 +129,18 @@ export default function Sales() {
 
   // ─── Query ──────────────────────────────────────
   const { data: orders = [], isLoading, refetch } = useQuery({
-    queryKey: ["salesOrders", venueId, dateRange.start.toISOString(), dateRange.end.toISOString()],
+    queryKey: ["salesOrders", venueId, currentOrg?.id, dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("orders")
-        .select("id, order_number, order_datetime, channel, gross_amount, tax_amount, net_amount, discount_amount, is_void, is_refund, refund_reason, payment_method, source")
-        .eq("venue_id", venueId!)
+        .select("id, order_number, order_datetime, channel, gross_amount, tax_amount, net_amount, discount_amount, is_void, is_refund, refund_reason, payment_method")
         .gte("order_datetime", dateRange.start.toISOString())
         .lte("order_datetime", dateRange.end.toISOString())
         .order("order_datetime", { ascending: false })
+      if (!isAllVenues && venueId) {
+        query = query.eq("venue_id", venueId)
+      }
+      const { data, error } = await query
       if (error) throw error
       return (data || []) as OrderRow[]
     },
@@ -253,7 +256,7 @@ export default function Sales() {
         (o.discount_amount / 100).toFixed(2),
         (o.net_amount / 100).toFixed(2),
         paymentLabel(o.payment_method),
-        o.source || "manual",
+        "manual",
         status,
       ].join(",")
     })
@@ -464,13 +467,7 @@ export default function Sales() {
                       {paymentLabel(o.payment_method)}
                     </TableCell>
                     <TableCell>
-                      {o.source === "square" ? (
-                        <span className="text-xs font-medium text-blue-600 bg-blue-50 dark:bg-blue-950 px-1.5 py-0.5 rounded">Square</span>
-                      ) : o.source === "csv" ? (
-                        <span className="text-xs font-medium text-purple-600 bg-purple-50 dark:bg-purple-950 px-1.5 py-0.5 rounded">CSV</span>
-                      ) : (
-                        <span className="text-xs font-medium text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">Manual</span>
-                      )}
+                      <span className="text-xs font-medium text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">Manual</span>
                     </TableCell>
                     <TableCell>
                       {isVoid ? (

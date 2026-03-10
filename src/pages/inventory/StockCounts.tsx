@@ -32,7 +32,7 @@ export default function StockCounts() {
 
   useEffect(() => {
     loadStockCountsFromDB()
-  }, [])
+  }, [loadStockCountsFromDB])
 
   // Filter counts
   const filteredCounts = useMemo(() => {
