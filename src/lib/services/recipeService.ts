@@ -52,10 +52,14 @@ function mapDBRecipeIngredientToApp(
   db: DBRecipeIngredient,
   ingredient?: Ingredient
 ): RecipeIngredient {
+  const isSubRecipe = (db as Record<string, unknown>).is_sub_recipe === true
+  const subRecipeId = (db as Record<string, unknown>).sub_recipe_id as string | undefined
   return {
     id: db.id,
     recipe_id: db.recipe_id,
-    product_id: db.ingredient_id,
+    product_id: isSubRecipe ? (subRecipeId ?? '') : (db.ingredient_id ?? ''),
+    sub_recipe_id: isSubRecipe ? subRecipeId : undefined,
+    is_sub_recipe: isSubRecipe,
     product_name: ingredient?.name || '',
     quantity: db.quantity,
     unit: (db.unit || 'g') as RecipeIngredient['unit'],
@@ -180,18 +184,19 @@ export async function saveRecipeToDB(
     if (delError) throw delError
   }
 
-  // Insert new ingredients
-  const validIngredients = ingredients.filter((ing) => ing.product_id)
+  // Insert new ingredients (including sub-recipes which have is_sub_recipe=true and sub_recipe_id set)
+  const validIngredients = ingredients.filter((ing) => ing.product_id || ing.is_sub_recipe)
   if (validIngredients.length > 0) {
     const dbIngredients = validIngredients.map((ing, index) => ({
       id: ing.id,
       recipe_id: recipe.id,
-      ingredient_id: ing.product_id,
+      ingredient_id: ing.is_sub_recipe ? null : ing.product_id,
+      sub_recipe_id: ing.is_sub_recipe ? (ing.sub_recipe_id ?? ing.product_id) : null,
       quantity: ing.quantity,
       unit: ing.unit,
       cost: ing.line_cost,
       sort_order: index,
-      is_sub_recipe: false,
+      is_sub_recipe: ing.is_sub_recipe ?? false,
     }))
 
     const { error: insError } = await supabase

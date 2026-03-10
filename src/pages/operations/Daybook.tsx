@@ -254,9 +254,21 @@ export default function Daybook() {
     setDialogOpen(true)
   }
 
-  const handleDelete = (id: string) => {
-    setEntries((prev) => prev.filter((e) => e.id !== id))
-    toast.success('Entry deleted')
+  const handleDelete = async (id: string) => {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client')
+      const { error } = await supabase.from('daybook_entries').delete().eq('id', id)
+      if (error) {
+        console.error('[Daybook] Failed to delete entry:', error)
+        toast.error('Failed to delete entry')
+        return
+      }
+      setEntries((prev) => prev.filter((e) => e.id !== id))
+      toast.success('Entry deleted')
+    } catch (err) {
+      console.error('[Daybook] Error deleting entry:', err)
+      toast.error('Failed to delete entry')
+    }
   }
 
   const openNewEntry = () => {

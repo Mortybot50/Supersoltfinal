@@ -108,7 +108,7 @@ export default function Timesheets() {
   }
 
   // Generate timesheets from confirmed roster shifts
-  const handleGenerateFromRoster = useCallback(() => {
+  const handleGenerateFromRoster = useCallback(async () => {
     const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd })
     const weekShifts = rosterShifts.filter((s) => {
       if (s.status === "cancelled" || s.is_open_shift) return false

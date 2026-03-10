@@ -220,7 +220,7 @@ export function calculatePenaltyRate(
     return {
       penaltyType: 'saturday',
       penaltyMultiplier: isCasual
-        ? 1.0 // Casual loading already covers Saturday
+        ? AU_HOSPITALITY_PENALTY_RATES.casual_saturday
         : AU_HOSPITALITY_PENALTY_RATES.saturday,
     }
   }
