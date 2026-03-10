@@ -5,7 +5,7 @@
  */
 
 import { create } from 'zustand'
-import { RosterShift, Staff, StaffAvailability, ShiftTemplate } from '@/types'
+import { RosterShift, Staff, StaffAvailability, ShiftTemplate, RosterPattern, TemplateShiftDef } from '@/types'
 import type { PendingShiftInfo } from '@/components/roster/ShiftCreateDialog'
 import { supabase } from '@/integrations/supabase/client'
 import {
@@ -17,6 +17,11 @@ import {
   updateRosterShiftInDB,
   deleteRosterShiftFromDB,
   publishRosterShifts,
+  addShiftTemplateToDB,
+  loadRosterPatternsFromDB,
+  addRosterPatternToDB,
+  updateRosterPatternInDB,
+  deleteRosterPatternFromDB,
 } from '@/lib/services/labourService'
 import { getWeekStart } from '@/lib/utils/rosterCalculations'
 import { addDays, format } from 'date-fns'
@@ -90,6 +95,14 @@ interface RosterStore {
   sidebarOpen: boolean
   pendingShift: PendingShiftInfo | null
 
+  // Clipboard
+  copiedShift: RosterShift | null
+
+  // Toolbar state
+  spotlightFilter: string | null
+  groupBy: 'none' | 'role' | 'employment_type'
+  viewMode: 'staff' | 'compact' | 'stats'
+
   // ── Actions ──────────────────────────────────────────────────────────────
 
   // Bootstrap
@@ -121,6 +134,29 @@ interface RosterStore {
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
   setPendingShift: (shift: PendingShiftInfo | null) => void
+
+  // Clipboard
+  setCopiedShift: (shift: RosterShift | null) => void
+
+  // Toolbar
+  setSpotlightFilter: (filter: string | null) => void
+  setGroupBy: (groupBy: 'none' | 'role' | 'employment_type') => void
+  setViewMode: (viewMode: 'staff' | 'compact' | 'stats') => void
+
+  // Quick Build
+  quickBuildOpen: boolean
+  rosterPatterns: RosterPattern[]
+  toggleQuickBuild: () => void
+  setQuickBuildOpen: (open: boolean) => void
+  copyWeekShifts: (sourceWeekStart: Date) => Promise<{ created: number; conflicts: number }>
+  copyDayShifts: (sourceDate: Date, targetDates: Date[]) => Promise<{ created: number; conflicts: number }>
+  autoFill: (mode: 'copy_last' | 'assign_open' | 'build_empty') => Promise<void>
+  saveCurrentAsTemplate: (name: string) => Promise<boolean>
+  applyRosterTemplate: (template: ShiftTemplate) => Promise<{ created: number; conflicts: number }>
+  addRosterPattern: (pattern: Omit<RosterPattern, 'id' | 'created_at' | 'updated_at'>) => Promise<boolean>
+  updateRosterPattern: (id: string, updates: Partial<Pick<RosterPattern, 'name' | 'description' | 'shifts'>>) => Promise<boolean>
+  deleteRosterPattern: (id: string) => Promise<boolean>
+  applyRosterPattern: (patternId: string) => Promise<{ created: number; conflicts: number }>
 
   // Real-time
   subscribeToChanges: () => () => void
@@ -201,6 +237,12 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
   costBarExpanded: false,
   sidebarOpen: true,
   pendingShift: null,
+  copiedShift: null,
+  spotlightFilter: null,
+  groupBy: 'role',
+  viewMode: 'staff',
+  quickBuildOpen: false,
+  rosterPatterns: [],
 
   // ── Bootstrap ──────────────────────────────────────────────────────────
 
@@ -211,17 +253,18 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
     set({ venueId, orgId })
 
     try {
-      const [staff, templates, availability] = await Promise.all([
+      const [staff, templates, availability, rosterPatterns] = await Promise.all([
         loadStaffFromDB(),
         loadShiftTemplatesFromDB(venueId),
         loadStaffAvailabilityFromDB(),
+        loadRosterPatternsFromDB(venueId),
       ])
 
       // Default all roles expanded
       const roles = [...new Set(staff.map(s => s.role))]
       const expandedRoles = new Set<string>(roles)
 
-      set({ staff, templates, availability, expandedRoles })
+      set({ staff, templates, availability, expandedRoles, rosterPatterns })
     } catch (e) {
       console.error('[RosterStore] init error:', e)
     }
@@ -236,6 +279,12 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
 
   navigateWeek: (direction) => {
     const { view, selectedDate } = get()
+    if (view === 'day') {
+      const next = addDays(selectedDate, direction)
+      set({ selectedDate: next, selectedDayIndex: next.getDay() === 0 ? 6 : next.getDay() - 1 })
+      get().loadWeek(getWeekStart(next))
+      return
+    }
     const days = view === 'fortnight' ? 14 : 7
     const next = addDays(selectedDate, direction * days)
     const weekStart = getWeekStart(next)
@@ -431,6 +480,10 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
   toggleSidebar: () => set({ sidebarOpen: !get().sidebarOpen }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setPendingShift: (shift) => set({ pendingShift: shift }),
+  setCopiedShift: (shift) => set({ copiedShift: shift }),
+  setSpotlightFilter: (filter) => set({ spotlightFilter: filter }),
+  setGroupBy: (groupBy) => set({ groupBy }),
+  setViewMode: (viewMode) => set({ viewMode }),
 
   // ── Real-time ───────────────────────────────────────────────────────────
 
