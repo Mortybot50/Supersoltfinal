@@ -11,15 +11,13 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useDataStore } from '@/lib/store/dataStore'
 import { useAuth } from '@/contexts/AuthContext'
 import {
-  calculateUsagePerThousandSales,
-  calculateEstimatedUsage,
   getNextDeliveryDate,
   calculateRecommendedQuantity,
   determineUrgency,
   generatePONumber,
   calculateGST,
 } from '@/lib/utils/orderCalculations'
-import { format, differenceInDays, subDays } from 'date-fns'
+import { format, differenceInDays, subDays, isAfter } from 'date-fns'
 import { toast } from 'sonner'
 import type { OrderRecommendation, PurchaseOrder, PurchaseOrderItem, Supplier } from '@/types'
 import { PageShell, PageToolbar } from '@/components/shared'
@@ -47,7 +45,7 @@ function getDaysOfStockBadge(days: number) {
 export default function OrderGuide() {
   const navigate = useNavigate()
   const { currentVenue, currentOrg, user, profile } = useAuth()
-  const { suppliers, ingredients, purchaseOrders, orders, loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB } = useDataStore()
+  const { suppliers, ingredients, purchaseOrders, orders, wasteLogs, loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB, loadWasteLogsFromDB } = useDataStore()
 
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('')
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set())
@@ -58,7 +56,50 @@ export default function OrderGuide() {
     loadSuppliersFromDB()
     loadIngredientsFromDB()
     loadPurchaseOrdersFromDB()
-  }, [loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB])
+    loadWasteLogsFromDB()
+  }, [loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB, loadWasteLogsFromDB])
+
+  // Compute 30-day waste-based daily usage per ingredient
+  const wasteUsageMap = useMemo(() => {
+    const thirtyDaysAgo = subDays(new Date(), 30)
+    const map: Record<string, number> = {}
+    for (const w of wasteLogs) {
+      if (!isAfter(new Date(w.waste_date as unknown as string), thirtyDaysAgo)) continue
+      map[w.ingredient_id] = (map[w.ingredient_id] || 0) + w.quantity
+    }
+    // Convert 30-day total to daily average
+    for (const id of Object.keys(map)) {
+      map[id] = map[id] / 30
+    }
+    return map
+  }, [wasteLogs])
+
+  // Compute 30-day received qty per ingredient from delivered POs
+  const receivedUsageMap = useMemo(() => {
+    const thirtyDaysAgo = subDays(new Date(), 30)
+    const map: Record<string, number> = {}
+    for (const po of purchaseOrders) {
+      if (po.status !== 'delivered' || !po.delivered_at) continue
+      if (!isAfter(new Date(po.delivered_at as unknown as string), thirtyDaysAgo)) continue
+      for (const item of po.items || []) {
+        if (!item.ingredient_id) continue
+        map[item.ingredient_id] = (map[item.ingredient_id] || 0) + (item.quantity_received || 0)
+      }
+    }
+    for (const id of Object.keys(map)) {
+      map[id] = map[id] / 30
+    }
+    return map
+  }, [purchaseOrders])
+
+  // Best daily usage estimate: prioritise received qty (throughput), fall back to waste, then default 0.71 (5/week)
+  const getDailyUsage = (ingredientId: string): number => {
+    const received = receivedUsageMap[ingredientId]
+    if (received && received > 0) return received
+    const waste = wasteUsageMap[ingredientId]
+    if (waste && waste > 0) return waste
+    return 5 / 7 // default ~0.71/day
+  }
 
   const selectedSupplier = suppliers.find((s) => s.id === selectedSupplierId)
 
@@ -84,20 +125,12 @@ export default function OrderGuide() {
     const daysUntilDelivery = differenceInDays(nextDelivery, new Date())
 
     return supplierProducts.map((product): OrderRecommendation => {
-      const productUsage = 5
-      const thirtyDaysAgo = subDays(new Date(), 30)
-      const thirtyDaySales = orders
-        .filter((o) => new Date(o.order_datetime) >= thirtyDaysAgo && !o.is_void && !o.is_refund)
-        .reduce((sum, o) => sum + o.gross_amount / 100, 0)
+      const dailyUsage = getDailyUsage(product.id)
+      // estimatedUsage = daily usage × days until next delivery (cover-up period)
+      const coverDays = Math.max(daysUntilDelivery, 1)
+      const estimatedUsage = dailyUsage * coverDays
+      const safetyStock = product.reorder_point || product.par_level * 0.3
 
-      const usagePerThousand = calculateUsagePerThousandSales(
-        productUsage,
-        thirtyDaySales
-      )
-      const estimatedUsage = calculateEstimatedUsage(
-        salesForecast,
-        usagePerThousand
-      )
       const recommended = calculateRecommendedQuantity(
         product.current_stock,
         product.par_level,
@@ -107,7 +140,7 @@ export default function OrderGuide() {
       const urgency = determineUrgency(
         product.current_stock,
         product.par_level,
-        product.reorder_point || product.par_level * 0.5,
+        safetyStock,
         estimatedUsage,
         daysUntilDelivery
       )
@@ -116,7 +149,7 @@ export default function OrderGuide() {
         product,
         current_stock: product.current_stock,
         par_level: product.par_level,
-        usage_per_thousand_sales: usagePerThousand,
+        usage_per_thousand_sales: dailyUsage * 7, // weekly usage for display
         forecasted_sales: salesForecast,
         estimated_usage: estimatedUsage,
         days_until_delivery: daysUntilDelivery,
@@ -129,7 +162,8 @@ export default function OrderGuide() {
       const urgencyOrder = { critical: 0, low: 1, adequate: 2, overstocked: 3 }
       return urgencyOrder[a.urgency] - urgencyOrder[b.urgency]
     })
-  }, [selectedSupplier, selectedSupplierId, ingredients, orders, salesForecast])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSupplier, selectedSupplierId, ingredients, salesForecast, wasteUsageMap, receivedUsageMap])
 
   const handleToggleProduct = (productId: string) => {
     setSelectedProducts((prev) => {
@@ -275,14 +309,9 @@ export default function OrderGuide() {
       const daysUntilDelivery = differenceInDays(nextDelivery, new Date())
 
       const recommendations: OrderRecommendation[] = supplierProducts.map((product) => {
-        const productUsage = 5
-        const thirtyDaysAgo = subDays(new Date(), 30)
-        const thirtyDaySales = orders
-          .filter((o) => new Date(o.order_datetime) >= thirtyDaysAgo && !o.is_void && !o.is_refund)
-          .reduce((sum, o) => sum + o.gross_amount / 100, 0)
-
-        const usagePerThousand = calculateUsagePerThousandSales(productUsage, thirtyDaySales)
-        const estimatedUsage = calculateEstimatedUsage(salesForecast, usagePerThousand)
+        const dailyUsage = getDailyUsage(product.id)
+        const coverDays = Math.max(daysUntilDelivery, 1)
+        const estimatedUsage = dailyUsage * coverDays
         const recommended = calculateRecommendedQuantity(
           product.current_stock,
           product.par_level,
@@ -292,7 +321,7 @@ export default function OrderGuide() {
         const urgency = determineUrgency(
           product.current_stock,
           product.par_level,
-          product.reorder_point || product.par_level * 0.5,
+          product.reorder_point || product.par_level * 0.3,
           estimatedUsage,
           daysUntilDelivery
         )
@@ -301,7 +330,7 @@ export default function OrderGuide() {
           product,
           current_stock: product.current_stock,
           par_level: product.par_level,
-          usage_per_thousand_sales: usagePerThousand,
+          usage_per_thousand_sales: dailyUsage * 7,
           forecasted_sales: salesForecast,
           estimated_usage: estimatedUsage,
           days_until_delivery: daysUntilDelivery,
@@ -362,14 +391,15 @@ export default function OrderGuide() {
         (p) => p.supplier_id === supplier.id && p.active
       )
       for (const product of supplierProducts) {
-        const dailyUsage = 5 / 7 // Mock: 5 units per week
+        const dailyUsage = getDailyUsage(product.id)
         const days = getDaysOfStock(product.current_stock, dailyUsage)
         if (days < 2) criticalCount++
         else if (days <= 4) lowCount++
       }
     }
     return { criticalCount, lowCount }
-  }, [suppliers, ingredients])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suppliers, ingredients, wasteUsageMap, receivedUsageMap])
 
   const urgencyBadge = (urgency: string) => {
     switch (urgency) {
@@ -480,7 +510,7 @@ export default function OrderGuide() {
                     <TableHead>Current Stock</TableHead>
                     <TableHead>Par Level</TableHead>
                     <TableHead>Days of Stock</TableHead>
-                    <TableHead>Usage/week</TableHead>
+                    <TableHead>Usage/week (30d avg)</TableHead>
                     <TableHead>Recommended</TableHead>
                     <TableHead>Order Qty</TableHead>
                     <TableHead>Cost</TableHead>
