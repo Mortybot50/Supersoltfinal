@@ -73,6 +73,8 @@ const mainGroups: NavGroup[] = [
       { title: "Invoices", url: "/inventory/invoices" },
       { title: "Stock Counts", url: "/inventory/stock-counts" },
       { title: "Waste", url: "/inventory/waste" },
+      { title: "Food Cost AvT", url: "/inventory/food-cost" },
+      { title: "Price Tracking", url: "/inventory/price-tracking" },
       { title: "Suppliers", url: "/suppliers" },
     ],
   },

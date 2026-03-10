@@ -36,6 +36,9 @@ import InvoiceDetail from "./pages/inventory/InvoiceDetail"
 import Reconciliation from "./pages/inventory/Reconciliation"
 import PurchaseByInvoice from "./pages/inventory/PurchaseByInvoice"
 import PurchaseFromInvoice from "./pages/inventory/PurchaseFromInvoice"
+import POReceiving from "./pages/inventory/POReceiving"
+import FoodCostAnalysis from "./pages/inventory/FoodCostAnalysis"
+import PriceTracking from "./pages/inventory/PriceTracking"
 
 // Menu & Costing
 import MenuItems from "./pages/MenuItems"
@@ -118,6 +121,7 @@ const App = () => (
               <Route path="suppliers/:supplierId" element={<SupplierDetail />} />
               <Route path="inventory/purchase-orders" element={<PurchaseOrders />} />
               <Route path="inventory/purchase-orders/:poId" element={<PurchaseOrderDetail />} />
+              <Route path="inventory/purchase-orders/:poId/receive" element={<POReceiving />} />
               <Route path="inventory/stock-counts" element={<StockCounts />} />
               <Route path="inventory/stock-counts/new" element={<NewStockCount />} />
               <Route path="inventory/waste" element={<Waste />} />
@@ -128,6 +132,8 @@ const App = () => (
               <Route path="inventory/invoices/:invoiceId/reconcile" element={<Reconciliation />} />
               <Route path="inventory/purchase-by-invoice" element={<PurchaseByInvoice />} />
               <Route path="inventory/purchases/from-invoice/:invoiceId" element={<PurchaseFromInvoice />} />
+              <Route path="inventory/food-cost" element={<FoodCostAnalysis />} />
+              <Route path="inventory/price-tracking" element={<PriceTracking />} />
 
               {/* Menu & Costing */}
               <Route path="menu/items" element={<MenuItems />} />
