@@ -34,7 +34,6 @@ interface OrgMember {
 }
 
 export default function AccessRoles() {
-;
   const { currentOrg } = useAuth();
   const [activeTab, setActiveTab] = useState('members');
   const orgId = currentOrg?.id || '';
