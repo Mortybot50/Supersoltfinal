@@ -651,7 +651,8 @@ export const useDataStore = create<DataState>()(
       
       set({ purchaseOrders: pos })
     } catch (error) {
-      console.error('Failed to save purchase order:', dbError(error))
+      const msg = dbError(error)
+      console.error('Failed to save purchase order:', msg)
       toast.error(`PO save failed: ${msg}`)
       throw error
     }

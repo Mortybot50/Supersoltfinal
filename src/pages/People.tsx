@@ -19,7 +19,7 @@ import {
 import { Search, Plus, MoreVertical, Mail, Phone, FileText, Calendar, Send, Copy, Check, Clock, UserPlus, Users, Upload } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { Staff, OnboardingInvite, OnboardingStep } from "@/types"
-import { formatCurrency } from "@/lib/currency"
+import { formatCurrency } from "@/lib/utils/formatters"
 import { StaffDialog } from "@/components/StaffDialog"
 import { BulkStaffImport } from "@/components/BulkStaffImport"
 import { useDataStore } from "@/lib/store/dataStore"
@@ -360,7 +360,7 @@ export default function People() {
             return (
               <TableRow key={person.id}>
                 <TableCell>
-                  <div className="flex items-center gap-3 cursor-pointer hover:opacity-70 transition-opacity" onClick={() => navigate(`/labour/staff/${person.id}`)}>
+                  <div className="flex items-center gap-3 cursor-pointer hover:opacity-70 transition-opacity" onClick={() => navigate(`/workforce/people/${person.id}`)}>
                     <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-medium">
                       {getInitials(person.name)}
                     </div>
@@ -418,7 +418,7 @@ export default function People() {
                       <Button variant="ghost" size="icon" aria-label="More actions"><MoreVertical className="h-4 w-4" /></Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => navigate(`/labour/staff/${person.id}`)}>
+                      <DropdownMenuItem onClick={() => navigate(`/workforce/people/${person.id}`)}>
                         <FileText className="h-4 w-4 mr-2" /> View Profile
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => navigate('/workforce/roster')}>

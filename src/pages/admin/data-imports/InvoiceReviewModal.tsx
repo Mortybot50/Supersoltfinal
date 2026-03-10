@@ -21,7 +21,7 @@ import { Card } from '@/components/ui/card'
 import { Check, X, AlertTriangle, Plus, Package } from 'lucide-react'
 import { useInvoiceIntakeStore } from '@/stores/useInvoiceIntakeStore'
 import { format } from 'date-fns'
-import { formatCurrency } from '@/lib/currency'
+import { formatCurrency } from '@/lib/utils/formatters'
 
 export function InvoiceReviewModal() {
   const {
