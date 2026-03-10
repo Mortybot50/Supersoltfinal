@@ -54,12 +54,13 @@ import Timesheets from "./pages/labour/Timesheets"
 import LabourReports from "./pages/labour/Reports"
 import AvailabilityLeave from "./pages/labour/AvailabilityLeave"
 import People from "./pages/People"
+import StaffDetail from "./pages/labour/StaffDetail"
+import Qualifications from "./pages/labour/Qualifications"
 import PayrollExport from "./pages/labour/PayrollExport"
 import TimesheetsDaily from "./pages/labour/TimesheetsDaily"
 import TimesheetDetail from "./pages/labour/TimesheetDetail"
 
 // Onboarding
-import StaffDetail from "./pages/onboarding/StaffDetail"
 import InvitePortal from "./pages/onboarding/InvitePortal"
 import InviteStep from "./pages/onboarding/InviteStep"
 
@@ -149,6 +150,7 @@ const App = () => (
               <Route path="labour-reports" element={<Navigate to="/workforce/reports" replace />} />
               <Route path="workforce/people" element={<People />} />
               <Route path="workforce/people/:id" element={<StaffDetail />} />
+              <Route path="workforce/qualifications" element={<Qualifications />} />
               <Route path="workforce/availability" element={<AvailabilityLeave />} />
               <Route path="labour/availability" element={<Navigate to="/workforce/availability" replace />} />
               <Route path="workforce/payroll-export" element={<PayrollExport />} />
