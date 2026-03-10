@@ -1,8 +1,7 @@
 /**
  * RosterGrid — main grid container.
  * Renders role-grouped staff rows × date columns.
- * Commit 2: wrapped with DndContext — shifts drag between cells,
- *            staff cards drag from sidebar to create shifts.
+ * Supports: groupBy (role/employment_type/none), spotlightFilter, viewMode (staff/compact/stats).
  */
 
 import { useMemo } from 'react'
@@ -11,6 +10,7 @@ import { Staff, RosterShift } from '@/types'
 import { useRosterStore } from '@/stores/useRosterStore'
 import { RosterRow } from './RosterRow'
 import { RoleGroupHeader } from './RoleGroupHeader'
+import { DayView } from './DayView'
 
 import { format, isToday, isWeekend, isSameDay } from 'date-fns'
 import { getWeekDates, getFortnightDates } from '@/lib/utils/rosterCalculations'
@@ -18,6 +18,30 @@ import { cn } from '@/lib/utils'
 import { CoverageHeatmap } from './CoverageHeatmap'
 import { SalesForecastOverlay, PrepLoadBadge } from './SalesForecastOverlay'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { formatCurrency } from '@/lib/utils/formatters'
+
+/** Compute which shift IDs should be dimmed for the active spotlight filter. */
+function computeDimmedIds(
+  spotlightFilter: string | null,
+  shifts: RosterShift[],
+  weeklyHours: Record<string, number>,
+): Set<string> {
+  if (!spotlightFilter) return new Set()
+  return new Set(
+    shifts
+      .filter(shift => {
+        switch (spotlightFilter) {
+          case 'validation_errors': return !shift.warnings || shift.warnings.length === 0
+          case 'overtime': return (weeklyHours[shift.staff_id] || 0) <= 38
+          case 'open_vacant': return !shift.is_open_shift
+          case 'pending_acceptance': return shift.status !== 'confirmed'
+          case 'draft_only': return shift.status !== 'scheduled'
+          default: return false
+        }
+      })
+      .map(s => s.id)
+  )
+}
 
 interface RosterGridProps {
   onAddShift?: (date: Date, staffId: string) => void
@@ -35,9 +59,8 @@ export function RosterGrid({
     shifts, ghostShifts, staff,
     roleFilter, searchQuery,
     expandedRoles, toggleRole,
+    spotlightFilter, groupBy, viewMode,
   } = useRosterStore()
-
-
 
   const dates = useMemo(() => {
     if (view === 'fortnight') return getFortnightDates(selectedDate)
@@ -55,16 +78,6 @@ export function RosterGrid({
     return s
   }, [staff, roleFilter, searchQuery])
 
-  const roleGroups = useMemo(() => {
-    const groups: Record<string, Staff[]> = {}
-    filteredStaff.forEach(s => {
-      const r = s.role || 'crew'
-      if (!groups[r]) groups[r] = []
-      groups[r].push(s)
-    })
-    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))
-  }, [filteredStaff])
-
   const weeklyHours = useMemo(() => {
     const map: Record<string, number> = {}
     shifts
@@ -73,18 +86,48 @@ export function RosterGrid({
     return map
   }, [shifts])
 
-  // ── DnD handlers ──────────────────────────────────────────────────────────
+  const dimmedIds = useMemo(
+    () => computeDimmedIds(spotlightFilter, shifts, weeklyHours),
+    [spotlightFilter, shifts, weeklyHours],
+  )
 
+  // ── Grouping ───────────────────────────────────────────────────────────────
 
+  const roleGroups = useMemo((): [string, Staff[]][] => {
+    if (groupBy === 'none') {
+      const sorted = [...filteredStaff].sort((a, b) => a.name.localeCompare(b.name))
+      return [['__all__', sorted]]
+    }
+    const groups: Record<string, Staff[]> = {}
+    filteredStaff.forEach(s => {
+      const key = groupBy === 'employment_type'
+        ? (s.employment_type || 'casual')
+        : (s.role || 'crew')
+      if (!groups[key]) groups[key] = []
+      groups[key].push(s)
+    })
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))
+  }, [filteredStaff, groupBy])
 
   // ── Layout ────────────────────────────────────────────────────────────────
 
-  const compact = view === 'fortnight'
+  const compact = view === 'fortnight' || viewMode === 'compact'
   const colCount = dates.length
 
   const gridStyle = {
     display: 'grid',
     gridTemplateColumns: `180px repeat(${colCount}, minmax(${compact ? '60px' : '100px'}, 1fr))`,
+  }
+
+  // Render DayView for day mode
+  if (view === 'day') {
+    return (
+      <DayView
+        onAddShift={onAddShift}
+        onSelectShift={onSelectShift}
+        onDeleteShift={onDeleteShift}
+      />
+    )
   }
 
   return (
@@ -144,23 +187,26 @@ export function RosterGrid({
           })}
 
           {/* ── Role groups + rows ── */}
-          {roleGroups.map(([role, roleStaff]) => {
-            const isExpanded = expandedRoles.has(role)
-            const roleShifts = shifts.filter(s => roleStaff.some(m => m.id === s.staff_id))
+          {roleGroups.map(([groupKey, groupStaff]) => {
+            const isNoGrouping = groupKey === '__all__'
+            const isExpanded = isNoGrouping || expandedRoles.has(groupKey)
+            const groupShifts = shifts.filter(s => groupStaff.some(m => m.id === s.staff_id))
 
             return (
-              <div key={role} className="contents">
-                <div style={{ gridColumn: `1 / span ${colCount + 1}` }}>
-                  <RoleGroupHeader
-                    role={role}
-                    staffCount={roleStaff.length}
-                    shifts={roleShifts}
-                    isExpanded={isExpanded}
-                    onToggle={() => toggleRole(role)}
-                    colCount={colCount}
-                  />
-                </div>
-                {isExpanded && roleStaff.map(member => (
+              <div key={groupKey} className="contents">
+                {!isNoGrouping && (
+                  <div style={{ gridColumn: `1 / span ${colCount + 1}` }}>
+                    <RoleGroupHeader
+                      role={groupKey}
+                      staffCount={groupStaff.length}
+                      shifts={groupShifts}
+                      isExpanded={isExpanded}
+                      onToggle={() => toggleRole(groupKey)}
+                      colCount={colCount}
+                    />
+                  </div>
+                )}
+                {isExpanded && groupStaff.map(member => (
                   <RosterRow
                     key={member.id}
                     staff={member}
@@ -169,6 +215,8 @@ export function RosterGrid({
                     ghostShifts={ghostShifts.filter(s => s.staff_id === member.id)}
                     weeklyHours={weeklyHours[member.id] || 0}
                     compact={compact}
+                    viewMode={viewMode}
+                    dimmedIds={dimmedIds}
                     onAddShift={onAddShift}
                     onSelectShift={onSelectShift}
                     onDeleteShift={onDeleteShift}
@@ -209,7 +257,7 @@ export function RosterGrid({
                 <div className="text-xs font-medium tabular-nums">{hours.toFixed(1)}h</div>
                 {cost > 0 && (
                   <div className="text-[10px] text-gray-500 tabular-nums">
-                    ${(cost / 100).toFixed(0)}
+                    {formatCurrency(cost)}
                   </div>
                 )}
               </div>
