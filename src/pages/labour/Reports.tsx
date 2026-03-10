@@ -2,8 +2,7 @@ import { useState, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Select,
   SelectContent,
@@ -20,820 +19,1139 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
+  BarChart,
+  Bar,
+  ComposedChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+  Cell,
+} from "recharts"
+import {
   BarChart3,
   TrendingUp,
-  TrendingDown,
   Clock,
   DollarSign,
   Users,
   AlertTriangle,
-  Calendar,
   Download,
   ChevronLeft,
   ChevronRight,
-  FileSpreadsheet,
-  PieChart,
+  Percent,
+  Target,
 } from "lucide-react"
-import { useDataStore } from "@/lib/store/dataStore"
+import { useAuth } from "@/contexts/AuthContext"
 import {
-  getWeekStart,
-  getShiftsForWeek,
-  calculateWeeklyRosterMetrics,
-  detectOvertimeWarnings,
-  formatLabourCost,
-  formatHours,
-} from "@/lib/utils/rosterCalculations"
-import { format, addDays, subWeeks, startOfMonth, endOfMonth, eachWeekOfInterval, isSameWeek } from "date-fns"
-import { useNavigate } from "react-router-dom"
+  useLabourCostReport,
+  useLabourPercentReport,
+  useRosteredVsActualReport,
+  useOvertimeReport,
+  useUtilizationReport,
+} from "@/lib/hooks/useLabourReports"
+import { formatLabourCost } from "@/lib/utils/rosterCalculations"
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  subWeeks,
+  subMonths,
+  addDays,
+} from "date-fns"
 import { PageShell, PageToolbar } from "@/components/shared"
-import { StatCards } from "@/components/ui/StatCards"
-import { SecondaryStats } from "@/components/ui/SecondaryStats"
 
-type ReportPeriod = "week" | "month" | "quarter"
+// ============================================================
+// CONSTANTS & TYPES
+// ============================================================
+
+type ReportType = "labour-cost" | "labour-percent" | "rostered-vs-actual" | "overtime" | "utilization"
+type DatePreset = "this-week" | "last-week" | "this-month" | "last-month"
+
+const BRAND_TEAL = "#14b8a6"
+const CHART_ORANGE = "#f97316"
+const CHART_BLUE = "#3b82f6"
+const CHART_PURPLE = "#a855f7"
+const CHART_GREEN = "#22c55e"
+
+const TARGET_LABOUR_PCT = 30
+
+interface ReportDef {
+  id: ReportType
+  title: string
+  description: string
+  icon: React.ElementType
+  color: string
+}
+
+const REPORTS: ReportDef[] = [
+  {
+    id: "labour-cost",
+    title: "Hours & Cost",
+    description: "Ordinary vs penalty costs per day",
+    icon: DollarSign,
+    color: "text-teal-600",
+  },
+  {
+    id: "labour-percent",
+    title: "Labour %",
+    description: "Cost as % of revenue — the killer metric",
+    icon: Percent,
+    color: "text-blue-600",
+  },
+  {
+    id: "rostered-vs-actual",
+    title: "Rostered vs Actual",
+    description: "Scheduled hours vs time-clock hours",
+    icon: BarChart3,
+    color: "text-purple-600",
+  },
+  {
+    id: "overtime",
+    title: "Overtime",
+    description: "Staff who exceeded 38h/week (Fair Work)",
+    icon: AlertTriangle,
+    color: "text-orange-600",
+  },
+  {
+    id: "utilization",
+    title: "Utilization",
+    description: "Contracted vs rostered by staff member",
+    icon: Target,
+    color: "text-green-600",
+  },
+]
+
+// ============================================================
+// DATE HELPERS
+// ============================================================
+
+function getDateRange(preset: DatePreset): { from: Date; to: Date } {
+  const now = new Date()
+  switch (preset) {
+    case "this-week":
+      return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfWeek(now, { weekStartsOn: 1 }) }
+    case "last-week": {
+      const prev = subWeeks(now, 1)
+      return { from: startOfWeek(prev, { weekStartsOn: 1 }), to: endOfWeek(prev, { weekStartsOn: 1 }) }
+    }
+    case "this-month":
+      return { from: startOfMonth(now), to: endOfMonth(now) }
+    case "last-month": {
+      const prev = subMonths(now, 1)
+      return { from: startOfMonth(prev), to: endOfMonth(prev) }
+    }
+  }
+}
+
+function formatDateLabel(from: Date, to: Date): string {
+  return `${format(from, "d MMM")} – ${format(to, "d MMM yyyy")}`
+}
+
+// ============================================================
+// CSV EXPORT
+// ============================================================
+
+function downloadCSV(headers: string[], rows: (string | number)[][], filename: string) {
+  const escape = (v: string | number) => {
+    const s = String(v)
+    return s.includes(",") ? `"${s}"` : s
+  }
+  const content = [headers, ...rows].map(r => r.map(escape).join(",")).join("\n")
+  const blob = new Blob([content], { type: "text/csv" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// ============================================================
+// SKELETON LOADER
+// ============================================================
+
+function ReportSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 rounded-lg" />)}
+      </div>
+      <Skeleton className="h-64 rounded-lg" />
+      <Skeleton className="h-56 rounded-lg" />
+    </div>
+  )
+}
+
+// ============================================================
+// REPORT: LABOUR HOURS & COST
+// ============================================================
+
+function LabourCostReport({
+  venueId,
+  dateRange,
+  venueName,
+  rangeLabel,
+}: {
+  venueId: string
+  dateRange: { from: Date; to: Date }
+  venueName: string
+  rangeLabel: string
+}) {
+  const { data, isLoading } = useLabourCostReport(venueId, dateRange)
+
+  const chartData = data.days.map(d => ({
+    label: d.label,
+    "Base Pay": Math.round(d.baseCost / 100),
+    "Penalty": Math.round(d.penaltyCost / 100),
+    "Hours": Math.round(d.totalHours * 10) / 10,
+  }))
+
+  const handleExport = () => {
+    downloadCSV(
+      ["Period", "Total Hours", "Base Cost ($)", "Penalty Cost ($)", "Total Cost ($)"],
+      data.days.map(d => [
+        d.date,
+        d.totalHours.toFixed(2),
+        (d.baseCost / 100).toFixed(2),
+        (d.penaltyCost / 100).toFixed(2),
+        (d.totalCost / 100).toFixed(2),
+      ]),
+      `supersolt_labour-cost_${venueName}_${rangeLabel}.csv`
+    )
+  }
+
+  if (isLoading) return <ReportSkeleton />
+
+  return (
+    <div className="space-y-4">
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Total Hours</p>
+            <p className="text-2xl font-bold">{data.totalHours.toFixed(1)}h</p>
+            <p className="text-xs text-muted-foreground">{data.shiftCount} shifts</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Total Cost</p>
+            <p className="text-2xl font-bold">{formatLabourCost(data.totalCost)}</p>
+            <p className="text-xs text-muted-foreground">${data.avgHourlyRate.toFixed(2)}/hr avg</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Base Pay</p>
+            <p className="text-2xl font-bold text-teal-600">{formatLabourCost(data.baseCost)}</p>
+            <p className="text-xs text-muted-foreground">
+              {data.totalCost > 0 ? Math.round((data.baseCost / data.totalCost) * 100) : 0}% of total
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Penalty Loading</p>
+            <p className="text-2xl font-bold text-orange-600">{formatLabourCost(data.penaltyCost)}</p>
+            <p className="text-xs text-muted-foreground">
+              {data.totalCost > 0 ? Math.round((data.penaltyCost / data.totalCost) * 100) : 0}% of total
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Chart */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div>
+            <CardTitle>Daily Labour Cost</CardTitle>
+            <CardDescription>Base pay vs penalty loading per day</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-1" /> Export CSV
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {chartData.length === 0 ? (
+            <p className="text-center py-12 text-muted-foreground">No shifts in this period</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <ComposedChart data={chartData} margin={{ top: 4, right: 20, bottom: 4, left: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                <YAxis yAxisId="cost" tickFormatter={v => `$${v}`} tick={{ fontSize: 11 }} />
+                <YAxis yAxisId="hours" orientation="right" tickFormatter={v => `${v}h`} tick={{ fontSize: 11 }} />
+                <Tooltip
+                  formatter={(value, name) => {
+                    if (name === "Hours") return [`${value}h`, name]
+                    return [`$${Number(value).toFixed(2)}`, name]
+                  }}
+                />
+                <Legend />
+                <Bar yAxisId="cost" dataKey="Base Pay" stackId="cost" fill={BRAND_TEAL} />
+                <Bar yAxisId="cost" dataKey="Penalty" stackId="cost" fill={CHART_ORANGE} />
+                <Line yAxisId="hours" type="monotone" dataKey="Hours" stroke={CHART_BLUE} strokeWidth={2} dot={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Daily Breakdown</CardTitle>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead className="text-right">Total Hours</TableHead>
+                <TableHead className="text-right">Base Cost</TableHead>
+                <TableHead className="text-right">Penalty Cost</TableHead>
+                <TableHead className="text-right">Total Cost</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.days.filter(d => d.totalCost > 0 || d.totalHours > 0).length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    No shifts in this period
+                  </TableCell>
+                </TableRow>
+              ) : (
+                data.days
+                  .filter(d => d.totalCost > 0 || d.totalHours > 0)
+                  .map(d => (
+                    <TableRow key={d.date}>
+                      <TableCell className="font-medium">{format(new Date(d.date), "EEE d MMM")}</TableCell>
+                      <TableCell className="text-right">{d.totalHours.toFixed(1)}h</TableCell>
+                      <TableCell className="text-right">{formatLabourCost(d.baseCost)}</TableCell>
+                      <TableCell className="text-right text-orange-600">
+                        {d.penaltyCost > 0 ? formatLabourCost(d.penaltyCost) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">{formatLabourCost(d.totalCost)}</TableCell>
+                    </TableRow>
+                  ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ============================================================
+// REPORT: LABOUR % (COST / REVENUE)
+// ============================================================
+
+function LabourPercentReport({
+  venueId,
+  dateRange,
+  venueName,
+  rangeLabel,
+}: {
+  venueId: string
+  dateRange: { from: Date; to: Date }
+  venueName: string
+  rangeLabel: string
+}) {
+  const { data, isLoading } = useLabourPercentReport(venueId, dateRange)
+
+  const chartData = data.rows.map(d => ({
+    label: d.label,
+    "Revenue": Math.round(d.revenue / 100),
+    "Labour Cost": Math.round(d.labourCost / 100),
+    "Labour %": Math.round(d.labourPercent * 10) / 10,
+    "Target %": TARGET_LABOUR_PCT,
+  }))
+
+  const isOver = data.labourPercent > TARGET_LABOUR_PCT
+
+  const handleExport = () => {
+    downloadCSV(
+      ["Period", "Revenue ($)", "Labour Cost ($)", "Labour %", "Target %"],
+      data.rows.map(d => [
+        d.date,
+        (d.revenue / 100).toFixed(2),
+        (d.labourCost / 100).toFixed(2),
+        d.labourPercent.toFixed(1),
+        TARGET_LABOUR_PCT,
+      ]),
+      `supersolt_labour-percent_${venueName}_${rangeLabel}.csv`
+    )
+  }
+
+  if (isLoading) return <ReportSkeleton />
+
+  return (
+    <div className="space-y-4">
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Revenue</p>
+            <p className="text-2xl font-bold">{formatLabourCost(data.totalRevenue)}</p>
+            <p className="text-xs text-muted-foreground">net sales</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Labour Cost</p>
+            <p className="text-2xl font-bold">{formatLabourCost(data.totalLabourCost)}</p>
+            <p className="text-xs text-muted-foreground">total rostered cost</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Labour %</p>
+            <p className={`text-2xl font-bold ${isOver ? "text-red-600" : "text-green-600"}`}>
+              {data.hasRevenue ? `${data.labourPercent.toFixed(1)}%` : "—"}
+            </p>
+            <p className="text-xs text-muted-foreground">target {TARGET_LABOUR_PCT}%</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">vs Target</p>
+            <p className={`text-2xl font-bold ${isOver ? "text-red-600" : "text-green-600"}`}>
+              {data.hasRevenue
+                ? `${isOver ? "+" : ""}${(data.labourPercent - TARGET_LABOUR_PCT).toFixed(1)}%`
+                : "—"}
+            </p>
+            <p className="text-xs text-muted-foreground">{isOver ? "over target" : "within target"}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {!data.hasRevenue && (
+        <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+          <CardContent className="pt-4">
+            <p className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 shrink-0" />
+              No POS revenue data for this period. Connect a POS integration to unlock Labour % reporting.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Chart */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div>
+            <CardTitle>Revenue vs Labour Cost</CardTitle>
+            <CardDescription>
+              Bars = revenue & cost · Line = labour % · Dashed = {TARGET_LABOUR_PCT}% target
+            </CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-1" /> Export CSV
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {chartData.length === 0 ? (
+            <p className="text-center py-12 text-muted-foreground">No data in this period</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <ComposedChart data={chartData} margin={{ top: 4, right: 20, bottom: 4, left: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                <YAxis yAxisId="dollars" tickFormatter={v => `$${v}`} tick={{ fontSize: 11 }} />
+                <YAxis yAxisId="pct" orientation="right" tickFormatter={v => `${v}%`} tick={{ fontSize: 11 }} />
+                <Tooltip
+                  formatter={(value, name) => {
+                    if (name === "Labour %" || name === "Target %") return [`${value}%`, name]
+                    return [`$${Number(value).toFixed(2)}`, name]
+                  }}
+                />
+                <Legend />
+                <Bar yAxisId="dollars" dataKey="Revenue" fill={BRAND_TEAL} opacity={0.7} />
+                <Bar yAxisId="dollars" dataKey="Labour Cost" fill={CHART_BLUE} />
+                <Line yAxisId="pct" type="monotone" dataKey="Labour %" stroke={CHART_ORANGE} strokeWidth={2} dot={false} />
+                <Line yAxisId="pct" type="monotone" dataKey="Target %" stroke="#9ca3af" strokeDasharray="4 4" strokeWidth={1.5} dot={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Daily Labour %</CardTitle>
+          <CardDescription>Periods over target are highlighted</CardDescription>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead className="text-right">Revenue</TableHead>
+                <TableHead className="text-right">Labour Cost</TableHead>
+                <TableHead className="text-right">Labour %</TableHead>
+                <TableHead className="text-right">Target %</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.rows.filter(d => d.labourCost > 0 || d.revenue > 0).length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    No data in this period
+                  </TableCell>
+                </TableRow>
+              ) : (
+                data.rows
+                  .filter(d => d.labourCost > 0 || d.revenue > 0)
+                  .map(d => (
+                    <TableRow key={d.date} className={d.labourPercent > TARGET_LABOUR_PCT ? "bg-red-50/50 dark:bg-red-950/10" : ""}>
+                      <TableCell className="font-medium">{format(new Date(d.date), "EEE d MMM")}</TableCell>
+                      <TableCell className="text-right">{d.revenue > 0 ? formatLabourCost(d.revenue) : "—"}</TableCell>
+                      <TableCell className="text-right">{formatLabourCost(d.labourCost)}</TableCell>
+                      <TableCell className="text-right">
+                        {d.revenue > 0 ? (
+                          <span className={d.labourPercent > TARGET_LABOUR_PCT ? "text-red-600 font-semibold" : "text-green-600"}>
+                            {d.labourPercent.toFixed(1)}%
+                          </span>
+                        ) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">{TARGET_LABOUR_PCT}%</TableCell>
+                    </TableRow>
+                  ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ============================================================
+// REPORT: ROSTERED VS ACTUAL
+// ============================================================
+
+function RosteredVsActualReport({
+  venueId,
+  dateRange,
+  venueName,
+  rangeLabel,
+}: {
+  venueId: string
+  dateRange: { from: Date; to: Date }
+  venueName: string
+  rangeLabel: string
+}) {
+  const { data, isLoading } = useRosteredVsActualReport(venueId, dateRange)
+
+  const chartData = data.rows.slice(0, 15).map(r => ({
+    name: r.staffName.split(" ")[0],
+    "Rostered": r.rosteredHours,
+    "Actual": r.actualHours,
+  }))
+
+  const handleExport = () => {
+    downloadCSV(
+      ["Staff Name", "Rostered Hours", "Actual Hours", "Variance Hours", "Variance %"],
+      data.rows.map(r => [
+        r.staffName,
+        r.rosteredHours.toFixed(1),
+        r.actualHours.toFixed(1),
+        r.varianceHours.toFixed(1),
+        `${r.variancePct}%`,
+      ]),
+      `supersolt_rostered-vs-actual_${venueName}_${rangeLabel}.csv`
+    )
+  }
+
+  if (isLoading) return <ReportSkeleton />
+
+  return (
+    <div className="space-y-4">
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Total Rostered</p>
+            <p className="text-2xl font-bold">{data.totalRostered.toFixed(1)}h</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Total Actual</p>
+            <p className="text-2xl font-bold">{data.hasActual ? `${data.totalActual.toFixed(1)}h` : "—"}</p>
+            {!data.hasActual && <p className="text-xs text-muted-foreground">awaiting clock-in data</p>}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Variance</p>
+            <p className={`text-2xl font-bold ${data.totalActual > data.totalRostered ? "text-red-600" : "text-green-600"}`}>
+              {data.hasActual
+                ? `${data.totalActual >= data.totalRostered ? "+" : ""}${(data.totalActual - data.totalRostered).toFixed(1)}h`
+                : "—"}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {!data.hasActual && (
+        <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+          <CardContent className="pt-4">
+            <p className="text-sm text-blue-700 dark:text-blue-400 flex items-center gap-2">
+              <Clock className="h-4 w-4 shrink-0" />
+              Showing rostered hours only. Actual hours will populate once time tracking (clock-in) is live.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Chart */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div>
+            <CardTitle>Rostered vs Actual by Staff</CardTitle>
+            <CardDescription>Grouped bar per staff member (top 15 by rostered hours)</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-1" /> Export CSV
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {chartData.length === 0 ? (
+            <p className="text-center py-12 text-muted-foreground">No shifts in this period</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={chartData} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis tickFormatter={v => `${v}h`} tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v) => [`${v}h`]} />
+                <Legend />
+                <Bar dataKey="Rostered" fill={BRAND_TEAL} />
+                <Bar dataKey="Actual" fill={CHART_PURPLE} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Per-Staff Breakdown</CardTitle>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Staff Name</TableHead>
+                <TableHead className="text-right">Rostered</TableHead>
+                <TableHead className="text-right">Actual</TableHead>
+                <TableHead className="text-right">Variance (h)</TableHead>
+                <TableHead className="text-right">Variance %</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.rows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    No shifts in this period
+                  </TableCell>
+                </TableRow>
+              ) : (
+                data.rows.map(r => (
+                  <TableRow key={r.staffId}>
+                    <TableCell className="font-medium">{r.staffName}</TableCell>
+                    <TableCell className="text-right">{r.rosteredHours.toFixed(1)}h</TableCell>
+                    <TableCell className="text-right">{r.actualHours > 0 ? `${r.actualHours.toFixed(1)}h` : "—"}</TableCell>
+                    <TableCell className="text-right">
+                      {r.actualHours > 0 ? (
+                        <span className={Math.abs(r.varianceHours) <= 1 ? "text-green-600" : Math.abs(r.varianceHours) <= 3 ? "text-amber-600" : "text-red-600"}>
+                          {r.varianceHours >= 0 ? "+" : ""}{r.varianceHours.toFixed(1)}h
+                        </span>
+                      ) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {r.actualHours > 0 ? (
+                        <span className={Math.abs(r.variancePct) <= 5 ? "text-green-600" : "text-amber-600"}>
+                          {r.variancePct >= 0 ? "+" : ""}{r.variancePct}%
+                        </span>
+                      ) : "—"}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ============================================================
+// REPORT: OVERTIME
+// ============================================================
+
+function OvertimeReport({
+  venueId,
+  dateRange,
+  venueName,
+  rangeLabel,
+}: {
+  venueId: string
+  dateRange: { from: Date; to: Date }
+  venueName: string
+  rangeLabel: string
+}) {
+  const { data, isLoading } = useOvertimeReport(venueId, dateRange)
+
+  const chartData = data.rows.map(r => ({
+    name: r.staffName.split(" ")[0],
+    "Regular": r.regularHours,
+    "Overtime": r.otHours,
+  }))
+
+  const handleExport = () => {
+    downloadCSV(
+      ["Staff Name", "Regular Hours", "OT Hours", "OT Cost ($)", "OT Trigger"],
+      data.rows.map(r => [
+        r.staffName,
+        r.regularHours.toFixed(1),
+        r.otHours.toFixed(1),
+        (r.otCost / 100).toFixed(2),
+        r.otTrigger,
+      ]),
+      `supersolt_overtime_${venueName}_${rangeLabel}.csv`
+    )
+  }
+
+  if (isLoading) return <ReportSkeleton />
+
+  return (
+    <div className="space-y-4">
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Staff with OT</p>
+            <p className="text-2xl font-bold">{data.rows.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Total OT Hours</p>
+            <p className="text-2xl font-bold text-orange-600">{data.totalOtHours.toFixed(1)}h</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Est. OT Cost</p>
+            <p className="text-2xl font-bold text-orange-600">{formatLabourCost(data.totalOtCost)}</p>
+            <p className="text-xs text-muted-foreground">above threshold</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {data.rows.length === 0 && (
+        <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
+          <CardContent className="pt-4">
+            <p className="text-sm text-green-700 dark:text-green-400 flex items-center gap-2">
+              <Users className="h-4 w-4 shrink-0" />
+              No staff exceeded 38h/week in this period. Great roster management!
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Chart */}
+      {chartData.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div>
+              <CardTitle>Overtime by Staff</CardTitle>
+              <CardDescription>Regular hours (≤38h/week) vs overtime hours</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <Download className="h-4 w-4 mr-1" /> Export CSV
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={chartData} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis tickFormatter={v => `${v}h`} tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v) => [`${v}h`]} />
+                <Legend />
+                <Bar dataKey="Regular" stackId="a" fill={BRAND_TEAL} />
+                <Bar dataKey="Overtime" stackId="a" fill={CHART_ORANGE} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Table */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle>Overtime Detail</CardTitle>
+          {data.rows.length > 0 && chartData.length === 0 && (
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <Download className="h-4 w-4 mr-1" /> Export CSV
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Staff Name</TableHead>
+                <TableHead className="text-right">Regular Hours</TableHead>
+                <TableHead className="text-right">OT Hours</TableHead>
+                <TableHead className="text-right">Est. OT Cost</TableHead>
+                <TableHead>OT Trigger</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.rows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    No overtime in this period
+                  </TableCell>
+                </TableRow>
+              ) : (
+                data.rows.map(r => (
+                  <TableRow key={r.staffId}>
+                    <TableCell className="font-medium">{r.staffName}</TableCell>
+                    <TableCell className="text-right">{r.regularHours.toFixed(1)}h</TableCell>
+                    <TableCell className="text-right">
+                      <span className="text-orange-600 font-semibold">{r.otHours.toFixed(1)}h</span>
+                    </TableCell>
+                    <TableCell className="text-right text-orange-600">{formatLabourCost(r.otCost)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-orange-600 border-orange-300 text-xs">
+                        {r.otTrigger}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ============================================================
+// REPORT: STAFF UTILIZATION
+// ============================================================
+
+const FLAG_COLORS: Record<string, string> = {
+  under: "#f97316",
+  over: "#ef4444",
+  ok: "#14b8a6",
+  casual: "#94a3b8",
+}
+
+function UtilizationReport({
+  venueId,
+  dateRange,
+  venueName,
+  rangeLabel,
+}: {
+  venueId: string
+  dateRange: { from: Date; to: Date }
+  venueName: string
+  rangeLabel: string
+}) {
+  const { data, isLoading } = useUtilizationReport(venueId, dateRange)
+
+  const chartData = data.rows
+    .filter(r => r.flag !== "casual")
+    .slice(0, 15)
+    .map(r => ({
+      name: r.staffName.split(" ")[0],
+      "Utilization %": r.utilizationPct,
+      flag: r.flag,
+    }))
+
+  const handleExport = () => {
+    downloadCSV(
+      ["Staff Name", "Employment Type", "Contracted Hours", "Rostered Hours", "Utilization %"],
+      data.rows.map(r => [
+        r.staffName,
+        r.employmentType,
+        r.contractedHours.toFixed(1),
+        r.rosteredHours.toFixed(1),
+        r.flag === "casual" ? "N/A" : `${r.utilizationPct}%`,
+      ]),
+      `supersolt_utilization_${venueName}_${rangeLabel}.csv`
+    )
+  }
+
+  const underCount = data.rows.filter(r => r.flag === "under").length
+  const overCount = data.rows.filter(r => r.flag === "over").length
+
+  if (isLoading) return <ReportSkeleton />
+
+  return (
+    <div className="space-y-4">
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Avg Utilization</p>
+            <p className="text-2xl font-bold">{data.avgUtilization}%</p>
+            <p className="text-xs text-muted-foreground">salaried & part-time</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Staff Rostered</p>
+            <p className="text-2xl font-bold">{data.rows.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Under-utilized</p>
+            <p className="text-2xl font-bold text-orange-600">{underCount}</p>
+            <p className="text-xs text-muted-foreground">&lt;70% contracted</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-xs text-muted-foreground">Over-utilized</p>
+            <p className="text-2xl font-bold text-red-600">{overCount}</p>
+            <p className="text-xs text-muted-foreground">&gt;100% contracted</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Chart — horizontal bar */}
+      {chartData.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div>
+              <CardTitle>Utilization % by Staff</CardTitle>
+              <CardDescription>Sorted by utilization · Orange = under · Red = over · Teal = OK</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <Download className="h-4 w-4 mr-1" /> Export CSV
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={Math.max(180, chartData.length * 32)}>
+              <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 40, bottom: 4, left: 60 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                <XAxis type="number" tickFormatter={v => `${v}%`} tick={{ fontSize: 11 }} domain={[0, 120]} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={55} />
+                <Tooltip formatter={(v) => [`${v}%`, "Utilization"]} />
+                <Bar dataKey="Utilization %" radius={[0, 3, 3, 0]}>
+                  {chartData.map((entry, i) => (
+                    <Cell key={i} fill={FLAG_COLORS[entry.flag] || BRAND_TEAL} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Table */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle>Per-Staff Utilization</CardTitle>
+          {chartData.length === 0 && (
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <Download className="h-4 w-4 mr-1" /> Export CSV
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Staff Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead className="text-right">Contracted</TableHead>
+                <TableHead className="text-right">Rostered</TableHead>
+                <TableHead className="text-right">Utilization</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.rows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    No staff data in this period
+                  </TableCell>
+                </TableRow>
+              ) : (
+                data.rows.map(r => (
+                  <TableRow key={r.staffId}>
+                    <TableCell className="font-medium">{r.staffName}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize text-xs">{r.employmentType}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">{r.contractedHours > 0 ? `${r.contractedHours.toFixed(1)}h` : "—"}</TableCell>
+                    <TableCell className="text-right">{r.rosteredHours.toFixed(1)}h</TableCell>
+                    <TableCell className="text-right font-semibold">
+                      {r.flag === "casual" ? "—" : `${r.utilizationPct}%`}
+                    </TableCell>
+                    <TableCell>
+                      {r.flag === "casual" ? (
+                        <Badge variant="secondary" className="text-xs">Casual</Badge>
+                      ) : r.flag === "under" ? (
+                        <Badge variant="outline" className="text-orange-600 border-orange-300 text-xs">Under</Badge>
+                      ) : r.flag === "over" ? (
+                        <Badge variant="outline" className="text-red-600 border-red-300 text-xs">Over</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-teal-600 border-teal-300 text-xs">OK</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ============================================================
+// MAIN PAGE
+// ============================================================
 
 export default function LabourReports() {
-  const navigate = useNavigate()
-  const { staff, rosterShifts, timesheets, laborBudgets } = useDataStore()
+  const { currentVenue, venues } = useAuth()
 
-  const [period, setPeriod] = useState<ReportPeriod>("week")
-  const [currentDate, setCurrentDate] = useState(() => subWeeks(new Date(), 1))
+  const [selectedReport, setSelectedReport] = useState<ReportType>("labour-cost")
+  const [preset, setPreset] = useState<DatePreset>("last-week")
+  const [selectedVenueId, setSelectedVenueId] = useState<string>(currentVenue?.id ?? "")
 
-  const activeStaff = staff.filter((s) => s.status === "active")
+  const dateRange = useMemo(() => getDateRange(preset), [preset])
+  const rangeLabel = useMemo(
+    () => `${format(dateRange.from, "yyyy-MM-dd")}_${format(dateRange.to, "yyyy-MM-dd")}`,
+    [dateRange]
+  )
+  const venueName = useMemo(
+    () => (venues.find(v => v.id === selectedVenueId)?.name ?? "venue").replace(/\s+/g, "-").toLowerCase(),
+    [venues, selectedVenueId]
+  )
 
-  // Get current period dates
-  const periodDates = useMemo(() => {
-    if (period === "week") {
-      const start = getWeekStart(currentDate)
-      return { start, end: addDays(start, 6) }
-    } else if (period === "month") {
-      return { start: startOfMonth(currentDate), end: endOfMonth(currentDate) }
-    } else {
-      // Quarter
-      const quarterStart = new Date(currentDate.getFullYear(), Math.floor(currentDate.getMonth() / 3) * 3, 1)
-      const quarterEnd = new Date(currentDate.getFullYear(), Math.floor(currentDate.getMonth() / 3) * 3 + 3, 0)
-      return { start: quarterStart, end: quarterEnd }
-    }
-  }, [currentDate, period])
-
-  // Get shifts for period
-  const periodShifts = useMemo(() => {
-    return rosterShifts.filter((s) => {
-      const shiftDate = new Date(s.date)
-      return shiftDate >= periodDates.start && shiftDate <= periodDates.end && s.status !== "cancelled"
-    })
-  }, [rosterShifts, periodDates])
-
-  // Calculate overall metrics
-  const metrics = useMemo(() => {
-    const totalHours = periodShifts.reduce((sum, s) => sum + s.total_hours, 0)
-    const totalCost = periodShifts.reduce((sum, s) => sum + s.total_cost, 0)
-    const baseCost = periodShifts.reduce((sum, s) => sum + (s.base_cost || 0), 0)
-    const penaltyCost = periodShifts.reduce((sum, s) => sum + (s.penalty_cost || 0), 0)
-    const avgHourlyRate = totalHours > 0 ? totalCost / totalHours / 100 : 0
-    const staffCount = new Set(periodShifts.map((s) => s.staff_id)).size
-
-    return { totalHours, totalCost, baseCost, penaltyCost, avgHourlyRate, staffCount, shiftCount: periodShifts.length }
-  }, [periodShifts])
-
-  // Get approved timesheets for period
-  const approvedTimesheets = useMemo(() => {
-    return timesheets.filter((t) => {
-      const date = new Date(t.date)
-      return date >= periodDates.start && date <= periodDates.end && t.status === "approved"
-    })
-  }, [timesheets, periodDates])
-
-  const timesheetMetrics = useMemo(() => {
-    const totalHours = approvedTimesheets.reduce((sum, t) => sum + t.total_hours, 0)
-    const totalPay = approvedTimesheets.reduce((sum, t) => sum + t.gross_pay, 0)
-    return { totalHours, totalPay }
-  }, [approvedTimesheets])
-
-  // Staff breakdown
-  const staffBreakdown = useMemo(() => {
-    const breakdown = activeStaff.map((s) => {
-      const staffShifts = periodShifts.filter((shift) => shift.staff_id === s.id)
-      const hours = staffShifts.reduce((sum, shift) => sum + shift.total_hours, 0)
-      const cost = staffShifts.reduce((sum, shift) => sum + shift.total_cost, 0)
-      const penaltyCost = staffShifts.reduce((sum, shift) => sum + (shift.penalty_cost || 0), 0)
-      return {
-        id: s.id,
-        name: s.name,
-        role: s.role,
-        shiftCount: staffShifts.length,
-        hours,
-        cost,
-        penaltyCost,
-        avgRate: hours > 0 ? cost / hours / 100 : 0,
-      }
-    }).filter((s) => s.shiftCount > 0)
-      .sort((a, b) => b.hours - a.hours)
-
-    return breakdown
-  }, [activeStaff, periodShifts])
-
-  // Day breakdown
-  const dayBreakdown = useMemo(() => {
-    const days: Record<string, { date: Date; hours: number; cost: number; shifts: number }> = {}
-
-    periodShifts.forEach((shift) => {
-      const dateKey = new Date(shift.date).toISOString().split("T")[0]
-      if (!days[dateKey]) {
-        days[dateKey] = { date: new Date(shift.date), hours: 0, cost: 0, shifts: 0 }
-      }
-      days[dateKey].hours += shift.total_hours
-      days[dateKey].cost += shift.total_cost
-      days[dateKey].shifts += 1
-    })
-
-    return Object.values(days).sort((a, b) => a.date.getTime() - b.date.getTime())
-  }, [periodShifts])
-
-  // Weekly trend (for month/quarter view)
-  const weeklyTrend = useMemo(() => {
-    if (period === "week") return []
-
-    const weeks = eachWeekOfInterval({ start: periodDates.start, end: periodDates.end }, { weekStartsOn: 1 })
-
-    return weeks.map((weekStart) => {
-      const weekShifts = periodShifts.filter((s) => isSameWeek(new Date(s.date), weekStart, { weekStartsOn: 1 }))
-      const hours = weekShifts.reduce((sum, s) => sum + s.total_hours, 0)
-      const cost = weekShifts.reduce((sum, s) => sum + s.total_cost, 0)
-      return { weekStart, hours, cost, shiftCount: weekShifts.length }
-    })
-  }, [period, periodDates, periodShifts])
-
-  // Penalty rate breakdown — all types
-  const penaltyBreakdown = useMemo(() => {
-    const breakdown: Record<string, { count: number; hours: number; cost: number }> = {
-      none: { count: 0, hours: 0, cost: 0 },
-      evening: { count: 0, hours: 0, cost: 0 },
-      late_night: { count: 0, hours: 0, cost: 0 },
-      early_morning: { count: 0, hours: 0, cost: 0 },
-      saturday: { count: 0, hours: 0, cost: 0 },
-      sunday: { count: 0, hours: 0, cost: 0 },
-      public_holiday: { count: 0, hours: 0, cost: 0 },
-    }
-
-    periodShifts.forEach((s) => {
-      const type = s.penalty_type || "none"
-      if (!breakdown[type]) {
-        breakdown[type] = { count: 0, hours: 0, cost: 0 }
-      }
-      breakdown[type].count += 1
-      breakdown[type].hours += s.total_hours
-      breakdown[type].cost += s.penalty_cost || 0
-    })
-
-    return breakdown
-  }, [periodShifts])
-
-  // Rostered vs actual overtime per staff
-  const overtimeComparison = useMemo(() => {
-    return activeStaff.map((s) => {
-      // Rostered hours
-      const staffShifts = periodShifts.filter((shift) => shift.staff_id === s.id)
-      const rosteredHours = staffShifts.reduce((sum, shift) => sum + shift.total_hours, 0)
-      const rosteredCost = staffShifts.reduce((sum, shift) => sum + shift.total_cost, 0)
-
-      // Actual hours (approved timesheets)
-      const staffTimesheets = approvedTimesheets.filter((t) => t.staff_id === s.id)
-      const actualHours = staffTimesheets.reduce((sum, t) => sum + t.total_hours, 0)
-      const actualPay = staffTimesheets.reduce((sum, t) => sum + t.gross_pay, 0)
-
-      const variance = actualHours - rosteredHours
-      const overtimeRostered = Math.max(0, rosteredHours - 38)
-      const overtimeActual = Math.max(0, actualHours - 38)
-
-      return {
-        id: s.id,
-        name: s.name,
-        role: s.role,
-        rosteredHours,
-        actualHours,
-        variance,
-        rosteredCost,
-        actualPay,
-        overtimeRostered,
-        overtimeActual,
-        overtimeVariance: overtimeActual - overtimeRostered,
-      }
-    })
-      .filter((s) => s.rosteredHours > 0 || s.actualHours > 0)
-      .sort((a, b) => b.variance - a.variance)
-  }, [activeStaff, periodShifts, approvedTimesheets])
-
-  // Navigation
-  const goToPrevious = () => {
-    if (period === "week") {
-      setCurrentDate((d) => addDays(d, -7))
-    } else if (period === "month") {
-      setCurrentDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))
-    } else {
-      setCurrentDate((d) => new Date(d.getFullYear(), d.getMonth() - 3, 1))
-    }
-  }
-
-  const goToNext = () => {
-    if (period === "week") {
-      setCurrentDate((d) => addDays(d, 7))
-    } else if (period === "month") {
-      setCurrentDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))
-    } else {
-      setCurrentDate((d) => new Date(d.getFullYear(), d.getMonth() + 3, 1))
-    }
-  }
-
-  const exportToCSV = () => {
-    const headers = ["Staff Name", "Role", "Shifts", "Hours", "Base Cost", "Penalty Cost", "Total Cost", "Avg Rate"]
-    const rows = staffBreakdown.map((s) => [
-      s.name,
-      s.role,
-      s.shiftCount,
-      s.hours.toFixed(2),
-      (s.cost - s.penaltyCost) / 100,
-      s.penaltyCost / 100,
-      s.cost / 100,
-      s.avgRate.toFixed(2),
-    ])
-
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((r) => r.join(",")),
-    ].join("\n")
-
-    const blob = new Blob([csvContent], { type: "text/csv" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `labour-report-${format(periodDates.start, "yyyy-MM-dd")}.csv`
-    a.click()
-  }
+  const presetOptions: { value: DatePreset; label: string }[] = [
+    { value: "this-week", label: "This week" },
+    { value: "last-week", label: "Last week" },
+    { value: "this-month", label: "This month" },
+    { value: "last-month", label: "Last month" },
+  ]
 
   const toolbar = (
     <PageToolbar
       title="Labour Reports"
       filters={
-        <Select value={period} onValueChange={(v) => setPeriod(v as ReportPeriod)}>
-          <SelectTrigger className="h-8 w-[130px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="week">Weekly</SelectItem>
-            <SelectItem value="month">Monthly</SelectItem>
-            <SelectItem value="quarter">Quarterly</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          {venues.length > 1 && (
+            <Select value={selectedVenueId} onValueChange={setSelectedVenueId}>
+              <SelectTrigger className="h-8 w-[140px]">
+                <SelectValue placeholder="Venue" />
+              </SelectTrigger>
+              <SelectContent>
+                {venues.map(v => (
+                  <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Select value={preset} onValueChange={v => setPreset(v as DatePreset)}>
+            <SelectTrigger className="h-8 w-[130px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {presetOptions.map(o => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       }
       dateNavigation={{
-        label: `${format(periodDates.start, "d MMM")} - ${format(periodDates.end, "d MMM yyyy")}`,
-        onBack: goToPrevious,
-        onForward: goToNext,
-      }}
-      primaryAction={{
-        label: "Export CSV",
-        icon: Download,
-        onClick: exportToCSV,
-        variant: "export",
+        label: formatDateLabel(dateRange.from, dateRange.to),
+        onBack: () => {},
+        onForward: () => {},
       }}
     />
   )
 
+  const reportProps = {
+    venueId: selectedVenueId,
+    dateRange,
+    venueName,
+    rangeLabel,
+  }
+
   return (
     <PageShell toolbar={toolbar}>
-      <div className="px-4 pt-4 space-y-3">
-        <StatCards stats={[
-          { label: "Total Hours", value: formatHours(metrics.totalHours) },
-          { label: "Total Cost", value: formatLabourCost(metrics.totalCost) },
-          { label: "Staff", value: metrics.staffCount },
-        ]} columns={3} />
-        <SecondaryStats stats={[
-          { label: "Penalty Cost", value: formatLabourCost(metrics.penaltyCost) },
-          { label: "Avg Rate", value: `$${metrics.avgHourlyRate.toFixed(2)}/hr` },
-        ]} />
-      </div>
       <div className="p-4 md:p-6 space-y-6">
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Hours
-            </CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatHours(metrics.totalHours)}</div>
-            <p className="text-xs text-muted-foreground">
-              {metrics.shiftCount} shifts
-            </p>
-          </CardContent>
-        </Card>
+        {/* Report selector tiles */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {REPORTS.map(report => {
+            const Icon = report.icon
+            const isActive = selectedReport === report.id
+            return (
+              <button
+                key={report.id}
+                onClick={() => setSelectedReport(report.id)}
+                className={`
+                  text-left p-4 rounded-lg border transition-all duration-150 cursor-pointer
+                  ${isActive
+                    ? "border-teal-500 bg-teal-50 dark:bg-teal-950/30 shadow-sm"
+                    : "border-border bg-card hover:border-teal-300 hover:bg-teal-50/40 dark:hover:bg-teal-950/10"
+                  }
+                `}
+              >
+                <Icon className={`h-5 w-5 mb-2 ${isActive ? "text-teal-600" : report.color}`} />
+                <p className={`text-sm font-semibold leading-tight ${isActive ? "text-teal-700 dark:text-teal-400" : ""}`}>
+                  {report.title}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-tight line-clamp-2">
+                  {report.description}
+                </p>
+              </button>
+            )
+          })}
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Labor Cost
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatLabourCost(metrics.totalCost)}</div>
-            <p className="text-xs text-muted-foreground">
-              ${metrics.avgHourlyRate.toFixed(2)}/hr avg
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Penalty Costs
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{formatLabourCost(metrics.penaltyCost)}</div>
-            <p className="text-xs text-muted-foreground">
-              {metrics.totalCost > 0 ? ((metrics.penaltyCost / metrics.totalCost) * 100).toFixed(1) : 0}% of total
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Staff Rostered
-            </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.staffCount}</div>
-            <p className="text-xs text-muted-foreground">
-              of {activeStaff.length} active staff
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Main Content Tabs */}
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">
-            <BarChart3 className="h-4 w-4 mr-2" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="staff">
-            <Users className="h-4 w-4 mr-2" />
-            By Staff
-          </TabsTrigger>
-          <TabsTrigger value="penalties">
-            <DollarSign className="h-4 w-4 mr-2" />
-            Penalty Rates
-          </TabsTrigger>
-          <TabsTrigger value="timesheets">
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            Timesheets
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Daily Breakdown */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Daily Breakdown</CardTitle>
-                <CardDescription>Hours and cost by day</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {dayBreakdown.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">No shifts in this period</p>
-                  ) : (
-                    dayBreakdown.map((day) => (
-                      <div key={day.date.toISOString()} className="flex items-center gap-4">
-                        <div className="w-20 text-sm font-medium">
-                          {format(day.date, "EEE d")}
-                        </div>
-                        <div className="flex-1">
-                          <Progress value={(day.hours / Math.max(...dayBreakdown.map(d => d.hours))) * 100} className="h-2" />
-                        </div>
-                        <div className="w-16 text-right text-sm">{day.hours.toFixed(1)}h</div>
-                        <div className="w-20 text-right text-sm text-muted-foreground">
-                          {formatLabourCost(day.cost)}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Weekly Trend (if month/quarter) */}
-            {period !== "week" && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Weekly Trend</CardTitle>
-                  <CardDescription>Cost trend over time</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {weeklyTrend.map((week, i) => (
-                      <div key={i} className="flex items-center gap-4">
-                        <div className="w-24 text-sm font-medium">
-                          Week {format(week.weekStart, "d MMM")}
-                        </div>
-                        <div className="flex-1">
-                          <Progress
-                            value={weeklyTrend.length > 0 ? (week.cost / Math.max(...weeklyTrend.map(w => w.cost))) * 100 : 0}
-                            className="h-2"
-                          />
-                        </div>
-                        <div className="w-20 text-right text-sm">
-                          {formatLabourCost(week.cost)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Cost Breakdown */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Cost Breakdown</CardTitle>
-                <CardDescription>Base vs penalty costs</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Base Pay</span>
-                      <span className="font-medium">{formatLabourCost(metrics.baseCost)}</span>
-                    </div>
-                    <Progress value={metrics.totalCost > 0 ? (metrics.baseCost / metrics.totalCost) * 100 : 0} className="h-3 bg-blue-100" />
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Penalty Loading</span>
-                      <span className="font-medium text-orange-600">{formatLabourCost(metrics.penaltyCost)}</span>
-                    </div>
-                    <Progress value={metrics.totalCost > 0 ? (metrics.penaltyCost / metrics.totalCost) * 100 : 0} className="h-3 bg-orange-100" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Staff Tab */}
-        <TabsContent value="staff">
+        {/* Active report */}
+        {!selectedVenueId ? (
           <Card>
-            <CardHeader>
-              <CardTitle>Staff Performance</CardTitle>
-              <CardDescription>Hours and costs by staff member</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Staff Member</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead className="text-right">Shifts</TableHead>
-                    <TableHead className="text-right">Hours</TableHead>
-                    <TableHead className="text-right">Base Cost</TableHead>
-                    <TableHead className="text-right">Penalty</TableHead>
-                    <TableHead className="text-right">Total Cost</TableHead>
-                    <TableHead className="text-right">Avg Rate</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {staffBreakdown.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                        No shifts in this period
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    staffBreakdown.map((s) => (
-                      <TableRow key={s.id}>
-                        <TableCell className="font-medium cursor-pointer hover:text-teal-600 transition-colors" onClick={() => navigate(`/workforce/people/${s.id}`)}>{s.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="capitalize">{s.role}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">{s.shiftCount}</TableCell>
-                        <TableCell className="text-right">{s.hours.toFixed(1)}h</TableCell>
-                        <TableCell className="text-right">{formatLabourCost(s.cost - s.penaltyCost)}</TableCell>
-                        <TableCell className="text-right text-orange-600">
-                          {s.penaltyCost > 0 ? formatLabourCost(s.penaltyCost) : "—"}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">{formatLabourCost(s.cost)}</TableCell>
-                        <TableCell className="text-right">${s.avgRate.toFixed(2)}/hr</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              Select a venue to view reports.
             </CardContent>
           </Card>
-        </TabsContent>
+        ) : (
+          <>
+            {selectedReport === "labour-cost" && <LabourCostReport {...reportProps} />}
+            {selectedReport === "labour-percent" && <LabourPercentReport {...reportProps} />}
+            {selectedReport === "rostered-vs-actual" && <RosteredVsActualReport {...reportProps} />}
+            {selectedReport === "overtime" && <OvertimeReport {...reportProps} />}
+            {selectedReport === "utilization" && <UtilizationReport {...reportProps} />}
+          </>
+        )}
 
-        {/* Penalty Rates Tab */}
-        <TabsContent value="penalties">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Penalty Rate Breakdown</CardTitle>
-                <CardDescription>Costs by penalty type (AU Hospitality Award)</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div>
-                      <div className="font-medium">Regular Hours</div>
-                      <div className="text-sm text-muted-foreground">{penaltyBreakdown.none.count} shifts · {penaltyBreakdown.none.hours.toFixed(1)}h</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-medium">{formatLabourCost(metrics.baseCost)}</div>
-                      <div className="text-xs text-muted-foreground">100% base</div>
-                    </div>
-                  </div>
-
-                  {penaltyBreakdown.evening.count > 0 && (
-                    <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
-                      <div>
-                        <div className="font-medium text-blue-700 dark:text-blue-400">Evening (7pm-12am)</div>
-                        <div className="text-sm text-muted-foreground">{penaltyBreakdown.evening.count} shifts · {penaltyBreakdown.evening.hours.toFixed(1)}h</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-medium text-blue-600">+{formatLabourCost(penaltyBreakdown.evening.cost)}</div>
-                        <div className="text-xs text-blue-600">115% loading</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {penaltyBreakdown.late_night.count > 0 && (
-                    <div className="flex items-center justify-between p-3 bg-brand-50 dark:bg-brand/10 rounded-lg">
-                      <div>
-                        <div className="font-medium text-brand-800 dark:text-brand-400">Late Night (12am-6am)</div>
-                        <div className="text-sm text-muted-foreground">{penaltyBreakdown.late_night.count} shifts · {penaltyBreakdown.late_night.hours.toFixed(1)}h</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-medium text-brand-700">+{formatLabourCost(penaltyBreakdown.late_night.cost)}</div>
-                        <div className="text-xs text-brand-700">125% loading</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {penaltyBreakdown.early_morning.count > 0 && (
-                    <div className="flex items-center justify-between p-3 bg-sky-50 dark:bg-sky-950/30 rounded-lg">
-                      <div>
-                        <div className="font-medium text-sky-700 dark:text-sky-400">Early Morning (before 7am)</div>
-                        <div className="text-sm text-muted-foreground">{penaltyBreakdown.early_morning.count} shifts · {penaltyBreakdown.early_morning.hours.toFixed(1)}h</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-medium text-sky-600">+{formatLabourCost(penaltyBreakdown.early_morning.cost)}</div>
-                        <div className="text-xs text-sky-600">115% loading</div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg">
-                    <div>
-                      <div className="font-medium text-orange-700 dark:text-orange-400">Saturday</div>
-                      <div className="text-sm text-muted-foreground">{penaltyBreakdown.saturday.count} shifts · {penaltyBreakdown.saturday.hours.toFixed(1)}h</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-medium text-orange-600">+{formatLabourCost(penaltyBreakdown.saturday.cost)}</div>
-                      <div className="text-xs text-orange-600">125% loading</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                    <div>
-                      <div className="font-medium text-orange-800 dark:text-orange-300">Sunday</div>
-                      <div className="text-sm text-muted-foreground">{penaltyBreakdown.sunday.count} shifts · {penaltyBreakdown.sunday.hours.toFixed(1)}h</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-medium text-orange-700">+{formatLabourCost(penaltyBreakdown.sunday.cost)}</div>
-                      <div className="text-xs text-orange-700">150% loading</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                    <div>
-                      <div className="font-medium text-purple-800 dark:text-purple-300">Public Holiday</div>
-                      <div className="text-sm text-muted-foreground">{penaltyBreakdown.public_holiday.count} shifts · {penaltyBreakdown.public_holiday.hours.toFixed(1)}h</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-medium text-purple-700">+{formatLabourCost(penaltyBreakdown.public_holiday.cost)}</div>
-                      <div className="text-xs text-purple-700">250% loading</div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Penalty Cost Summary</CardTitle>
-                <CardDescription>Total additional costs from penalty rates</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-6">
-                  <div className="text-4xl font-bold text-orange-600">{formatLabourCost(metrics.penaltyCost)}</div>
-                  <p className="text-muted-foreground mt-2">Additional penalty loading</p>
-                  <div className="mt-4 p-4 bg-muted rounded-lg">
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">That's </span>
-                      <span className="font-bold">
-                        {metrics.totalCost > 0 ? ((metrics.penaltyCost / metrics.totalCost) * 100).toFixed(1) : 0}%
-                      </span>
-                      <span className="text-muted-foreground"> of your total labor cost</span>
-                    </div>
-                  </div>
-                  {/* Breakdown mini-bars */}
-                  {metrics.penaltyCost > 0 && (
-                    <div className="mt-4 space-y-2 text-left">
-                      {[
-                        { key: "evening", label: "Evening", color: "bg-blue-500" },
-                        { key: "late_night", label: "Late Night", color: "bg-brand" },
-                        { key: "early_morning", label: "Early AM", color: "bg-sky-500" },
-                        { key: "saturday", label: "Saturday", color: "bg-orange-400" },
-                        { key: "sunday", label: "Sunday", color: "bg-orange-500" },
-                        { key: "public_holiday", label: "Public Holiday", color: "bg-purple-500" },
-                      ].filter(({ key }) => penaltyBreakdown[key]?.cost > 0).map(({ key, label, color }) => (
-                        <div key={key} className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${color}`} />
-                          <span className="text-xs flex-1">{label}</span>
-                          <span className="text-xs font-medium">{formatLabourCost(penaltyBreakdown[key].cost)}</span>
-                          <span className="text-[10px] text-muted-foreground w-10 text-right">
-                            {((penaltyBreakdown[key].cost / metrics.penaltyCost) * 100).toFixed(0)}%
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Timesheets Tab */}
-        <TabsContent value="timesheets">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Approved Hours
-                </CardTitle>
-                <Clock className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{timesheetMetrics.totalHours.toFixed(1)}h</div>
-                <p className="text-xs text-muted-foreground">
-                  {approvedTimesheets.length} approved entries
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Approved Pay
-                </CardTitle>
-                <DollarSign className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatLabourCost(timesheetMetrics.totalPay)}</div>
-                <p className="text-xs text-muted-foreground">
-                  Ready for payroll
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Variance
-                </CardTitle>
-                {timesheetMetrics.totalHours > metrics.totalHours ? (
-                  <TrendingUp className="h-4 w-4 text-red-500" />
-                ) : (
-                  <TrendingDown className="h-4 w-4 text-green-500" />
-                )}
-              </CardHeader>
-              <CardContent>
-                <div className={`text-2xl font-bold ${
-                  timesheetMetrics.totalHours > metrics.totalHours ? "text-red-600" : "text-green-600"
-                }`}>
-                  {(timesheetMetrics.totalHours - metrics.totalHours).toFixed(1)}h
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  vs rostered hours
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="mt-4">
-            <CardHeader>
-              <CardTitle>Rostered vs Actual</CardTitle>
-              <CardDescription>Compare scheduled hours with actual timesheets</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4 mb-6">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Rostered Hours</span>
-                    <span className="font-medium">{metrics.totalHours.toFixed(1)}h</span>
-                  </div>
-                  <Progress value={100} className="h-3 bg-blue-100" />
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Actual Hours (Approved Timesheets)</span>
-                    <span className="font-medium">{timesheetMetrics.totalHours.toFixed(1)}h</span>
-                  </div>
-                  <Progress
-                    value={metrics.totalHours > 0 ? (timesheetMetrics.totalHours / metrics.totalHours) * 100 : 0}
-                    className="h-3 bg-green-100"
-                  />
-                </div>
-              </div>
-
-              {/* Per-staff rostered vs actual with overtime */}
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Staff</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead className="text-right">Rostered</TableHead>
-                    <TableHead className="text-right">Actual</TableHead>
-                    <TableHead className="text-right">Variance</TableHead>
-                    <TableHead className="text-right">OT Rostered</TableHead>
-                    <TableHead className="text-right">OT Actual</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {overtimeComparison.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
-                        No data for this period
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    overtimeComparison.map((s) => (
-                      <TableRow key={s.id}>
-                        <TableCell className="font-medium cursor-pointer hover:text-teal-600" onClick={() => navigate(`/workforce/people/${s.id}`)}>
-                          {s.name}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="capitalize text-xs">{s.role}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">{s.rosteredHours.toFixed(1)}h</TableCell>
-                        <TableCell className="text-right">{s.actualHours.toFixed(1)}h</TableCell>
-                        <TableCell className="text-right">
-                          <span className={`text-xs font-medium ${
-                            Math.abs(s.variance) <= 1 ? "text-green-600" : Math.abs(s.variance) <= 3 ? "text-orange-600" : "text-red-600"
-                          }`}>
-                            {s.variance >= 0 ? "+" : ""}{s.variance.toFixed(1)}h
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {s.overtimeRostered > 0 ? (
-                            <span className="text-orange-600 text-xs font-medium">{s.overtimeRostered.toFixed(1)}h</span>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {s.overtimeActual > 0 ? (
-                            <span className={`text-xs font-medium ${
-                              s.overtimeActual > s.overtimeRostered ? "text-red-600" : "text-orange-600"
-                            }`}>
-                              {s.overtimeActual.toFixed(1)}h
-                              {s.overtimeVariance > 0 && (
-                                <span className="text-red-500 ml-1">(+{s.overtimeVariance.toFixed(1)})</span>
-                              )}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
       </div>
     </PageShell>
   )
