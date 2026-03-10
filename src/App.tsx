@@ -47,7 +47,9 @@ import Roster from "./pages/labour/Roster"
 import Timesheets from "./pages/labour/Timesheets"
 import LabourReports from "./pages/labour/Reports"
 import People from "./pages/People"
-import PayrollExport from "./pages/Payroll"
+import PayrollExport from "./pages/labour/PayrollExport"
+import TimesheetsDaily from "./pages/labour/TimesheetsDaily"
+import TimesheetDetail from "./pages/labour/TimesheetDetail"
 
 // Onboarding
 import StaffDetail from "./pages/onboarding/StaffDetail"
@@ -127,6 +129,8 @@ const App = () => (
               {/* Workforce */}
               <Route path="workforce/roster" element={<Roster />} />
               <Route path="workforce/timesheets" element={<Timesheets />} />
+              <Route path="workforce/timesheets/daily/:date" element={<TimesheetsDaily />} />
+              <Route path="workforce/timesheets/:staffId/:periodStart" element={<TimesheetDetail />} />
               <Route path="workforce/reports" element={<LabourReports />} />
               <Route path="labour-reports" element={<Navigate to="/workforce/reports" replace />} />
               <Route path="workforce/people" element={<People />} />
