@@ -51,7 +51,7 @@ const mainGroups: NavGroup[] = [
     items: [
       { title: "Sales", url: "/sales" },
       { title: "Labour", url: "/workforce/reports" },
-      { title: "Inventory", url: "/inventory/reports" },
+      { title: "Inventory", url: "/inventory/overview" },
     ],
   },
   {
@@ -67,6 +67,7 @@ const mainGroups: NavGroup[] = [
     title: "Inventory",
     icon: Package,
     items: [
+      { title: "Overview", url: "/inventory/overview" },
       { title: "Order Guide", url: "/inventory/order-guide" },
       { title: "Purchase Orders", url: "/inventory/purchase-orders" },
       { title: "Invoices", url: "/inventory/invoices" },

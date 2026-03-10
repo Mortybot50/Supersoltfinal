@@ -19,6 +19,7 @@ import ForgotPassword from "./pages/auth/ForgotPassword"
 import ResetPassword from "./pages/auth/ResetPassword"
 
 // Inventory
+import InventoryOverview from "./pages/inventory/InventoryOverview"
 import OrderGuide from "./pages/inventory/OrderGuide"
 import Ingredients from "./pages/Ingredients"
 import Suppliers from "./pages/Suppliers"
@@ -107,6 +108,8 @@ const App = () => (
               <Route path="sales" element={<Sales />} />
 
               {/* Inventory */}
+              <Route path="inventory" element={<InventoryOverview />} />
+              <Route path="inventory/overview" element={<InventoryOverview />} />
               <Route path="inventory/order-guide" element={<OrderGuide />} />
               <Route path="inventory/ingredients" element={<Ingredients />} />
               <Route path="suppliers" element={<Suppliers />} />
