@@ -8,11 +8,11 @@ import { useMemo, useState } from 'react'
 import { useRosterStore, getRoleColors } from '@/stores/useRosterStore'
 import { formatCurrency } from '@/lib/utils/formatters'
 import { formatTimeCompact, calculateShiftCostBreakdown } from '@/lib/utils/rosterCalculations'
-import { format, isSameDay } from 'date-fns'
+import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import {
   X, Clock, DollarSign, Calendar, User, AlertTriangle,
-  UserMinus, FileText, ChevronRight, RefreshCw
+  UserMinus, FileText, RefreshCw
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -116,6 +116,7 @@ export function ShiftDetailPanel() {
       shift.venue_id, shiftDate, empType,
     )
     await updateShift(shift.id, {
+      date: shiftDate,
       start_time: startTime,
       end_time: endTime,
       total_hours: breakdown.base_hours,
