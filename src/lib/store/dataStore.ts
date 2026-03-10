@@ -563,18 +563,36 @@ export const useDataStore = create<DataState>()(
   addSupplier: async (supplier) => {
     try {
       const { supabase } = await import('@/integrations/supabase/client')
-      
-      const { data, error } = await supabase
-        .from('suppliers')
-        .insert([supplier])
-        .select()
-        .single()
-      
-      if (error) throw error
-      
-      if (data) {
-        set((state) => ({ suppliers: [...state.suppliers, data as Types.Supplier] }))
+
+      const dbRow = {
+        id: supplier.id,
+        org_id: supplier.organization_id,
+        name: supplier.name,
+        contact_name: supplier.contact_person,
+        email: supplier.email,
+        phone: supplier.phone,
+        address_line1: supplier.address,
+        suburb: supplier.suburb,
+        state: supplier.state,
+        postcode: supplier.postcode,
+        abn: supplier.abn,
+        is_gst_registered: supplier.is_gst_registered,
+        payment_terms: supplier.payment_terms?.replace(/-/g, '_'),
+        order_method: supplier.order_method,
+        delivery_days: supplier.delivery_days,
+        lead_time_days: supplier.delivery_lead_days,
+        min_order_value: supplier.minimum_order ? supplier.minimum_order / 100 : undefined,
+        is_active: supplier.active,
+        notes: supplier.notes,
       }
+
+      const { error } = await supabase
+        .from('suppliers')
+        .insert([dbRow])
+
+      if (error) throw error
+
+      set((state) => ({ suppliers: [...state.suppliers, supplier] }))
     } catch (error) {
       console.error('Failed to add supplier:', dbError(error))
       toast.error('Failed to save supplier.')
@@ -584,22 +602,34 @@ export const useDataStore = create<DataState>()(
   updateSupplier: async (id, updates) => {
     try {
       const { supabase } = await import('@/integrations/supabase/client')
-      const { data, error } = await supabase
-        .from('suppliers')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single()
-      
-      if (error) throw error
-      
-      if (data) {
-        set((state) => ({
-          suppliers: state.suppliers.map((s) =>
-            s.id === id ? data as Types.Supplier : s
-          ),
-        }))
+
+      // Map TypeScript field names → DB column names for any supplied keys
+      const dbUpdates: Record<string, unknown> = {}
+      if (updates.organization_id !== undefined) dbUpdates.org_id = updates.organization_id
+      if (updates.contact_person !== undefined) dbUpdates.contact_name = updates.contact_person
+      if (updates.address !== undefined) dbUpdates.address_line1 = updates.address
+      if (updates.active !== undefined) dbUpdates.is_active = updates.active
+      if (updates.delivery_lead_days !== undefined) dbUpdates.lead_time_days = updates.delivery_lead_days
+      if (updates.minimum_order !== undefined) dbUpdates.min_order_value = updates.minimum_order / 100
+      if (updates.payment_terms !== undefined) dbUpdates.payment_terms = updates.payment_terms.replace(/-/g, '_')
+      // Pass through all other fields that map 1:1
+      const directFields = ['name','email','phone','suburb','state','postcode','abn','is_gst_registered','order_method','delivery_days','notes'] as const
+      for (const f of directFields) {
+        if (updates[f] !== undefined) dbUpdates[f] = updates[f]
       }
+
+      const { error } = await supabase
+        .from('suppliers')
+        .update(dbUpdates)
+        .eq('id', id)
+
+      if (error) throw error
+
+      set((state) => ({
+        suppliers: state.suppliers.map((s) =>
+          s.id === id ? { ...s, ...updates } : s
+        ),
+      }))
     } catch (error) {
       console.error('Failed to update supplier:', dbError(error))
       toast.error('Failed to update supplier.')
@@ -1626,13 +1656,27 @@ export const useDataStore = create<DataState>()(
       
       if (data) {
         const formatted = data.map(s => ({
-          ...s,
-          delivery_days: s.delivery_days ?? [1, 3, 5],
-          cutoff_time: s.cutoff_time || '14:00',
-          delivery_lead_days: s.delivery_lead_days ?? 1,
-          category: s.category ?? 'other',
-          payment_terms: s.payment_terms ?? 'net-30',
-          active: s.active ?? true,
+          id: s.id,
+          organization_id: s.org_id,
+          name: s.name,
+          contact_person: s.contact_name,
+          email: s.email,
+          phone: s.phone,
+          address: s.address_line1,
+          suburb: s.suburb,
+          state: s.state,
+          postcode: s.postcode,
+          abn: s.abn,
+          is_gst_registered: s.is_gst_registered ?? true,
+          category: 'other' as const,
+          payment_terms: (s.payment_terms?.replace(/_/g, '-') ?? 'net-30') as Types.Supplier['payment_terms'],
+          order_method: s.order_method as Types.Supplier['order_method'],
+          delivery_days: (s.delivery_days as number[]) ?? [1, 3, 5],
+          cutoff_time: '14:00',
+          delivery_lead_days: s.lead_time_days ?? 1,
+          minimum_order: s.min_order_value ? Math.round(Number(s.min_order_value) * 100) : undefined,
+          notes: s.notes,
+          active: s.is_active ?? true,
         }))
         set({ suppliers: formatted as Types.Supplier[] })
       }
@@ -1752,9 +1796,11 @@ export const useDataStore = create<DataState>()(
           ingredient_id: item.ingredient_id,
           ingredient_name: item.ingredient_name,
           quantity_ordered: item.quantity_ordered,
+          quantity_received: item.quantity_received ?? 0,
           unit: item.unit,
           unit_cost: item.unit_cost,
           line_total: item.line_total,
+          notes: item.notes ?? null,
         }))
         
         const { error: itemsError } = await supabase
@@ -1817,9 +1863,11 @@ export const useDataStore = create<DataState>()(
           ingredient_id: item.ingredient_id,
           ingredient_name: item.ingredient_name,
           quantity_ordered: item.quantity_ordered,
+          quantity_received: item.quantity_received ?? 0,
           unit: item.unit,
           unit_cost: item.unit_cost,
           line_total: item.line_total,
+          notes: item.notes ?? null,
         }))
         
         await supabase
