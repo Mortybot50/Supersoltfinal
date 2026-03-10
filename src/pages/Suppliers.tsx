@@ -1,8 +1,8 @@
 import { useAuth } from '@/contexts/AuthContext'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useDebounce } from '@/lib/hooks/useDebounce'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Building2, Edit, Trash2, ChevronRight, DollarSign, Loader2 } from 'lucide-react'
+import { Plus, Search, Building2, Edit, Trash2, ChevronRight, DollarSign, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -61,6 +61,10 @@ const DAYS_OF_WEEK = [
   { value: 6, label: 'Saturday' },
 ]
 
+// ── Sortable Column Types ─────────────────────────────────────
+type SortField = 'name' | 'category' | 'contact' | 'phone' | 'abn' | 'status' | 'spend'
+type SortDirection = 'asc' | 'desc'
+
 export default function Suppliers() {
   const navigate = useNavigate()
   const { suppliers, ingredients, purchaseOrders, isLoading, addSupplier, updateSupplier, deleteSupplier, loadSuppliersFromDB, loadPurchaseOrdersFromDB } = useDataStore()
@@ -72,6 +76,8 @@ export default function Suppliers() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingSupplier, setEditingSupplier] = useState<Types.Supplier | null>(null)
+  const [sortField, setSortField] = useState<SortField>('name')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   
   // Load suppliers and POs from Supabase on mount
   useEffect(() => {
@@ -116,8 +122,18 @@ export default function Suppliers() {
     return spendMap
   }, [purchaseOrders])
 
+  // Toggle sort
+  const handleSort = useCallback((field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }, [sortField])
+
   const filteredSuppliers = useMemo(() => {
-    return suppliers.filter((supplier) => {
+    let result = suppliers.filter((supplier) => {
       if (statusFilter === 'active' && !supplier.active) return false
       if (statusFilter === 'inactive' && supplier.active) return false
       if (categoryFilter !== 'all' && supplier.category !== categoryFilter) return false
@@ -132,7 +148,38 @@ export default function Suppliers() {
         supplier.abn?.includes(query)
       )
     })
-  }, [suppliers, debouncedSearch, categoryFilter, statusFilter])
+
+    // Sort
+    result = [...result].sort((a, b) => {
+      const dir = sortDirection === 'asc' ? 1 : -1
+      switch (sortField) {
+        case 'name':
+          return dir * a.name.localeCompare(b.name)
+        case 'category':
+          return dir * a.category.localeCompare(b.category)
+        case 'contact':
+          return dir * (a.contact_person || '').localeCompare(b.contact_person || '')
+        case 'phone':
+          return dir * (a.phone || '').localeCompare(b.phone || '')
+        case 'abn':
+          return dir * (a.abn || '').localeCompare(b.abn || '')
+        case 'status': {
+          const aVal = a.active ? 1 : 0
+          const bVal = b.active ? 1 : 0
+          return dir * (aVal - bVal)
+        }
+        case 'spend': {
+          const aSpend = monthlySpend[a.id] || 0
+          const bSpend = monthlySpend[b.id] || 0
+          return dir * (aSpend - bSpend)
+        }
+        default:
+          return 0
+      }
+    })
+
+    return result
+  }, [suppliers, debouncedSearch, categoryFilter, statusFilter, sortField, sortDirection, monthlySpend])
   
   const getProductCount = (supplierId: string) => {
     return ingredients.filter((i) => i.supplier_id === supplierId && i.active).length
@@ -296,6 +343,14 @@ export default function Suppliers() {
     return counts
   }, [suppliers])
 
+  // Sort icon helper
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-30" />
+    return sortDirection === 'asc'
+      ? <ArrowUp className="h-3 w-3 ml-1" />
+      : <ArrowDown className="h-3 w-3 ml-1" />
+  }
+
   const toolbar = (
     <PageToolbar
       title="Suppliers"
@@ -374,13 +429,27 @@ export default function Suppliers() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>ABN</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Monthly Spend</TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('name')}>
+                  <span className="flex items-center">Name <SortIcon field="name" /></span>
+                </TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('category')}>
+                  <span className="flex items-center">Category <SortIcon field="category" /></span>
+                </TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('contact')}>
+                  <span className="flex items-center">Contact <SortIcon field="contact" /></span>
+                </TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('phone')}>
+                  <span className="flex items-center">Phone <SortIcon field="phone" /></span>
+                </TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('abn')}>
+                  <span className="flex items-center">ABN <SortIcon field="abn" /></span>
+                </TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('status')}>
+                  <span className="flex items-center">Status <SortIcon field="status" /></span>
+                </TableHead>
+                <TableHead className="text-right cursor-pointer select-none" onClick={() => handleSort('spend')}>
+                  <span className="flex items-center justify-end">Monthly Spend <SortIcon field="spend" /></span>
+                </TableHead>
                 <TableHead className="w-24"></TableHead>
               </TableRow>
             </TableHeader>
