@@ -1129,6 +1129,19 @@ export interface InvoiceIntakeReview {
 // ============================================
 
 /**
+ * A single shift definition within a template or roster pattern.
+ * day_of_week: 0=Sun, 1=Mon, ..., 6=Sat (JS standard)
+ */
+export interface TemplateShiftDef {
+  day_of_week: number
+  start_time: string    // HH:MM
+  end_time: string      // HH:MM
+  break_minutes: number
+  role: string
+  staff_id: string | null
+}
+
+/**
  * Shift Template - Reusable shift patterns
  */
 export interface ShiftTemplate {
@@ -1138,7 +1151,7 @@ export interface ShiftTemplate {
   name: string // e.g., "Weekend Dinner", "Monday Lunch"
   description?: string
 
-  // Template configuration
+  // Template configuration (single-shift legacy)
   start_time: string // HH:MM
   end_time: string // HH:MM
   break_minutes: number
@@ -1154,6 +1167,22 @@ export interface ShiftTemplate {
   // Usage tracking
   usage_count: number
   last_used_at?: Date
+  created_at: Date
+  updated_at: Date
+}
+
+/**
+ * Roster Pattern - Named recurring weekly shift configuration.
+ * Applied each week to auto-generate shift slots.
+ */
+export interface RosterPattern {
+  id: string
+  organization_id: string
+  venue_id: string
+  name: string
+  description?: string
+  shifts: TemplateShiftDef[]
+  is_active: boolean
   created_at: Date
   updated_at: Date
 }
