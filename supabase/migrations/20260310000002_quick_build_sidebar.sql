@@ -28,20 +28,26 @@ CREATE INDEX IF NOT EXISTS idx_roster_patterns_org   ON roster_patterns(org_id);
 
 ALTER TABLE roster_patterns ENABLE ROW LEVEL SECURITY;
 
+-- Drop before recreating (idempotent)
+DROP POLICY IF EXISTS "members_view_roster_patterns"    ON roster_patterns;
+DROP POLICY IF EXISTS "admins_insert_roster_patterns"   ON roster_patterns;
+DROP POLICY IF EXISTS "admins_update_roster_patterns"   ON roster_patterns;
+DROP POLICY IF EXISTS "admins_delete_roster_patterns"   ON roster_patterns;
+
 -- Members can view patterns for their org
 CREATE POLICY "members_view_roster_patterns"
   ON roster_patterns FOR SELECT
-  USING (org_id = ANY(get_user_org_ids()));
+  USING (org_id IN (SELECT get_user_org_ids()));
 
 -- Admins can create/update/delete patterns
 CREATE POLICY "admins_insert_roster_patterns"
   ON roster_patterns FOR INSERT
-  WITH CHECK (is_org_admin(org_id));
+  WITH CHECK (is_org_admin(org_id) = true);
 
 CREATE POLICY "admins_update_roster_patterns"
   ON roster_patterns FOR UPDATE
   USING (is_org_admin(org_id))
-  WITH CHECK (is_org_admin(org_id));
+  WITH CHECK (is_org_admin(org_id) = true);
 
 CREATE POLICY "admins_delete_roster_patterns"
   ON roster_patterns FOR DELETE

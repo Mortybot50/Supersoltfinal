@@ -16,16 +16,16 @@ create table if not exists public.qualification_types (
 alter table public.qualification_types enable row level security;
 
 create policy "qual_types_select" on public.qualification_types
-  for select using (org_id = any(get_user_org_ids()));
+  for select using (org_id IN (SELECT get_user_org_ids()));
 
 create policy "qual_types_insert" on public.qualification_types
-  for insert with check (org_id = any(get_user_org_ids()));
+  for insert with check (org_id IN (SELECT get_user_org_ids()));
 
 create policy "qual_types_update" on public.qualification_types
-  for update using (org_id = any(get_user_org_ids()));
+  for update using (org_id IN (SELECT get_user_org_ids()));
 
 create policy "qual_types_delete" on public.qualification_types
-  for delete using (org_id = any(get_user_org_ids()));
+  for delete using (org_id IN (SELECT get_user_org_ids()));
 
 -- staff_qualifications: one row per (staff, qual_type) with evidence & expiry tracking
 create table if not exists public.staff_qualifications (
@@ -47,13 +47,13 @@ create table if not exists public.staff_qualifications (
 alter table public.staff_qualifications enable row level security;
 
 create policy "staff_quals_select" on public.staff_qualifications
-  for select using (org_id = any(get_user_org_ids()));
+  for select using (org_id IN (SELECT get_user_org_ids()));
 
 create policy "staff_quals_insert" on public.staff_qualifications
-  for insert with check (org_id = any(get_user_org_ids()));
+  for insert with check (org_id IN (SELECT get_user_org_ids()));
 
 create policy "staff_quals_update" on public.staff_qualifications
-  for update using (org_id = any(get_user_org_ids()));
+  for update using (org_id IN (SELECT get_user_org_ids()));
 
 create policy "staff_quals_delete" on public.staff_qualifications
-  for delete using (org_id = any(get_user_org_ids()));
+  for delete using (org_id IN (SELECT get_user_org_ids()));
