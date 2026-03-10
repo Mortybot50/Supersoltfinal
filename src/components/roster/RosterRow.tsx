@@ -2,7 +2,7 @@
  * RosterRow — a single staff member row with cells for each day in view.
  */
 
-import { Staff, RosterShift, StaffAvailability } from '@/types'
+import { Staff, RosterShift } from '@/types'
 import { RosterCell } from './RosterCell'
 import { formatCurrency } from '@/lib/utils/formatters'
 import { format, isSameDay, isWeekend, isToday } from 'date-fns'
@@ -14,7 +14,6 @@ interface RosterRowProps {
   dates: Date[]
   shifts: RosterShift[]
   ghostShifts?: RosterShift[]
-  availability?: StaffAvailability[]
   weeklyHours: number
   compact?: boolean
   onAddShift?: (date: Date, staffId: string) => void

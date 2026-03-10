@@ -141,7 +141,7 @@ function mapShiftRow(row: any): RosterShift {
     break_minutes: row.break_duration_mins ?? row.break_minutes ?? 0,
     role: row.position || row.role || 'crew',
     notes: row.notes,
-    status: row.status === 'draft' ? 'scheduled' : (row.status || 'scheduled'),
+    status: row.status === 'draft' ? 'scheduled' : row.status === 'published' ? 'confirmed' : (row.status || 'scheduled'),
     is_open_shift: row.is_open_shift || false,
     total_hours: calcHours(row.start_time, row.end_time, row.break_duration_mins ?? row.break_minutes ?? 0),
     base_cost: Math.round((row.base_cost || 0) * 100),
