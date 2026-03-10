@@ -18,9 +18,10 @@ import { OpenShiftBanner } from '@/components/roster/OpenShiftBanner'
 import { PublishDialog } from '@/components/roster/PublishDialog'
 import { ShiftTemplateDialog } from '@/components/roster/ShiftTemplateDialog'
 import { AutoFillDialog } from '@/components/roster/AutoFillDialog'
+import { QuickBuildSidebar } from '@/components/roster/QuickBuildSidebar'
 import { RosterShift } from '@/types'
 import { toast } from 'sonner'
-import { AlertTriangle, Wand2, BookTemplate, Radio } from 'lucide-react'
+import { AlertTriangle, Wand2, BookTemplate, Radio, Layers } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getAllRosterWarnings } from '@/lib/utils/rosterCalculations'
 
@@ -31,6 +32,7 @@ export default function Roster() {
     sidebarOpen, selectedShiftId,
     shifts, availability, openShifts,
     subscribeToChanges, staff, setPendingShift,
+    toggleQuickBuild,
   } = useRosterStore()
 
   const [showCompliance, setShowCompliance] = useState(false)
@@ -162,6 +164,17 @@ export default function Roster() {
           Auto-fill
         </Button>
 
+        {/* Quick Build */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 text-xs gap-1"
+          onClick={toggleQuickBuild}
+        >
+          <Layers className="h-3.5 w-3.5 text-indigo-500" />
+          Quick Build
+        </Button>
+
         <div className="flex-1" />
 
         {/* Live indicator */}
@@ -181,6 +194,7 @@ export default function Roster() {
       <PublishDialog open={showPublish} onOpenChange={setShowPublish} />
       <ShiftTemplateDialog open={showTemplates} onOpenChange={setShowTemplates} />
       <AutoFillDialog open={showAutoFill} onOpenChange={setShowAutoFill} />
+      <QuickBuildSidebar />
     </div>
   )
 }

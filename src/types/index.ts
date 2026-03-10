@@ -1143,9 +1143,13 @@ export interface ShiftTemplate {
   end_time: string // HH:MM
   break_minutes: number
   role: 'manager' | 'supervisor' | 'crew'
+  date?: Date // used when converting time strings to timestamptz
 
   // When to apply
   days_of_week: number[] // 0=Sun, 1=Mon, etc.
+
+  // Multi-shift definitions (if present, overrides single start/end/role)
+  template_shifts?: TemplateShiftDef[]
 
   // Usage tracking
   usage_count: number
@@ -1579,4 +1583,33 @@ export interface DayStats {
   salesForecast: number
   sph: number
   wagePercentRevenue: number
+}
+
+// ── Quick Build Types ─────────────────────────────────────────────────────────
+
+/**
+ * Individual shift definition within a template or roster pattern.
+ */
+export interface TemplateShiftDef {
+  day_of_week: number   // 0=Sun, 1=Mon, …, 6=Sat
+  start_time: string    // HH:MM
+  end_time: string      // HH:MM
+  break_minutes: number
+  role: string
+  staff_id: string | null
+}
+
+/**
+ * Roster Pattern — recurring weekly shift pattern (e.g. "Mon–Wed–Fri Kitchen Open").
+ */
+export interface RosterPattern {
+  id: string
+  organization_id: string
+  venue_id: string
+  name: string
+  description?: string
+  shifts: TemplateShiftDef[]
+  is_active: boolean
+  created_at: Date
+  updated_at: Date
 }
