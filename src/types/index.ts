@@ -701,7 +701,7 @@ export interface Shift {
   notes?: string
 
   // Status & type
-  status?: 'scheduled' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled'
+  status?: 'scheduled' | 'confirmed' | 'modified' | 'in-progress' | 'completed' | 'cancelled'
   is_open_shift?: boolean // Unassigned shift staff can claim
 
   // Cost calculation
