@@ -1,0 +1,134 @@
+You’re flying. With CSV imports done, the next win is to make buying from the Order Guide feel slick for managers.
+
+Below is a single, copy-paste prompt for your Replit agent.
+
+⸻
+
+🔧 PROMPT 6 / 20 — Order Guide polish (inline edits, live totals, copy to clipboard)
+
+Goal
+Make /inventory/order-guide genuinely “place-order ready”:
+	•	Toolbar: choose start date, days (7/14/28), safety days.
+	•	Inline-editable Recommended Packs with instant totals.
+	•	Sticky supplier sections with per-supplier totals and page totals.
+	•	Copy to clipboard (per supplier & all suppliers) to paste into email/portal.
+	•	Keep Export CSV; add small quality-of-life UX.
+
+Do NOT remove existing endpoints. Adapt imports/paths to this repo.
+
+⸻
+
+0) API augmentation (non-breaking)
+
+Edit app/api/inventory/order-guide/route.ts:
+	•	Accept optional query params: start (YYYY-MM-DD), days (int), safetyDays (int).
+	•	Default: start=today, days=7, safetyDays=1.
+	•	Return unchanged shape, but include:
+	•	window: { startISO, endISO, days, safetyDays }
+	•	For each line, include packSizeLabel (e.g., “6 × 1kg” or “1kg”) and unitCost (number in cents) to avoid re-deriving in client.
+
+Keep existing fields (requiredQty, onHand, shortfallQty, recommendedPacks, notes, supplierId, ingredientId, etc.).
+
+⸻
+
+1) Client shell for the page
+
+Create app/inventory/order-guide/OrderGuideClient.tsx (client component) and use it in page.tsx:
+	•	Toolbar controls:
+	•	Date picker/input for start (or yyyy-mm-dd text is fine).
+	•	Number inputs for days (7/14/28) and safetyDays.
+	•	Buttons: Refresh, Export CSV (existing route), Copy all.
+	•	Supplier sections:
+	•	Sticky header row: Supplier name + Items, Subtotal.
+	•	Rows: Ingredient | Pack size | On-hand | Required | Shortfall | Recommended Packs (editable) | Unit $ | Line $ | Notes.
+	•	When user edits Recommended Packs, recompute row total, supplier subtotal, and page total in state.
+	•	Footer: Page Total (items & value), last generated window label.
+
+Behavior
+	•	On toolbar change → refetch /api/inventory/order-guide?start=…&days=…&safetyDays=….
+	•	Inline edits are client-only (don’t mutate server); exporting CSV should use edited values if available.
+	•	If notes contains “Unit conversion missing” or “No supplier”, highlight cell and include a ⚠️ icon.
+
+UX polish
+	•	Sticky table header + supplier headers.
+	•	Numeric fields right-aligned, money formatted as AUD (Intl).
+	•	Mobile: collapse to cards (show Ingredient, Supplier, Recommended Packs first).
+
+⸻
+
+2) Copy-to-clipboard helpers
+
+Add lib/share/copy.ts:
+
+export function buildSupplierText(supplierName: string, lines: {
+  ingredient: string; packSizeLabel?: string; packs: number; notes?: string;
+}[]) {
+  const rows = lines.map(l =>
+    `- ${l.ingredient}${l.packSizeLabel ? ` (${l.packSizeLabel})` : ""} × ${l.packs}${l.notes ? `  // ${l.notes}` : ""}`
+  );
+  return [`Order for ${supplierName}`, ...rows].join("\n");
+}
+
+export function buildAllSuppliersText(groups: {
+  supplier: string; lines: { ingredient:string; packSizeLabel?:string; packs:number; notes?:string }[];
+}[]) {
+  return groups.map(g => buildSupplierText(g.supplier, g.lines)).join("\n\n");
+}
+
+In OrderGuideClient:
+	•	Per supplier: button Copy → navigator.clipboard.writeText(buildSupplierText(...)), toast “Copied supplier order”.
+	•	Page-level: Copy all → same with buildAllSuppliersText.
+
+(Optional) add Email button that opens a mailto: with subject + body text for that supplier.
+
+⸻
+
+3) Keep CSV export, but include client edits
+	•	Wire Export CSV to call your existing /api/inventory/order-guide/export?start=…&days=…&safetyDays=…, but pass edited recommendedPacks in the request body (POST) or generate CSV in the client and download—whichever is simpler in your codebase.
+	•	If doing server-side export, add a POST handler variant that accepts { overrides: [{ingredientId, supplierId, recommendedPacks}] } and uses those values instead of server defaults to build the CSV.
+
+⸻
+
+4) Totals & rounding controls
+	•	Add a toolbar toggle Ceil rounding (on by default) to round line packs up when typing decimals; show an info tooltip explaining we round to avoid stockouts.
+	•	Display Supplier Subtotal (AUD) and Page Total; update live on edit.
+	•	Show a small line “Safety buffer: {safetyDays} day(s) included”.
+
+⸻
+
+5) PostHog events (client)
+	•	order_guide_viewed { start, days, safetyDays }
+	•	order_guide_copy_supplier { supplier, items, subtotal }
+	•	order_guide_copy_all { suppliers, items, subtotal }
+	•	order_guide_edit_packs { ingredientId, from, to }
+	•	order_guide_export_csv { items, subtotal }
+
+(Use your existing track() helper.)
+
+⸻
+
+6) Acceptance
+	•	Changing start/days/safetyDays refetches and redraws.
+	•	Editing Recommended Packs updates subtotals instantly.
+	•	Copy per supplier and Copy all produce clean text with pack sizes and notes.
+	•	Export CSV includes edited pack values.
+	•	Visual hints for missing supplier or unit conversion issues.
+	•	No 400s when dates are future-only; window label matches toolbar.
+
+⸻
+
+7) Styling notes (light “glow”)
+	•	Use your HSL tokens; keep accents to highlight editable fields and totals.
+	•	Use a soft focus ring on the packs input; arrow-key increment/decrement should work.
+
+⸻
+
+8) Nice-to-have (fast)
+	•	Add a small “Mark as ordered” checkbox per supplier section that just flips local UI state (no backend yet). We’ll replace it with real Purchase Orders in the next prompt.
+
+⸻
+
+After this (coming next)
+	•	Prompt 7 / 20 — Purchases & Receiving: turn “Order Guide” into Purchase Orders (draft → sent → partially/fully received), update on-hand and average cost, and attach invoices. That completes the inventory loop and makes Guardrails’ ORDER_SHORTFALL → Approve even more powerful.
+
+Say the word when you’re ready and I’ll drop Prompt 7 / 20 in the same copy-paste format.

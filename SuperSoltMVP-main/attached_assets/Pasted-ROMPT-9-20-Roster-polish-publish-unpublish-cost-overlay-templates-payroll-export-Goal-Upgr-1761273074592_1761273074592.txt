@@ -1,0 +1,190 @@
+ROMPT 9 / 20 — Roster polish (publish/unpublish, cost overlay, templates, payroll export)
+
+Goal
+Upgrade the roster so managers can:
+
+See coverage & labour % vs forecast (hourly overlay).
+
+Publish / unpublish a week (lock shifts, notify staff).
+
+Save a day as a template and apply templates to future days.
+
+Export a basic Payroll CSV.
+
+Keep multi-tenant isolation (use active cookies + requireOrg). Don’t remove any existing endpoints. Adapt imports/paths to this repo.
+
+0) Schema (additive)
+
+File: db/schema.ts — append and then push.
+
+// Weekly publication audit
+export const roster_publications = pgTable("roster_publications", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  org_id: uuid("org_id").notNull(),
+  venue_id: uuid("venue_id").notNull(),
+  week_start: date("week_start").notNull(), // Monday start
+  version: integer("version").notNull().default(1),
+  published_by: uuid("published_by").notNull(),
+  published_at: timestamp("published_at", { mode: "date" }).defaultNow().notNull(),
+});
+createIndex("idx_roster_pub_org_venue_week").on(roster_publications, t => [t.org_id, t.venue_id, t.week_start]);
+
+// Shifts: add publish metadata if missing
+// (You already have status:DRAFT; keep it. Add:)
+export const shifts = pgTable("shifts", {
+  // ...existing...
+  status: varchar("status", { length: 16 }).notNull().default("DRAFT"), // DRAFT|PUBLISHED
+  published_at: timestamp("published_at", { mode: "date" }),
+  wage_rate_cents_snapshot: integer("wage_rate_cents_snapshot"),
+});
+
+// Day templates
+export const roster_templates = pgTable("roster_templates", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  org_id: uuid("org_id").notNull(),
+  venue_id: uuid("venue_id").notNull(),
+  name: varchar("name", { length: 120 }).notNull(),
+  weekday: integer("weekday"), // 1..7 optional
+  created_by: uuid("created_by").notNull(),
+  created_at: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+export const roster_template_lines = pgTable("roster_template_lines", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  template_id: uuid("template_id").notNull(),
+  role: varchar("role", { length: 64 }).notNull(),
+  start_minute: integer("start_minute").notNull(),
+  end_minute: integer("end_minute").notNull(),
+  headcount: integer("headcount").notNull().default(1),
+});
+createIndex("idx_template_lines_template").on(roster_template_lines, t => [t.template_id]);
+
+
+Run: npm run db:push (or apply via SQL if your push is slow).
+
+1) Labour overlay service
+
+New: lib/labour-overlay.ts
+
+getLabourOverlay({ orgId, venueId, weekStart })
+
+For each day/hour in [weekStart .. +6]:
+
+Forecast: hourly revenue/orders (reuse your forecast/day-profile logic).
+
+Shifts: sum scheduled cost per hour (use wage_rate_cents_snapshot || staff.rate).
+
+Rules: target labour % (from labour_rules or org/venue settings).
+
+Return grid:
+
+{ rows: Array<{ date: string, hour: number,
+   scheduledCostCents: number,
+   forecastRevenueCents: number,
+   labourPct: number | null,
+   targetPct: number | null,
+   headcountByRole: Record<string, number>,
+   deficitByRole: Record<string, number> }> ,
+  summary: { weekForecastCents: number, weekScheduledCents: number } }
+
+
+API: GET /api/labour/overlay?weekStart=YYYY-MM-DD
+
+requireOrg({ role: 'manager' }), enforce active venueId.
+
+2) Publish / Unpublish
+
+API: POST /api/roster/publish Body { weekStart }
+
+Transaction:
+
+Find all shifts in week with status='DRAFT' → set status='PUBLISHED', published_at=now(), snapshot wage rate.
+
+Insert roster_publications (increment version if same week republished).
+
+Email notifications (Resend if configured; otherwise [DEV EMAIL] log).
+
+API: POST /api/roster/unpublish Body { weekStart }
+
+Only allow if shifts are in the future. Revert status='DRAFT', delete latest roster_publications for that week.
+
+3) Templates
+
+API:
+
+POST /api/roster/templates Body { name, weekday?, sourceDate }
+
+Read shifts for sourceDate; convert to template lines (minutes from midnight; aggregate by overlapping windows/headcount).
+
+GET /api/roster/templates?weekday?
+
+POST /api/roster/templates/apply Body { templateId, targetDate }
+
+Create DRAFT role shifts on targetDate from lines; staffId null; respect open/close hours.
+
+All endpoints requireOrg({ role:'manager' }) + active venue.
+
+4) Payroll CSV
+
+API: GET /api/workforce/payroll/export?start=YYYY-MM-DD&end=YYYY-MM-DD
+CSV columns: staffName, staffExternalId?, date, role, start, end, hours, wageRateCents, costCents
+
+Use wage_rate_cents_snapshot if present; otherwise current rate.
+
+5) UI updates (roster page)
+
+Toolbar: Week picker (you already have), Coverage overlay toggle, Publish, Unpublish, Templates (Save/Apply), Export Payroll.
+
+Overlay: heatmap behind the hour grid.
+
+Green within target, amber near, red over. Tooltip: revenue, scheduled cost, labour %, target, deficits by role.
+
+Templates modal:
+
+Save (name, optional weekday) from current day.
+
+Apply (choose template + day).
+
+Warnings:
+
+“Draft changes since publish” banner if any DRAFT shifts exist in a published week.
+
+6) Analytics
+
+Use your track() helper:
+
+roster_overlay_toggled { on }
+
+roster_publish { weekStart, shiftsPublished }
+
+roster_unpublish { weekStart }
+
+roster_template_saved { templateId, weekday }
+
+roster_template_applied { templateId, targetDate, shiftsCreated }
+
+payroll_exported { start, end, shifts }
+
+7) Security & integrity
+
+All routes: requireOrg({ role:"manager" }), enforce venueId from cookie (no client-sent IDs).
+
+Apply & publish run in transactions.
+
+Overlay endpoint never leaks other venues.
+
+Emails in dev log to console; in staging use Resend keys.
+
+8) Acceptance
+
+Overlay loads for selected week; colours and tooltips reflect labour % vs target.
+
+Publish flips all week’s DRAFT shifts → PUBLISHED and creates a publication record; dev emails logged.
+
+Unpublish (future-only) reverts to DRAFT; publication row removed.
+
+Save a template from a busy day; apply it to another date → unassigned role shifts appear; labour rules respected.
+
+Export payroll CSV; file opens with correct totals.
+
+PostHog events appear.

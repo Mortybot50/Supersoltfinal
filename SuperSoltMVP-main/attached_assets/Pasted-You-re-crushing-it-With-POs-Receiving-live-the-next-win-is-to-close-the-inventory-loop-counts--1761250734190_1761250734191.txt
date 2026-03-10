@@ -1,0 +1,188 @@
+You’re crushing it. With POs & Receiving live, the next win is to close the inventory loop: counts + waste so managers can reconcile stock, surface shrinkage, and feed Guardrails with real variance signals.
+
+Below is your next copy-paste prompt.
+
+⸻
+
+🔧 PROMPT 8 / 20 — Waste & Stock Counts (theoretical vs actual, variance, reconciliation)
+
+Goal
+Add end-to-end stock counts and waste logging, compare to theoretical usage (from recipes + sales/forecasts), generate variance KPIs, and post reconciliation movements that update on-hand and (optionally) average cost. Feed large variances into Operations Suggestions.
+
+Do not remove anything. Adapt imports/paths to this repo.
+
+⸻
+
+0) Schema — count sessions, lines, waste events
+
+Edit: db/schema.ts — add three tables (org/venue scoped, indexed):
+
+export const count_sessions = pgTable("count_sessions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  org_id: uuid("org_id").notNull(),
+  venue_id: uuid("venue_id").notNull(),
+  name: varchar("name", { length: 128 }).notNull(), // "Weekly Count – 2025-10-24"
+  status: varchar("status", { length: 16 }).notNull().default("DRAFT"), // DRAFT|SUBMITTED|APPROVED|POSTED
+  start_at: timestamp("start_at", { mode: "date" }).notNull(),
+  end_at: timestamp("end_at", { mode: "date" }).notNull(),
+  created_by: uuid("created_by").notNull(),
+  submitted_at: timestamp("submitted_at", { mode: "date" }),
+  approved_at: timestamp("approved_at", { mode: "date" }),
+  posted_at: timestamp("posted_at", { mode: "date" })
+});
+createIndex("idx_counts_org_venue_status").on(count_sessions, t => [t.org_id, t.venue_id, t.status, t.start_at]);
+
+export const count_lines = pgTable("count_lines", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  session_id: uuid("session_id").notNull(),
+  ingredient_id: uuid("ingredient_id").notNull(),
+  // snapshot info to make the count self-contained:
+  ingredient_name: varchar("ingredient_name", { length: 256 }).notNull(),
+  base_uom: varchar("base_uom", { length: 8 }).notNull(),   // "g"|"ml"|"each"
+  on_hand_before_base: integer("on_hand_before_base").notNull().default(0), // snapshot when session created
+  theoretical_used_base: integer("theoretical_used_base").notNull().default(0), // computed usage for window
+  counted_base: integer("counted_base").notNull().default(0), // user input
+  variance_base: integer("variance_base").notNull().default(0), // counted - (on_hand_before - theoretical_used + receipts - other moves)
+  notes: varchar("notes", { length: 512 })
+});
+createIndex("idx_count_lines_session").on(count_lines, t => [t.session_id, t.ingredient_id]);
+
+export const waste_events = pgTable("waste_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  org_id: uuid("org_id").notNull(),
+  venue_id: uuid("venue_id").notNull(),
+  ingredient_id: uuid("ingredient_id").notNull(),
+  reason: varchar("reason", { length: 32 }).notNull(), // "prep_loss"|"expiry"|"spillage"|"overproduction"|"other"
+  qty_base: integer("qty_base").notNull(),             // base units
+  occurred_at: timestamp("occurred_at", { mode: "date" }).defaultNow().notNull(),
+  notes: varchar("notes", { length: 256 })
+});
+createIndex("idx_waste_org_venue_ing_time").on(waste_events, t => [t.org_id, t.venue_id, t.ingredient_id, t.occurred_at]);
+
+We already have stock_movements (RECEIPT). We’ll add ADJUSTMENT and WASTE rows during posting/logging.
+
+Run migrations/push.
+
+⸻
+
+1) Theoretical usage engine
+
+File: lib/usage.ts
+	•	computeTheoreticalUsage({ orgId, venueId, start, end }): Promise<Map<ingredientId, number /*base units*/>>
+	•	For each menu sale in the window (actuals; fall back to forecast if configured), expand recipes (nested supported) to ingredient usage; multiply by qty sold; sum to base units.
+	•	windowSnapshotOnHand({ ingredientId, atStart }): Promise<number> returns on-hand in base units at session start (use your current on-hand source + movements).
+	•	Helper to sum receipts and other movements in window.
+
+Use existing recipe + conversion utilities from your order-guide logic.
+
+⸻
+
+2) Count session APIs
+
+Create routes:
+	•	POST /api/counts/sessions
+Body: { name?, start, end }
+	•	Creates DRAFT session, snapshots on_hand_before_base at start, computes theoretical_used_base for each ingredient that is in use (sold or on hand), inserts count_lines. Returns { id }.
+	•	GET /api/counts/sessions
+Query: status?, from?, to? → list sessions.
+	•	GET /api/counts/sessions/[id]
+Returns header + lines.
+	•	PATCH /api/counts/sessions/[id]/lines
+Body: { lines: [{ lineId, counted_base, notes? }] }
+	•	Updates counts client submitted; recomputes variance_base server-side.
+	•	POST /api/counts/sessions/[id]/submit → status: SUBMITTED, submitted_at = now()
+	•	POST /api/counts/sessions/[id]/approve → status: APPROVED, approved_at = now()
+	•	POST /api/counts/sessions/[id]/post
+	•	For each line, if variance_base !== 0, write stock_movements with type:"ADJUSTMENT" and qty_base = variance_base, unit_cost_cents = current_avg (if you track), ref_type:"COUNT", ref_id: session_id.
+	•	Update on-hand and average cost accordingly (variance can be positive or negative).
+	•	Set status: POSTED, posted_at = now().
+
+All endpoints requireOrg({ role: "manager" }). Validate venue, time window sanity, and non-negative counts.
+
+⸻
+
+3) Waste logging API
+	•	POST /api/inventory/waste
+Body: { ingredientId, qty_base, reason, occurredAt?, notes? }
+	•	Writes waste_events row.
+	•	Also writes a stock_movements row: { type:"WASTE", qty_base: -Math.abs(qty_base), unit_cost_cents: current_avg, ref_type:"WASTE", ref_id:waste_id }.
+	•	Updates on-hand (decrease) and keeps cost valuation correct.
+	•	GET /api/inventory/waste?from=&to=&ingredientId? list/filter.
+
+⸻
+
+4) UI — Counts
+
+Pages:
+	•	app/inventory/counts/page.tsx — list sessions; “New Count” button.
+	•	app/inventory/counts/new/page.tsx — form to choose start/end (default last 7 days), name. Create → calls session POST and redirects to detail.
+	•	app/inventory/counts/[id]/page.tsx — detail:
+	•	Header: name, window label, status chips (DRAFT/SUBMITTED/APPROVED/POSTED).
+	•	Toolbar (DRAFT only): search/filter, Bulk set counted to on-hand before (starting point), Auto-fill negative variance as zero (optional convenience).
+	•	Table: Ingredient, UOM, On-hand @ start, Theoretical used, Counted (editable), Variance (colour: red for loss, green for gain), Notes.
+	•	Footer buttons by status:
+	•	DRAFT → Submit for approval
+	•	SUBMITTED → Approve
+	•	APPROVED → Post adjustments
+	•	Posting displays a confirmation modal summarising total over/short by value.
+
+UX notes
+	•	Large lists: virtualised table (optional) or simple pagination.
+	•	Inputs right-aligned; Enter/arrow moves to next row; save debounced per line.
+	•	Toast on save; optimistic UI.
+
+⸻
+
+5) UI — Waste
+	•	Small quick action in Inventory sidebar: “Waste & Spoilage”.
+	•	app/inventory/waste/page.tsx:
+	•	Form: Ingredient (search), Quantity (base unit), Reason (chips: expiry, spillage, overproduction, prep_loss, other), Notes; Log waste button.
+	•	Recent waste events table with date, ingredient, qty, reason, notes.
+
+⸻
+
+6) Variance KPIs & Guardrails
+	•	Add to Insights → COGS (or a new Waste & Variance card):
+	•	Last 7 days: Theoretical vs Actual usage variance by value (top 5 ingredients).
+	•	% variance = abs(variance_base) / theoretical_used_base (guard against zero).
+	•	Extend lib/guardrails.ts:
+	•	WASTE_SPIKE: if an ingredient’s variance value over last 7 days exceeds a threshold (e.g., >$150 or >8% of theoretical), create suggestion:
+	•	Title: “Investigate waste: {ingredient}”
+	•	Reason: “Variance {x%} over last 7 days”
+	•	Action: link to waste page and counts session.
+	•	Dashboard SuggestionsPanel will surface these automatically.
+
+⸻
+
+7) Analytics & audit
+	•	PostHog:
+	•	count_session_created { start, end, lines }
+	•	count_session_submitted { id, lines }
+	•	count_session_posted { id, totalVarianceBase, totalVarianceCents }
+	•	waste_logged { ingredientId, qty_base, reason }
+	•	Audit log entries for submit/approve/post.
+
+⸻
+
+8) Acceptance
+	•	Create a new Count for a past week → lines prefilled with on-hand start + theoretical used; edit some counted values → variances compute live.
+	•	Submit → Approve → Post:
+	•	Stock movements (ADJUSTMENT) are created for non-zero variances.
+	•	On-hand updates reflect the posting.
+	•	Log Waste for an ingredient → movement (WASTE) written; on-hand decreases; waste list shows the entry.
+	•	Guardrails produces WASTE_SPIKE when variance threshold is breached.
+	•	No cross-tenant access; all endpoints enforce venue/org.
+
+⸻
+
+9) Nice-to-have (fast)
+	•	“Scan mode” field that accepts something like “2kg” and converts to base units automatically on the counted cell.
+	•	Export Count variance CSV with columns: Ingredient, UOM, Theoretical, Counted, Variance (qty & $), Notes.
+
+⸻
+
+After Prompt 8
+	•	Prompt 9 / 20 — Roster polish (labour cost overlay, publish/unpublish, shift approvals, day templates).
+	•	Prompt 10 / 20 — Multi-venue switcher & org settings (venues management UI, roles, and defaults).
+
+Say the word when you’re ready and I’ll drop Prompt 9 / 20 in the same copy-paste format.

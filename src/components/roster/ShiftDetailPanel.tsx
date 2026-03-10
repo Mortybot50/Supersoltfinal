@@ -129,12 +129,6 @@ export function ShiftDetailPanel() {
     setEditingTime(false)
   }
 
-
-
-
-
-
-
   const handleReassign = async (newStaffId: string) => {
     const member = staff.find(s => s.id === newStaffId)
     if (!member) return

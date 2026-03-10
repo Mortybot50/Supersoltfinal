@@ -1,0 +1,196 @@
+⚙️ 10-second hot-patch for the Waste page error
+
+The crash is from calling .map on undefined (ingredientsData?.ingredients.map(...)). Make it null-safe and give the UI a loading/empty state.
+
+Prompt A (apply first):
+
+Fix the Waste page crash and add basic loading/empty states.
+
+1) In app/inventory/waste/page.tsx:
+   - Change `ingredientsData?.ingredients.map(...)` to `ingredientsData?.ingredients?.map(...)`.
+   - Or safer: `const items = ingredientsData?.ingredients ?? [];` then `items.map(...)`.
+   - If `items.length === 0`, show a muted “No ingredients found” row.
+   - Add a simple loading guard if you’re fetching client-side (e.g., `if (!ingredientsData) return <Skeleton/>`).
+
+2) In the ingredients list API used by this page:
+   - Always respond 200 with `{ ingredients: [] }` rather than null/undefined on empty.
+   - Wrap with try/catch and return the empty shape on error.
+
+3) Optional: put `export const runtime = "nodejs";` at the top of the API route if it hits the DB heavily.
+
+
+That removes the runtime error immediately; we can come back later to flesh out Waste tracking in Prompt 8.
+
+🔧 PROMPT 5 / 20 — Bulk CSV Importers (Sales, Ingredients+Suppliers, Menu+Recipes, Staff)
+
+Goal: Let each vendor self-load their data fast. Importers are idempotent, venue-scoped, and safe to re-run.
+
+0) Setup
+npm i papaparse zod
+
+1) CSV formats (document these in a help tooltip + downloadable templates)
+
+A) Sales (daily or hourly)
+
+Columns (daily): date, revenue_cents, orders, covers
+
+Columns (hourly): date, hour_0_23, revenue_cents, orders
+
+Notes: date = YYYY-MM-DD; ignore extra columns; treat missing hourly as 0.
+
+B) Ingredients & Suppliers
+
+Columns: ingredient_name, unit, purchase_pack_size, purchase_unit, supplier_name, supplier_sku, pack_cost_cents, preferred (yes/no)
+
+Units: g|kg|ml|l|each
+
+C) Menu & Recipes
+
+menu_item_name, price_cents, active (yes/no)
+
+recipe_line: menu_item_name, ingredient_name, qty, unit
+(Support nested: if ingredient_name matches another menu_item_name, treat it as a sub-recipe.)
+
+D) Staff
+
+staff_name, email, role (FOH|BOH|Bar|Manager), hourly_rate_cents, active (yes/no)
+
+All files are venue-scoped; keep org/venue IDs from session via requireOrg().
+
+2) API endpoints (Node runtime, authenticated, idempotent)
+
+Create these routes:
+
+POST /api/import/sales
+
+POST /api/import/ingredients
+
+POST /api/import/menu
+
+POST /api/import/staff
+
+All should:
+
+Parse CSV with PapaParse.
+
+Validate each row with Zod (return line-level errors but continue collecting).
+
+Upsert by natural keys:
+
+Sales: (venue_id, date) (and hour if hourly).
+
+Ingredient: (venue_id, ingredient_name).
+
+Supplier item: (venue_id, ingredient_id, supplier_name, supplier_sku).
+
+Menu item: (venue_id, menu_item_name).
+
+Recipe line: (menu_item_id, ingredient_id) (delete-and-replace or upsert).
+
+Staff: (venue_id, email) or (venue_id, staff_name) if no email.
+
+Return { inserted, updated, skipped, errors: [{row,msg}] }.
+
+Pseudocode skeleton (one route):
+
+export const runtime = "nodejs";
+import Papa from "papaparse";
+import { z } from "zod";
+import { NextResponse } from "next/server";
+import { requireOrg } from "@/lib/authz";
+import { db } from "@/db";
+
+const Row = z.object({
+  date: z.string().transform(s => new Date(s)),
+  revenue_cents: z.coerce.number().int().nonnegative(),
+  orders: z.coerce.number().int().nonnegative().optional(),
+  covers: z.coerce.number().int().nonnegative().optional()
+});
+
+export async function POST(req: Request) {
+  const { venueId } = await requireOrg({ role: "manager" });
+  const text = await req.text(); // CSV in body
+  const { data } = Papa.parse<string[]>(text, { header: true, skipEmptyLines: true });
+  let inserted = 0, updated = 0; const errors:any[] = [];
+
+  for (let i=0; i<data.length; i++) {
+    try {
+      const row = Row.parse(data[i]);
+      // upsert sales by (venueId, date)
+      // await db.insert(...).onConflictDoUpdate(...)
+      inserted++; // or updated++
+    } catch (e:any) {
+      errors.push({ row: i+2, msg: e.message });
+    }
+  }
+  return NextResponse.json({ inserted, updated, skipped: 0, errors });
+}
+
+
+(Repeat per importer with the right schema and upsert keys.)
+
+3) UI: Import center
+
+Add “Imports” under Operations (or Admin) with four tabs:
+
+Sales
+
+Ingredients & Suppliers
+
+Menu & Recipes
+
+Staff
+
+Each tab shows:
+
+Download template buttons (serve static CSV templates from /public/templates/*.csv).
+
+Drag-and-drop area; on drop: read file → text() → POST body.
+
+Results panel with counts and a compact error table (row, message).
+
+UX details
+
+Show last import timestamp & who imported (write a row to an imports_log table).
+
+If an import changes data that affects forecasts, show a one-click “Regenerate Forecasts” button for 60 days around the changed dates.
+
+4) Safety & performance
+
+Chunk large files by 2–5k rows per transaction to avoid timeouts.
+
+Wrap upserts in transactions per chunk.
+
+Indexes to confirm:
+
+daily_sales (venue_id, date) and if hourly: (venue_id, date, hour)
+
+ingredients (venue_id, name) unique
+
+menu_items (venue_id, name) unique
+
+supplier_items (venue_id, ingredient_id, supplier_sku)
+
+Reject files > 10MB with a friendly error (we can lift later).
+
+5) Side effects
+
+After Sales import for any date range, kick off:
+
+POST /api/forecast/generate?start=MIN_DATE&days=RANGE (idempotent).
+
+After Ingredients/Menu imports, recompute theoretical COGS for affected items (or mark dirty for next KPI read).
+
+After Staff import, no extra work (roster suggestions already consider roles).
+
+6) Acceptance
+
+Each importer accepts its template and reports inserts/updates.
+
+Re-uploading the same file results mostly in updates or skips, not duplicates.
+
+Forecast chart reflects imported sales after regeneration.
+
+Order Guide reflects imported ingredients/suppliers/recipes.
+
+No PII is stored in PostHog; only “import_completed” events with { type, inserted, updated, errors }.

@@ -1,0 +1,238 @@
+PROMPT 12 / 20 — Nightly jobs + demand signals scaffolding (+ tiny dev unlock for active venue)
+
+Goal: 1) add scheduled jobs (forecast regen + ops suggestions) you can run manually now and on a cron later, 2) wire demand signals scaffolding (manual overrides + holiday hooks + weather adapter interface) so forecasts can apply multipliers, 3) optional tiny dev route to auto-activate the first org/venue to unblock testing. Do all steps exactly; don’t delete existing files.
+
+⸻
+
+A) (Optional) Dev unlock so tests aren’t blocked by venue selection
+
+Create: app/api/dev/activate-context/route.ts
+
+export const runtime = "nodejs";
+import { NextResponse } from "next/server";
+import { auth } from "@/auth"; // NextAuth
+import { cookies } from "next/headers";
+import { db } from "@/db";
+import { memberships } from "@/db/schema";
+import { eq } from "drizzle-orm";
+
+export async function POST() {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "not_authenticated" }, { status: 401 });
+
+  const rows = await db.select().from(memberships).where(eq(memberships.user_id, session.user.id)).limit(1);
+  const m = rows[0];
+  if (!m) return NextResponse.json({ error: "no_membership" }, { status: 400 });
+
+  // Set both new and legacy cookie names for compatibility
+  cookies().set("activeOrgId", String(m.org_id), { httpOnly: true, path: "/" });
+  cookies().set("activeVenueId", String(m.venue_id), { httpOnly: true, path: "/" });
+  cookies().set("orgId", String(m.org_id), { httpOnly: true, path: "/" });
+  cookies().set("venueId", String(m.venue_id), { httpOnly: true, path: "/" });
+
+  return NextResponse.json({ ok: true, orgId: m.org_id, venueId: m.venue_id });
+}
+
+In dev, after login, call POST /api/dev/activate-context once if you ever get bounced for “select a venue”.
+
+⸻
+
+B) Demand signals scaffolding
+
+1) Schema (idempotent – add only if missing)
+	•	demand_overrides
+	•	id PK
+	•	venue_id FK
+	•	starts_at timestamptz (window start)
+	•	ends_at timestamptz (window end)
+	•	multiplier numeric (e.g., 1.15 for +15%)
+	•	reason text (e.g., “Local event”, “Marketing”)
+	•	created_by FK users
+	•	created_at timestamptz default now()
+	•	Index: (venue_id, starts_at, ends_at)
+	•	holidays
+	•	id PK
+	•	venue_id FK (or org-level if you prefer)
+	•	date date
+	•	name text
+	•	region text (e.g., AU-VIC)
+	•	Unique on (venue_id, date)
+
+If you already have equivalents, skip.
+
+2) Signals service
+
+Create: lib/signals/types.ts
+
+export type SignalContext = { venueId: string; at: Date };
+export type SignalProvider = {
+  getMultiplier(ctx: SignalContext): Promise<number>; // returns 1.0 if neutral
+};
+
+Create: lib/signals/providers/manual-overrides.ts
+
+import { db } from "@/db";
+import { demand_overrides } from "@/db/schema";
+import { and, gte, lte, eq } from "drizzle-orm";
+import type { SignalProvider, SignalContext } from "./types";
+
+export const manualOverridesProvider: SignalProvider = {
+  async getMultiplier({ venueId, at }: SignalContext) {
+    const rows = await db.query.demand_overrides.findMany({
+      where: (t,{and,eq,gte,lte}) => and(
+        eq(t.venue_id, venueId),
+        lte(t.starts_at, at),
+        gte(t.ends_at, at)
+      )
+    });
+    // combine multiplicatively
+    return rows.reduce((m, r) => m * Number(r.multiplier ?? 1), 1);
+  }
+};
+
+Create: lib/signals/providers/holidays.ts
+
+import { db } from "@/db";
+import { holidays } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
+import type { SignalProvider, SignalContext } from "./types";
+
+// Simple rule: public holiday bump +15%
+const HOLIDAY_BUMP = 1.15;
+
+export const holidaysProvider: SignalProvider = {
+  async getMultiplier({ venueId, at }: SignalContext) {
+    const day = new Date(at); day.setHours(0,0,0,0);
+    const row = await db.query.holidays.findFirst({
+      where: (t,{and,eq}) => and(eq(t.venue_id, venueId), eq(t.date, day))
+    });
+    return row ? HOLIDAY_BUMP : 1.0;
+  }
+};
+
+Create: lib/signals/providers/weather.ts
+
+import type { SignalProvider, SignalContext } from "./types";
+
+// Scaffold only – returns neutral in dev; you can wire a real API later.
+export const weatherProvider: SignalProvider = {
+  async getMultiplier(_: SignalContext) {
+    // e.g., return 1.08 for heavy rain if venue is delivery-heavy
+    return 1.0;
+  }
+};
+
+Create: lib/signals/index.ts
+
+import type { SignalContext } from "./types";
+import { manualOverridesProvider } from "./providers/manual-overrides";
+import { holidaysProvider } from "./providers/holidays";
+import { weatherProvider } from "./providers/weather";
+
+const providers = [manualOverridesProvider, holidaysProvider, weatherProvider];
+
+export async function getDemandMultiplier(ctx: SignalContext): Promise<number> {
+  const mults = await Promise.all(providers.map(p => p.getMultiplier(ctx)));
+  // cap extremes
+  const product = mults.reduce((m,v) => m * (isFinite(v) ? v : 1), 1);
+  return Math.max(0.5, Math.min(1.8, product));
+}
+
+3) Apply signals in forecasting
+
+Edit: lib/forecasting.ts
+	•	Where you compute the final per-day qty for an item, multiply by demand signals:
+
+import { getDemandMultiplier } from "@/lib/signals";
+
+// inside your per-day loop:
+const mult = await getDemandMultiplier({ venueId, at: dayDate });
+const adjustedQty = baseQtyForThisDay * mult;
+
+
+	•	Keep your recent fixes (skip zero-weeks, DOW pattern, etc.).
+	•	Ensure /api/forecast/generate calls this adjusted path.
+
+Acceptance: If you add a manual override (e.g., multiplier 1.3 on Saturday), the dashboard forecast bars for that day increase by ~30%.
+
+⸻
+
+C) Admin UI for manual overrides (simple)
+
+Create page: app/automation/demand-overrides/page.tsx
+	•	Server component: list overrides for active venue (table with starts_at, ends_at, multiplier, reason, delete).
+	•	“Add Override” button → client modal: create POST /api/demand-overrides.
+	•	APIs:
+	•	POST /api/demand-overrides → create row (validate venue ownership).
+	•	GET /api/demand-overrides → list for venue.
+	•	DELETE /api/demand-overrides/[id] → delete.
+
+Keep minimal. This gives you a realistic way to tune demand for known events.
+
+⸻
+
+D) Nightly jobs orchestration (manual now, cron-ready later)
+
+Create: lib/jobs.ts
+
+import { db } from "@/db";
+import { venues } from "@/db/schema";
+// import your forecasting + guardrails functions
+
+export async function runNightlyJobs({ daysAhead = 14 } = {}) {
+  // for each venue:
+  const all = await db.query.venues.findMany({ limit: 500 });
+  for (const v of all) {
+    // 1) regenerate forecasts for [today .. today+daysAhead]
+    const start = new Date(); start.setHours(0,0,0,0);
+    // call your existing forecast generator directly (not via fetch)
+    await generateForecastsForVenue({ venueId: v.id, start, days: daysAhead });
+
+    // 2) generate window-aware ops suggestions for next 7 days
+    const end = new Date(start); end.setDate(end.getDate()+7);
+    await runGuardrails({ venueId: v.id, start, end, period: "week" });
+  }
+}
+
+Create route: app/api/cron/nightly/route.ts
+
+export const runtime = "nodejs";
+import { NextResponse } from "next/server";
+import { runNightlyJobs } from "@/lib/jobs";
+// Optionally protect with a secret header in prod
+
+export async function POST() {
+  await runNightlyJobs({ daysAhead: 14 });
+  return NextResponse.json({ ok: true });
+}
+
+Create route: app/api/cron/forecast/route.ts (optional quick-run)
+
+export const runtime = "nodejs";
+import { NextResponse } from "next/server";
+import { generateForecastsForVenue } from "@/lib/forecasting";
+import { requireOrg } from "@/lib/authz";
+
+export async function POST(req: Request) {
+  const { venueId } = await requireOrg({ role: "manager" });
+  const url = new URL(req.url);
+  const days = Number(url.searchParams.get("days") ?? 14);
+  const start = new Date(); start.setHours(0,0,0,0);
+  await generateForecastsForVenue({ venueId, start, days });
+  return NextResponse.json({ ok: true });
+}
+
+On Replit or Vercel, you can wire this to a cron later. For now, you can POST it manually.
+
+⸻
+
+E) Acceptance checks
+	•	Manual override works: Create an override (e.g., Sat 00:00–23:59, multiplier 1.30). Refresh dashboard Week view: Sat forecast bar increases by ~30%.
+	•	Nightly job endpoint: POST /api/cron/nightly returns { ok: true } and regenerates the next 14 days’ forecasts & suggestions for all venues.
+	•	Performance unaffected: Summary endpoint still returns in ~≤800ms.
+	•	Dev unlock works (optional): POST /api/dev/activate-context sets cookies; you can navigate to Order Guide/Purchases without bounce.
+
+⸻
+
+When this lands, we’ll have auto-refreshing forecasts and a clean path to richer signals (weather/events) while keeping full control via manual overrides.
+Ping me once it’s in, and I’ll give you PROMPT 13 / 20 (CSV Import wizard polish, or role-enforcement & audit hardening—your pick).
