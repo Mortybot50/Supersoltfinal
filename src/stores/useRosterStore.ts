@@ -127,7 +127,7 @@ interface RosterStore {
   deleteShift: (id: string) => Promise<void>
 
   // Roster ops
-  publishRoster: (weekStart: Date) => Promise<void>
+  publishRoster: (weekStart: Date, mode?: 'all' | 'changes') => Promise<void>
   loadWeek: (weekStart: Date) => Promise<void>
 
   // UI
@@ -180,7 +180,7 @@ function mapShiftRow(row: any): RosterShift {
     break_minutes: row.break_duration_mins ?? row.break_minutes ?? 0,
     role: row.position || row.role || 'crew',
     notes: row.notes,
-    status: row.status === 'draft' ? 'scheduled' : row.status === 'published' ? 'confirmed' : (row.status || 'scheduled'),
+    status: row.status === 'draft' ? 'scheduled' : row.status === 'published' ? 'confirmed' : row.status === 'modified' ? 'modified' : (row.status || 'scheduled'),
     is_open_shift: row.is_open_shift || false,
     total_hours: calcHours(row.start_time, row.end_time, row.break_duration_mins ?? row.break_minutes ?? 0),
     base_cost: Math.round((row.base_cost || 0) * 100),
@@ -346,13 +346,19 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
   updateShift: async (id, updates) => {
     const prev = get().shifts.find(s => s.id === id)
 
+    // If shift was already published, mark it as modified
+    const shiftUpdates = { ...updates }
+    if (prev?.status === 'confirmed' && !updates.status) {
+      shiftUpdates.status = 'modified'
+    }
+
     // Optimistic update
     set({
-      shifts: get().shifts.map(s => s.id === id ? { ...s, ...updates } : s),
-      openShifts: get().openShifts.map(s => s.id === id ? { ...s, ...updates } : s),
+      shifts: get().shifts.map(s => s.id === id ? { ...s, ...shiftUpdates } : s),
+      openShifts: get().openShifts.map(s => s.id === id ? { ...s, ...shiftUpdates } : s),
     })
 
-    const ok = await updateRosterShiftInDB(id, updates)
+    const ok = await updateRosterShiftInDB(id, shiftUpdates)
     if (!ok && prev) {
       set({ shifts: get().shifts.map(s => s.id === id ? prev : s) })
     }
@@ -444,17 +450,22 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
     }
   },
 
-  publishRoster: async (weekStart) => {
+  publishRoster: async (weekStart, mode = 'all') => {
     const { shifts } = get()
     const weekEnd = addDays(weekStart, 6)
     const toPublish = shifts.filter(s => {
-      if (s.status !== 'scheduled') return false
+      if (mode === 'all') {
+        if (s.status !== 'scheduled' && s.status !== 'modified') return false
+      } else {
+        // 'changes': only draft (unconfirmed) shifts
+        if (s.status !== 'scheduled') return false
+      }
       const d = s.date instanceof Date ? s.date : new Date(s.date)
       return d >= weekStart && d <= weekEnd
     })
 
     if (toPublish.length === 0) {
-      toast.info('No draft shifts to publish')
+      toast.info('No shifts to publish')
       return
     }
 
@@ -464,7 +475,7 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
       set({
         shifts: get().shifts.map(s => ids.includes(s.id) ? { ...s, status: 'confirmed' } : s),
       })
-      toast.success(`Published ${ids.length} shift${ids.length === 1 ? '' : 's'}`)
+      toast.success(`Roster published — ${ids.length} staff notified`)
     }
   },
 
