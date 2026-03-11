@@ -1,5 +1,8 @@
 import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
 import { useDataStore } from '@/lib/store/dataStore'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/integrations/supabase/client'
@@ -17,6 +20,9 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
+} from '@/components/ui/form'
+import {
   Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink,
   BreadcrumbSeparator, BreadcrumbPage,
 } from '@/components/ui/breadcrumb'
@@ -25,8 +31,8 @@ import {
 } from '@/components/ui/table'
 import {
   User, Mail, Phone, MapPin, Calendar, AlertCircle, FileText,
-  Clock, DollarSign, Shield, ChevronRight, Plus, ExternalLink,
-  CheckCircle, XCircle, AlertTriangle,
+  Clock, DollarSign, Shield, Plus, ExternalLink, Upload,
+  CheckCircle, XCircle, AlertTriangle, Pencil,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -35,6 +41,48 @@ import { ONBOARDING_STEPS } from '@/lib/constants/onboarding'
 import { updateStaffInDB } from '@/lib/services/labourService'
 import { Staff } from '@/types'
 
+// ─── Default AU hospitality qualification types ──────────────────────────────
+
+const DEFAULT_QUAL_TYPES = [
+  { name: 'RSA', description: 'Responsible Service of Alcohol', validity_months: 36 as number | null, required_for_roles: ['manager', 'supervisor', 'crew'] },
+  { name: 'Food Safety Certificate', description: 'FSANZ Food Safety Handler Certificate', validity_months: 60 as number | null, required_for_roles: ['manager', 'supervisor', 'crew'] },
+  { name: 'First Aid Certificate', description: 'Provide First Aid (HLTAID011)', validity_months: 36 as number | null, required_for_roles: ['manager', 'supervisor'] },
+  { name: 'Working With Children Check', description: 'WWCC — state-specific', validity_months: 60 as number | null, required_for_roles: ['manager', 'supervisor', 'crew'] },
+  { name: 'Barista Certificate', description: 'Espresso machine operation and coffee skills', validity_months: null, required_for_roles: ['crew'] },
+  { name: 'RSG', description: 'Responsible Service of Gambling', validity_months: 36 as number | null, required_for_roles: ['manager', 'supervisor'] },
+  { name: 'Liquor License', description: 'Personal liquor licence or approval', validity_months: 12 as number | null, required_for_roles: ['manager'] },
+  { name: 'Manual Handling Certificate', description: 'Safe manual handling and lifting techniques', validity_months: 24 as number | null, required_for_roles: ['manager', 'supervisor', 'crew'] },
+]
+
+// ─── Zod schemas for editable forms ─────────────────────────────────────────
+
+const personalSchema = z.object({
+  name: z.string().min(2, 'Name required'),
+  email: z.string().email('Invalid email'),
+  phone: z.string().optional(),
+  date_of_birth: z.string().optional(),
+})
+
+const addressSchema = z.object({
+  address_line1: z.string().optional(),
+  address_line2: z.string().optional(),
+  suburb: z.string().optional(),
+  state: z.string().optional(),
+  postcode: z.string().optional(),
+})
+
+const emergencySchema = z.object({
+  emergency_contact_name: z.string().optional(),
+  emergency_contact_phone: z.string().optional(),
+  emergency_contact_relationship: z.string().optional(),
+})
+
+const paySchema = z.object({
+  hourly_rate_display: z.string().optional(),
+  employment_type: z.enum(['full-time', 'part-time', 'casual']).optional(),
+  award_classification: z.string().optional(),
+})
+
 // ─── Local Types ────────────────────────────────────────────────────────────
 
 interface QualificationType {
@@ -42,7 +90,7 @@ interface QualificationType {
   org_id: string
   name: string
   description?: string
-  validity_months?: number
+  validity_months?: number | null
   required_for_roles: string[]
 }
 
@@ -56,7 +104,7 @@ interface StaffQualification {
   certificate_number?: string
   evidence_url?: string
   status: 'valid' | 'expiring' | 'expired'
-  qualification_types?: { name: string; validity_months?: number }
+  qualification_types?: { name: string; validity_months?: number | null }
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -73,16 +121,16 @@ function computeQualStatus(expiry?: string): 'valid' | 'expiring' | 'expired' {
   if (!expiry) return 'valid'
   const exp = new Date(expiry)
   const now = new Date()
-  const thirtyDays = new Date()
-  thirtyDays.setDate(thirtyDays.getDate() + 30)
+  const ninetyDays = new Date()
+  ninetyDays.setDate(ninetyDays.getDate() + 90)
   if (exp < now) return 'expired'
-  if (exp <= thirtyDays) return 'expiring'
+  if (exp <= ninetyDays) return 'expiring'
   return 'valid'
 }
 
 function QualStatusBadge({ status }: { status: 'valid' | 'expiring' | 'expired' }) {
   if (status === 'valid')    return <Badge className="bg-green-100 text-green-800 border-green-200">Valid</Badge>
-  if (status === 'expiring') return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Expiring</Badge>
+  if (status === 'expiring') return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Expiring Soon</Badge>
   return <Badge variant="destructive">Expired</Badge>
 }
 
@@ -113,9 +161,17 @@ function AssignQualDialog({ open, onOpenChange, staffId, orgId, qualTypes, exist
   const [expiryDate, setExpiryDate] = useState('')
   const [certNumber, setCertNumber] = useState('')
   const [saving, setSaving] = useState(false)
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const availableTypes = qualTypes.filter(t => !existing.some(e => e.qualification_type_id === t.id))
   const selectedType = qualTypes.find(t => t.id === typeId)
+
+  useEffect(() => {
+    if (open) {
+      setTypeId(''); setIssueDate(''); setExpiryDate(''); setCertNumber(''); setUploadFile(null)
+    }
+  }, [open])
 
   // Auto-fill expiry based on validity_months + issue_date
   useEffect(() => {
@@ -129,6 +185,24 @@ function AssignQualDialog({ open, onOpenChange, staffId, orgId, qualTypes, exist
   const handleSave = async () => {
     if (!typeId) { toast.error('Select a qualification type'); return }
     setSaving(true)
+
+    // Upload evidence document if provided
+    let evidenceUrl: string | null = null
+    if (uploadFile) {
+      const ext = uploadFile.name.split('.').pop()
+      const filePath = `${orgId}/qualifications/${staffId}/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('staff-documents')
+        .upload(filePath, uploadFile, { upsert: true })
+      if (uploadError) {
+        toast.error('Failed to upload document: ' + uploadError.message)
+        setSaving(false)
+        return
+      }
+      const { data: urlData } = supabase.storage.from('staff-documents').getPublicUrl(filePath)
+      evidenceUrl = urlData.publicUrl
+    }
+
     const status = computeQualStatus(expiryDate || undefined)
     const { data, error } = await supabase
       .from('staff_qualifications')
@@ -139,6 +213,7 @@ function AssignQualDialog({ open, onOpenChange, staffId, orgId, qualTypes, exist
         issue_date: issueDate || null,
         expiry_date: expiryDate || null,
         certificate_number: certNumber || null,
+        evidence_url: evidenceUrl,
         status,
       })
       .select()
@@ -148,7 +223,6 @@ function AssignQualDialog({ open, onOpenChange, staffId, orgId, qualTypes, exist
     onSaved(data as StaffQualification)
     toast.success('Qualification added')
     onOpenChange(false)
-    setTypeId(''); setIssueDate(''); setExpiryDate(''); setCertNumber('')
   }
 
   return (
@@ -182,6 +256,37 @@ function AssignQualDialog({ open, onOpenChange, staffId, orgId, qualTypes, exist
           <div>
             <Label>Certificate Number</Label>
             <Input value={certNumber} onChange={e => setCertNumber(e.target.value)} placeholder="Optional" />
+          </div>
+          <div>
+            <Label>Evidence Document</Label>
+            <div className="mt-1 flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileRef.current?.click()}
+              >
+                <Upload className="h-3.5 w-3.5 mr-1.5" />
+                {uploadFile ? uploadFile.name : 'Upload file'}
+              </Button>
+              {uploadFile && (
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground text-xs"
+                  onClick={() => { setUploadFile(null); if (fileRef.current) fileRef.current.value = '' }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <input
+              ref={fileRef}
+              type="file"
+              className="hidden"
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={e => setUploadFile(e.target.files?.[0] ?? null)}
+            />
+            <p className="text-xs text-muted-foreground mt-1">PDF, JPG, or PNG. Max 10 MB.</p>
           </div>
         </div>
         <DialogFooter>
@@ -219,9 +324,17 @@ export default function StaffDetailPage() {
       supabase.from('qualification_types').select('*').eq('org_id', currentOrg.id),
       supabase.from('staff_qualifications').select('*, qualification_types(name, validity_months)').eq('staff_id', id),
     ])
-    if (types) setQualTypes(types as QualificationType[])
+
+    // Seed default AU hospitality qual types if org has none
+    if (types !== null && types.length === 0) {
+      const seeds = DEFAULT_QUAL_TYPES.map(t => ({ ...t, org_id: currentOrg.id }))
+      const { data: seeded } = await supabase.from('qualification_types').insert(seeds).select()
+      if (seeded) setQualTypes(seeded as QualificationType[])
+    } else if (types) {
+      setQualTypes(types as QualificationType[])
+    }
+
     if (quals) {
-      // Recompute status at render time
       setStaffQuals((quals as StaffQualification[]).map(q => ({
         ...q,
         status: computeQualStatus(q.expiry_date),
@@ -246,7 +359,16 @@ export default function StaffDetailPage() {
     toast.success('Qualification removed')
   }
 
-  // Inline field edit helpers
+  // ── Editable form state ─────────────────────────────────────────────────────
+
+  const [editingSection, setEditingSection] = useState<'personal' | 'address' | 'emergency' | 'pay' | null>(null)
+
+  const personalForm  = useForm<z.infer<typeof personalSchema>>({ resolver: zodResolver(personalSchema) })
+  const addressForm   = useForm<z.infer<typeof addressSchema>>({ resolver: zodResolver(addressSchema) })
+  const emergencyForm = useForm<z.infer<typeof emergencySchema>>({ resolver: zodResolver(emergencySchema) })
+  const payForm       = useForm<z.infer<typeof paySchema>>({ resolver: zodResolver(paySchema) })
+
+  // Manager notes
   const [editingNotes, setEditingNotes] = useState(false)
   const [notes, setNotes] = useState('')
 
@@ -270,72 +392,286 @@ export default function StaffDetailPage() {
     ? Math.round((completedSteps / ONBOARDING_STEPS.length) * 100)
     : member.onboarding_progress
 
+  // ── Save helper ─────────────────────────────────────────────────────────────
+
+  async function saveSection(updates: Partial<Staff>) {
+    const ok = await updateStaffInDB(member.id, updates)
+    if (ok) {
+      updateStaff(member.id, updates)
+      setEditingSection(null)
+      toast.success('Saved')
+    } else {
+      toast.error('Failed to save')
+    }
+  }
+
   // ── Tab content ────────────────────────────────────────────────────────────
 
-  const PersonalTab = () => (
-    <div className="space-y-4">
-      <Card className="p-5">
-        <h3 className="font-semibold mb-4 flex items-center gap-2"><User className="h-4 w-4" /> Personal Information</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <InfoRow label="Full Name" value={member.name} />
-          <InfoRow label="Email" value={member.email} />
-          <InfoRow label="Phone" value={member.phone} />
-          <InfoRow label="Date of Birth"
-            value={member.date_of_birth ? format(new Date(member.date_of_birth), 'dd MMM yyyy') : undefined} />
-          <InfoRow label="Employment Start"
-            value={member.start_date ? format(new Date(member.start_date), 'dd MMM yyyy') : undefined} />
-          <InfoRow label="Role" value={member.role ? member.role.charAt(0).toUpperCase() + member.role.slice(1) : undefined} />
-        </div>
-      </Card>
+  const PersonalTab = () => {
+    const isEditingPersonal  = editingSection === 'personal'
+    const isEditingAddress   = editingSection === 'address'
+    const isEditingEmergency = editingSection === 'emergency'
 
-      <Card className="p-5">
-        <h3 className="font-semibold mb-4 flex items-center gap-2"><MapPin className="h-4 w-4" /> Address</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <InfoRow label="Street Address" value={member.address_line1} />
-          <InfoRow label="Address Line 2" value={member.address_line2} />
-          <InfoRow label="Suburb" value={member.suburb} />
-          <InfoRow label="State" value={member.state} />
-          <InfoRow label="Postcode" value={member.postcode} />
-        </div>
-      </Card>
+    const startEditPersonal = () => {
+      personalForm.reset({
+        name: member.name,
+        email: member.email,
+        phone: member.phone ?? '',
+        date_of_birth: member.date_of_birth
+          ? (member.date_of_birth instanceof Date
+              ? member.date_of_birth.toISOString().split('T')[0]
+              : String(member.date_of_birth).split('T')[0])
+          : '',
+      })
+      setEditingSection('personal')
+    }
 
-      <Card className="p-5">
-        <h3 className="font-semibold mb-4 flex items-center gap-2"><AlertCircle className="h-4 w-4" /> Emergency Contact</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <InfoRow label="Name" value={member.emergency_contact_name} />
-          <InfoRow label="Phone" value={member.emergency_contact_phone} />
-          <InfoRow label="Relationship" value={member.emergency_contact_relationship} />
-        </div>
-      </Card>
-    </div>
-  )
+    const startEditAddress = () => {
+      addressForm.reset({
+        address_line1: member.address_line1 ?? '',
+        address_line2: member.address_line2 ?? '',
+        suburb: member.suburb ?? '',
+        state: member.state ?? '',
+        postcode: member.postcode ?? '',
+      })
+      setEditingSection('address')
+    }
 
-  const PayTab = () => (
-    <div className="space-y-4">
-      <Card className="p-5">
-        <h3 className="font-semibold mb-4 flex items-center gap-2"><DollarSign className="h-4 w-4" /> Pay Conditions</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <InfoRow label="Base Hourly Rate" value={`${formatCurrency(member.hourly_rate)}/hr`} />
-          <InfoRow label="Employment Type"
-            value={member.employment_type?.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase())} />
-          <InfoRow label="Award Classification" value={member.award_classification} />
-          <InfoRow label="Pay Cycle" value="Fortnightly" />
-          <InfoRow label="External Payroll ID" value={member.external_payroll_id} />
-        </div>
-      </Card>
+    const startEditEmergency = () => {
+      emergencyForm.reset({
+        emergency_contact_name: member.emergency_contact_name ?? '',
+        emergency_contact_phone: member.emergency_contact_phone ?? '',
+        emergency_contact_relationship: member.emergency_contact_relationship ?? '',
+      })
+      setEditingSection('emergency')
+    }
 
-      <Card className="p-5">
-        <h3 className="font-semibold mb-4">Superannuation</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <InfoRow label="Fund Name" value={member.super_fund_name} />
-          <InfoRow label="Fund ABN" value={member.super_fund_abn} />
-          <InfoRow label="USI" value={member.super_fund_usi} />
-          <InfoRow label="Member Number" value={member.super_member_number} />
-          <InfoRow label="Using Employer Default" value={member.super_use_employer_default ? 'Yes' : 'No'} />
-        </div>
-      </Card>
-    </div>
-  )
+    return (
+      <div className="space-y-4">
+        {/* Personal Information */}
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold flex items-center gap-2"><User className="h-4 w-4" /> Personal Information</h3>
+            {!isEditingPersonal && (
+              <Button variant="outline" size="sm" onClick={startEditPersonal}><Pencil className="h-3 w-3 mr-1" /> Edit</Button>
+            )}
+          </div>
+          {isEditingPersonal ? (
+            <Form {...personalForm}>
+              <form onSubmit={personalForm.handleSubmit(v => saveSection({
+                name: v.name,
+                email: v.email,
+                phone: v.phone || undefined,
+                date_of_birth: v.date_of_birth ? new Date(v.date_of_birth) : undefined,
+              }))} className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField control={personalForm.control} name="name" render={({ field }) => (
+                    <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={personalForm.control} name="email" render={({ field }) => (
+                    <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={personalForm.control} name="phone" render={({ field }) => (
+                    <FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={personalForm.control} name="date_of_birth" render={({ field }) => (
+                    <FormItem><FormLabel>Date of Birth</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setEditingSection(null)}>Cancel</Button>
+                  <Button type="submit" size="sm">Save</Button>
+                </div>
+              </form>
+            </Form>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <InfoRow label="Full Name" value={member.name} />
+              <InfoRow label="Email" value={member.email} />
+              <InfoRow label="Phone" value={member.phone} />
+              <InfoRow label="Date of Birth"
+                value={member.date_of_birth ? format(new Date(member.date_of_birth), 'dd MMM yyyy') : undefined} />
+              <InfoRow label="Employment Start"
+                value={member.start_date ? format(new Date(member.start_date), 'dd MMM yyyy') : undefined} />
+              <InfoRow label="Role" value={member.role ? member.role.charAt(0).toUpperCase() + member.role.slice(1) : undefined} />
+            </div>
+          )}
+        </Card>
+
+        {/* Address */}
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold flex items-center gap-2"><MapPin className="h-4 w-4" /> Address</h3>
+            {!isEditingAddress && (
+              <Button variant="outline" size="sm" onClick={startEditAddress}><Pencil className="h-3 w-3 mr-1" /> Edit</Button>
+            )}
+          </div>
+          {isEditingAddress ? (
+            <Form {...addressForm}>
+              <form onSubmit={addressForm.handleSubmit(v => saveSection(v))} className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField control={addressForm.control} name="address_line1" render={({ field }) => (
+                    <FormItem className="col-span-2"><FormLabel>Street Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={addressForm.control} name="address_line2" render={({ field }) => (
+                    <FormItem className="col-span-2"><FormLabel>Address Line 2</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={addressForm.control} name="suburb" render={({ field }) => (
+                    <FormItem><FormLabel>Suburb</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={addressForm.control} name="state" render={({ field }) => (
+                    <FormItem><FormLabel>State</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={addressForm.control} name="postcode" render={({ field }) => (
+                    <FormItem><FormLabel>Postcode</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setEditingSection(null)}>Cancel</Button>
+                  <Button type="submit" size="sm">Save</Button>
+                </div>
+              </form>
+            </Form>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <InfoRow label="Street Address" value={member.address_line1} />
+              <InfoRow label="Address Line 2" value={member.address_line2} />
+              <InfoRow label="Suburb" value={member.suburb} />
+              <InfoRow label="State" value={member.state} />
+              <InfoRow label="Postcode" value={member.postcode} />
+            </div>
+          )}
+        </Card>
+
+        {/* Emergency Contact */}
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold flex items-center gap-2"><AlertCircle className="h-4 w-4" /> Emergency Contact</h3>
+            {!isEditingEmergency && (
+              <Button variant="outline" size="sm" onClick={startEditEmergency}><Pencil className="h-3 w-3 mr-1" /> Edit</Button>
+            )}
+          </div>
+          {isEditingEmergency ? (
+            <Form {...emergencyForm}>
+              <form onSubmit={emergencyForm.handleSubmit(v => saveSection(v))} className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField control={emergencyForm.control} name="emergency_contact_name" render={({ field }) => (
+                    <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={emergencyForm.control} name="emergency_contact_phone" render={({ field }) => (
+                    <FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={emergencyForm.control} name="emergency_contact_relationship" render={({ field }) => (
+                    <FormItem><FormLabel>Relationship</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setEditingSection(null)}>Cancel</Button>
+                  <Button type="submit" size="sm">Save</Button>
+                </div>
+              </form>
+            </Form>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <InfoRow label="Name" value={member.emergency_contact_name} />
+              <InfoRow label="Phone" value={member.emergency_contact_phone} />
+              <InfoRow label="Relationship" value={member.emergency_contact_relationship} />
+            </div>
+          )}
+        </Card>
+      </div>
+    )
+  }
+
+  const PayTab = () => {
+    const isEditingPay = editingSection === 'pay'
+
+    const startEditPay = () => {
+      payForm.reset({
+        hourly_rate_display: member.hourly_rate > 0 ? (member.hourly_rate / 100).toFixed(2) : '',
+        employment_type: member.employment_type as 'full-time' | 'part-time' | 'casual' | undefined,
+        award_classification: member.award_classification ?? '',
+      })
+      setEditingSection('pay')
+    }
+
+    return (
+      <div className="space-y-4">
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold flex items-center gap-2"><DollarSign className="h-4 w-4" /> Pay Conditions</h3>
+            {!isEditingPay && (
+              <Button variant="outline" size="sm" onClick={startEditPay}><Pencil className="h-3 w-3 mr-1" /> Edit</Button>
+            )}
+          </div>
+          {isEditingPay ? (
+            <Form {...payForm}>
+              <form onSubmit={payForm.handleSubmit(v => saveSection({
+                hourly_rate: v.hourly_rate_display ? Math.round(parseFloat(v.hourly_rate_display) * 100) : member.hourly_rate,
+                employment_type: v.employment_type,
+                award_classification: v.award_classification || undefined,
+              }))} className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField control={payForm.control} name="hourly_rate_display" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Base Hourly Rate ($)</FormLabel>
+                      <FormControl><Input type="number" step="0.01" min="0" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={payForm.control} name="employment_type" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Employment Type</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="full-time">Full-time</SelectItem>
+                          <SelectItem value="part-time">Part-time</SelectItem>
+                          <SelectItem value="casual">Casual</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={payForm.control} name="award_classification" render={({ field }) => (
+                    <FormItem className="col-span-2">
+                      <FormLabel>Award Classification</FormLabel>
+                      <FormControl><Input {...field} placeholder="e.g. Level 2 — Hospitality Industry Award" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setEditingSection(null)}>Cancel</Button>
+                  <Button type="submit" size="sm">Save</Button>
+                </div>
+              </form>
+            </Form>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <InfoRow label="Base Hourly Rate" value={member.hourly_rate > 0 ? `${formatCurrency(member.hourly_rate)}/hr` : undefined} />
+              <InfoRow label="Employment Type"
+                value={member.employment_type?.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase())} />
+              <InfoRow label="Award Classification" value={member.award_classification} />
+              <InfoRow label="Pay Cycle" value="Fortnightly" />
+              <InfoRow label="External Payroll ID" value={member.external_payroll_id} />
+            </div>
+          )}
+        </Card>
+
+        <Card className="p-5">
+          <h3 className="font-semibold mb-4">Superannuation</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <InfoRow label="Fund Name" value={member.super_fund_name} />
+            <InfoRow label="Fund ABN" value={member.super_fund_abn} />
+            <InfoRow label="USI" value={member.super_fund_usi} />
+            <InfoRow label="Member Number" value={member.super_member_number} />
+            <InfoRow label="Using Employer Default" value={member.super_use_employer_default ? 'Yes' : 'No'} />
+          </div>
+        </Card>
+      </div>
+    )
+  }
 
   const AttendanceTab = () => (
     <div className="space-y-4">
@@ -357,7 +693,7 @@ export default function StaffDetailPage() {
           </Button>
         </div>
         <p className="text-sm text-muted-foreground mt-2">
-          View and manage this staff member's timesheet entries on the Timesheets page.
+          View and manage this staff member&apos;s timesheet entries on the Timesheets page.
         </p>
       </Card>
     </div>
@@ -370,7 +706,7 @@ export default function StaffDetailPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: 'Annual Leave', value: '—' },
-            { label: 'Personal / Carer\'s', value: '—' },
+            { label: "Personal / Carer's", value: '—' },
             { label: 'Long Service', value: '—' },
             { label: 'Compassionate', value: '—' },
           ].map(item => (
@@ -461,16 +797,9 @@ export default function StaffDetailPage() {
                 <p className="text-xs text-amber-600 mt-0.5">{expiringQuals} expiring soon</p>
               )}
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/workforce/qualifications">
-                  Manage <ExternalLink className="h-3 w-3 ml-1" />
-                </Link>
-              </Button>
-              <Button size="sm" onClick={() => setAssignOpen(true)}>
-                <Plus className="h-3 w-3 mr-1" /> Add
-              </Button>
-            </div>
+            <Button size="sm" onClick={() => setAssignOpen(true)}>
+              <Plus className="h-3 w-3 mr-1" /> Add
+            </Button>
           </div>
 
           {staffQuals.length === 0 ? (
@@ -486,6 +815,7 @@ export default function StaffDetailPage() {
                   <TableHead>Issue Date</TableHead>
                   <TableHead>Expiry</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Evidence</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -503,6 +833,15 @@ export default function StaffDetailPage() {
                       {q.expiry_date ? format(new Date(q.expiry_date), 'dd MMM yyyy') : 'No expiry'}
                     </TableCell>
                     <TableCell><QualStatusBadge status={q.status} /></TableCell>
+                    <TableCell>
+                      {q.evidence_url ? (
+                        <a href={q.evidence_url} target="_blank" rel="noreferrer" className="text-primary text-xs flex items-center gap-1">
+                          <FileText className="h-3 w-3" /> View
+                        </a>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Button
                         variant="ghost" size="sm"
@@ -637,9 +976,7 @@ export default function StaffDetailPage() {
               )}
             </div>
           </div>
-          <div className="text-right shrink-0">
-            <div className="text-2xl font-bold">{formatCurrency(member.hourly_rate)}<span className="text-sm font-normal text-muted-foreground">/hr</span></div>
-          </div>
+          {/* Wage removed from header — set via Pay Conditions tab */}
         </div>
       </Card>
 

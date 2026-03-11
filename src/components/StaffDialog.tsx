@@ -26,17 +26,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
 import { Staff } from "@/types"
-import { parseCurrency } from "@/lib/currency"
 import { useEffect } from "react"
 
 const staffSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
-  phone: z.string().optional(),
   role: z.enum(["manager", "supervisor", "crew"]),
-  hourly_rate: z.string().min(1, "Hourly rate is required"),
   start_date: z.string().min(1, "Start date is required"),
 })
 
@@ -56,9 +52,7 @@ export function StaffDialog({ open, onOpenChange, staff, onSave }: StaffDialogPr
     defaultValues: {
       name: "",
       email: "",
-      phone: "",
       role: "crew",
-      hourly_rate: "",
       start_date: new Date().toISOString().split('T')[0],
     },
   })
@@ -68,18 +62,14 @@ export function StaffDialog({ open, onOpenChange, staff, onSave }: StaffDialogPr
       form.reset({
         name: staff.name,
         email: staff.email,
-        phone: staff.phone || "",
         role: staff.role,
-        hourly_rate: (staff.hourly_rate / 100).toFixed(2),
         start_date: typeof staff.start_date === 'string' ? staff.start_date : new Date(staff.start_date).toISOString().split('T')[0],
       })
     } else {
       form.reset({
         name: "",
         email: "",
-        phone: "",
         role: "crew",
-        hourly_rate: "",
         start_date: new Date().toISOString().split('T')[0],
       })
     }
@@ -92,9 +82,8 @@ export function StaffDialog({ open, onOpenChange, staff, onSave }: StaffDialogPr
       venue_id: staff?.venue_id || currentVenue?.id || '',
       name: values.name,
       email: values.email,
-      phone: values.phone || undefined,
       role: values.role,
-      hourly_rate: parseCurrency(values.hourly_rate),
+      hourly_rate: staff?.hourly_rate ?? 0,
       start_date: new Date(values.start_date),
       status: staff?.status || 'active',
       // Onboarding fields (preserve existing or set defaults)
@@ -159,20 +148,6 @@ export function StaffDialog({ open, onOpenChange, staff, onSave }: StaffDialogPr
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone</FormLabel>
-                    <FormControl>
-                      <Input placeholder="0412 345 678" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
                 name="role"
                 render={({ field }) => (
                   <FormItem>
@@ -193,27 +168,6 @@ export function StaffDialog({ open, onOpenChange, staff, onSave }: StaffDialogPr
                   </FormItem>
                 )}
               />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="hourly_rate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Hourly Rate ($) *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="25.00"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
               <FormField
                 control={form.control}
@@ -229,6 +183,10 @@ export function StaffDialog({ open, onOpenChange, staff, onSave }: StaffDialogPr
                 )}
               />
             </div>
+
+            <p className="text-xs text-muted-foreground">
+              Hourly rate and pay conditions can be set in the staff profile after adding.
+            </p>
 
             <div className="flex gap-3 justify-end pt-4">
               <Button

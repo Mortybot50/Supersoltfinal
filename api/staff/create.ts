@@ -31,7 +31,7 @@ interface CreateStaffBody {
   phone?: string
   role: 'manager' | 'supervisor' | 'crew'
   employment_type: 'full_time' | 'part_time' | 'casual'
-  base_hourly_rate?: number // dollars, not cents
+  base_hourly_rate?: number // cents
   award_classification?: string
   position?: string
   start_date?: string
@@ -60,9 +60,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const body = req.body as CreateStaffBody
 
-    if (!body.org_id || !body.first_name || !body.last_name) {
-      return res.status(400).json({ error: 'org_id, first_name, and last_name are required' })
+    if (!body.org_id || !body.first_name) {
+      return res.status(400).json({ error: 'org_id and first_name are required' })
     }
+    // last_name may be absent for single-name staff entries
+    if (!body.last_name) body.last_name = ''
 
     // Verify calling user is an admin of this org
     const { data: callerMember } = await db
@@ -135,17 +137,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ error: 'Failed to create org membership' })
     }
 
-    // 4. Create staff record
+    // 4. Create staff record (include venue_id so venue-scoped queries work)
     const { data: staff, error: staffError } = await db
       .from('staff')
       .insert({
         org_member_id: orgMember.id,
+        venue_id: body.venue_id || null,
         employment_type: body.employment_type || 'casual',
         base_hourly_rate: body.base_hourly_rate || null,
         award_classification: body.award_classification || null,
         position: body.position || body.role || 'crew',
         start_date: body.start_date || new Date().toISOString().split('T')[0],
-        onboarding_status: 'not_started',
+        onboarding_status: 'roster_ready',
       })
       .select('id')
       .single()
