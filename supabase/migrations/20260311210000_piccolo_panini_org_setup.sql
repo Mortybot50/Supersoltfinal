@@ -25,7 +25,7 @@ BEGIN;
 -- Keep org_id as-is; the venue (894d69a2...) stays attached.
 
 UPDATE organizations
-SET name = 'Piccolo Panini Bar Hawthorn',
+SET name = 'Piccolo Panini Bar',
     updated_at = now()
 WHERE id = '7062ac24-a551-458c-8c94-9d2c396024f9';
 

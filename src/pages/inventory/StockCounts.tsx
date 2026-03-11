@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ClipboardCheck,
   Plus,
@@ -13,6 +14,9 @@ import {
   Clock,
   BarChart3,
   Loader2,
+  Trash2,
+  Activity,
+  Package,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -20,6 +24,16 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
@@ -34,7 +48,10 @@ import {
   Cell,
 } from 'recharts'
 import { format, formatDistanceToNow } from 'date-fns'
+import { toast } from 'sonner'
+import { supabase } from '@/integrations/supabase/client'
 import { PageShell, PageToolbar } from '@/components/shared'
+import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency } from '@/lib/utils/formatters'
 import {
   useStockCountsList,
@@ -47,7 +64,26 @@ import {
 } from '@/lib/utils/inventoryCalculations'
 import type { StockCount } from '@/types'
 
-// ── Status badge helper ─────────────────────────────────────────────
+// ── Types ───────────────────────────────────────────────────────────────────
+
+type StockStatus = 'healthy' | 'low' | 'critical' | 'out'
+
+interface StockLevelItem {
+  ingredient_id: string
+  ingredient_name: string
+  status: StockStatus
+}
+
+interface StockSummary {
+  total: number
+  healthy: number
+  low: number
+  critical: number
+  out: number
+  alertItems: StockLevelItem[]
+}
+
+// ── Status badge helper ─────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
   switch (status) {
@@ -77,7 +113,7 @@ function StatusBadge({ status }: { status: string }) {
   }
 }
 
-// ── Variance summary dialog ─────────────────────────────────────────
+// ── Variance summary dialog ─────────────────────────────────────────────────
 
 function VarianceSummaryDialog({
   stockCount,
@@ -93,14 +129,12 @@ function VarianceSummaryDialog({
 
   const items = useMemo(() => stockCount?.items ?? [], [stockCount])
 
-  // Top 5 variance items by absolute value
   const topVarianceItems = useMemo(() => {
     return [...items]
       .sort((a, b) => Math.abs(b.variance_value) - Math.abs(a.variance_value))
       .slice(0, 5)
   }, [items])
 
-  // Variance by category for chart
   const varianceByCategory = useMemo(() => {
     return aggregateVarianceByCategory(
       items.map((item) => ({
@@ -112,7 +146,7 @@ function VarianceSummaryDialog({
 
   const totalVariance = stockCount?.total_variance_value ?? 0
   const needsManagerNote =
-    Math.abs(totalVariance) > 5000 || // > $50
+    Math.abs(totalVariance) > 5000 ||
     items.some(
       (i) =>
         Math.abs(calculateVariancePercent(i.actual_quantity, i.expected_quantity)) > 15
@@ -297,22 +331,173 @@ function VarianceSummaryDialog({
   )
 }
 
-// ── Main StockCounts page ───────────────────────────────────────────
+// ── Overview tab ────────────────────────────────────────────────────────────
+
+function OverviewTab({ stockCounts }: { stockCounts: StockCount[] }) {
+  const { currentVenueId, organization } = useAuth()
+  const orgId = organization?.id
+
+  const { data: stockSummary, isLoading: summaryLoading } = useQuery<StockSummary>({
+    queryKey: ['stock-levels-summary', orgId, currentVenueId],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/inventory?action=get-stock-levels&org_id=${orgId}&venue_id=${currentVenueId}`
+      )
+      if (!res.ok) throw new Error('Failed to fetch stock levels')
+      const data = await res.json()
+      const levels: StockLevelItem[] = data.stock_levels ?? []
+      return {
+        total: levels.length,
+        healthy: levels.filter((s) => s.status === 'healthy').length,
+        low: levels.filter((s) => s.status === 'low').length,
+        critical: levels.filter((s) => s.status === 'critical').length,
+        out: levels.filter((s) => s.status === 'out').length,
+        alertItems: levels.filter((s) => s.status === 'out' || s.status === 'critical').slice(0, 5),
+      }
+    },
+    enabled: !!orgId && !!currentVenueId,
+    staleTime: 60_000,
+  })
+
+  const recentCounts = useMemo(
+    () =>
+      [...stockCounts]
+        .sort((a, b) => new Date(b.count_date).getTime() - new Date(a.count_date).getTime())
+        .slice(0, 5),
+    [stockCounts]
+  )
+
+  return (
+    <div className="space-y-5">
+      {/* Alert banner */}
+      {stockSummary && stockSummary.alertItems.length > 0 && (
+        <div className="flex items-start gap-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3">
+          <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-red-700">
+              {stockSummary.out > 0 && stockSummary.critical > 0
+                ? `${stockSummary.out + stockSummary.critical} ingredients need attention`
+                : stockSummary.out > 0
+                ? `${stockSummary.out} ingredient${stockSummary.out !== 1 ? 's' : ''} out of stock`
+                : `${stockSummary.critical} ingredient${stockSummary.critical !== 1 ? 's' : ''} critically low`}
+            </p>
+            <p className="text-xs text-red-600 mt-0.5">
+              {stockSummary.alertItems.map((i) => i.ingredient_name).join(', ')}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Stock status summary */}
+      <div>
+        <h3 className="text-sm font-semibold mb-3">Stock Status</h3>
+        {summaryLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading stock levels…
+          </div>
+        ) : !stockSummary || stockSummary.total === 0 ? (
+          <Card className="p-6 text-center text-sm text-muted-foreground">
+            No stock level data. Set up POS mapping and run a depletion sync to see stock levels here.
+          </Card>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            {(
+              [
+                { label: 'Total', value: stockSummary.total, icon: Package, color: 'text-foreground' },
+                { label: 'Healthy', value: stockSummary.healthy, icon: Activity, color: 'text-green-600' },
+                { label: 'Low', value: stockSummary.low, icon: TrendingDown, color: 'text-amber-600' },
+                { label: 'Critical', value: stockSummary.critical, icon: AlertTriangle, color: 'text-red-600' },
+                { label: 'Out of Stock', value: stockSummary.out, icon: Package, color: 'text-red-800' },
+              ] as const
+            ).map(({ label, value, icon: Icon, color }) => (
+              <Card key={label}>
+                <CardContent className="p-4 flex items-center gap-3">
+                  <Icon className={`h-5 w-5 ${color} shrink-0`} />
+                  <div>
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p className={`text-2xl font-bold ${color}`}>{value}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Recent counts */}
+      <div>
+        <h3 className="text-sm font-semibold mb-3">Recent Counts</h3>
+        {recentCounts.length === 0 ? (
+          <Card className="p-6 text-center text-sm text-muted-foreground">
+            No stock counts yet. Start a count to track inventory.
+          </Card>
+        ) : (
+          <Card className="overflow-hidden">
+            <div className="divide-y">
+              {recentCounts.map((sc) => {
+                const countDate =
+                  sc.count_date instanceof Date ? sc.count_date : new Date(sc.count_date)
+                return (
+                  <div key={sc.id} className="flex items-center gap-3 px-4 py-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{sc.count_number}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {sc.counted_by_name ?? 'Unknown'} · {format(countDate, 'dd MMM yyyy')}
+                      </p>
+                    </div>
+                    <StatusBadge status={sc.status} />
+                    <span
+                      className={`text-sm font-semibold tabular-nums ${
+                        (sc.total_variance_value ?? 0) < 0 ? 'text-red-600' : 'text-green-600'
+                      }`}
+                    >
+                      {formatCurrency(sc.total_variance_value ?? 0)}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Main StockCounts page ───────────────────────────────────────────────────
 
 export default function StockCounts() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { data: stockCounts = [], isLoading } = useStockCountsList()
 
+  const [pageTab, setPageTab] = useState('counts')
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState('all')
   const [selectedCount, setSelectedCount] = useState<StockCount | null>(null)
   const [showVariance, setShowVariance] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<StockCount | null>(null)
+
+  // Delete mutation — Supabase first, then invalidate query cache
+  const deleteCountMutation = useMutation({
+    mutationFn: async (countId: string) => {
+      const { error } = await supabase.from('stock_counts').delete().eq('id', countId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stock-counts'] })
+      toast.success('Stock count deleted')
+      setDeleteTarget(null)
+    },
+    onError: () => {
+      toast.error('Failed to delete stock count')
+    },
+  })
 
   // Filter counts
   const filteredCounts = useMemo(() => {
     let filtered = stockCounts
 
-    // Tab filter
     if (activeTab === 'in-progress') {
       filtered = filtered.filter((sc) => sc.status === 'in-progress')
     } else if (activeTab === 'completed') {
@@ -321,7 +506,6 @@ export default function StockCounts() {
       )
     }
 
-    // Search
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       filtered = filtered.filter(
@@ -377,206 +561,233 @@ export default function StockCounts() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="p-4 md:p-6 space-y-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Card className="p-4">
-            <div className="flex items-center gap-2">
-              <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Total</span>
-            </div>
-            <p className="text-2xl font-bold mt-1">{stats.total}</p>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-amber-500" />
-              <span className="text-sm text-muted-foreground">In Progress</span>
-            </div>
-            <p className="text-2xl font-bold mt-1">{stats.inProgress}</p>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <span className="text-sm text-muted-foreground">Completed</span>
-            </div>
-            <p className="text-2xl font-bold mt-1">{stats.completed}</p>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-2">
-              {stats.totalVariance < 0 ? (
-                <TrendingDown className="h-4 w-4 text-red-500" />
-              ) : (
-                <TrendingUp className="h-4 w-4 text-green-500" />
-              )}
-              <span className="text-sm text-muted-foreground">Net Variance</span>
-            </div>
-            <p
-              className={`text-2xl font-bold mt-1 ${
-                stats.totalVariance < 0 ? 'text-red-600' : 'text-green-600'
-              }`}
-            >
-              {formatCurrency(stats.totalVariance)}
-            </p>
-          </Card>
-        </div>
-
-        {/* Tabs + List */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
+        <Tabs value={pageTab} onValueChange={setPageTab}>
           <TabsList>
-            <TabsTrigger value="all">
-              All
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="counts">
+              Counts
               <Badge variant="secondary" className="ml-1.5 text-xs">
                 {stockCounts.length}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="in-progress">
-              In Progress
-              <Badge variant="secondary" className="ml-1.5 text-xs">
-                {stats.inProgress}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="completed">
-              Completed
-              <Badge variant="secondary" className="ml-1.5 text-xs">
-                {stats.completed}
-              </Badge>
-            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value={activeTab} className="mt-4">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : filteredCounts.length === 0 ? (
-              <Card className="p-12 text-center">
-                <ClipboardCheck className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground">No stock counts found</p>
-                <Button
-                  className="mt-4"
-                  onClick={() => navigate('/inventory/stock-counts/new')}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Start a Count
-                </Button>
+          {/* ── Overview tab ── */}
+          <TabsContent value="overview" className="mt-4">
+            <OverviewTab stockCounts={stockCounts} />
+          </TabsContent>
+
+          {/* ── Counts tab ── */}
+          <TabsContent value="counts" className="mt-4 space-y-4">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Card className="p-4">
+                <div className="flex items-center gap-2">
+                  <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Total</span>
+                </div>
+                <p className="text-2xl font-bold mt-1">{stats.total}</p>
               </Card>
-            ) : (
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {filteredCounts.map((sc) => {
-                  const itemCount = sc.items?.length ?? 0
-                  const largeVarCount =
-                    sc.items?.filter((i) =>
-                      isLargeVariance(
-                        i.actual_quantity,
-                        i.expected_quantity,
-                        0, // cost not used for % check
-                        10,
-                        0
-                      )
-                    ).length ?? 0
-                  const countDate =
-                    sc.count_date instanceof Date
-                      ? sc.count_date
-                      : new Date(sc.count_date)
+              <Card className="p-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-amber-500" />
+                  <span className="text-sm text-muted-foreground">In Progress</span>
+                </div>
+                <p className="text-2xl font-bold mt-1">{stats.inProgress}</p>
+              </Card>
+              <Card className="p-4">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span className="text-sm text-muted-foreground">Completed</span>
+                </div>
+                <p className="text-2xl font-bold mt-1">{stats.completed}</p>
+              </Card>
+              <Card className="p-4">
+                <div className="flex items-center gap-2">
+                  {stats.totalVariance < 0 ? (
+                    <TrendingDown className="h-4 w-4 text-red-500" />
+                  ) : (
+                    <TrendingUp className="h-4 w-4 text-green-500" />
+                  )}
+                  <span className="text-sm text-muted-foreground">Net Variance</span>
+                </div>
+                <p
+                  className={`text-2xl font-bold mt-1 ${
+                    stats.totalVariance < 0 ? 'text-red-600' : 'text-green-600'
+                  }`}
+                >
+                  {formatCurrency(stats.totalVariance)}
+                </p>
+              </Card>
+            </div>
 
-                  return (
-                    <Card
-                      key={sc.id}
-                      className="hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => openVarianceSummary(sc)}
+            {/* Filter Tabs + List */}
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList>
+                <TabsTrigger value="all">
+                  All
+                  <Badge variant="secondary" className="ml-1.5 text-xs">
+                    {stockCounts.length}
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger value="in-progress">
+                  In Progress
+                  <Badge variant="secondary" className="ml-1.5 text-xs">
+                    {stats.inProgress}
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger value="completed">
+                  Completed
+                  <Badge variant="secondary" className="ml-1.5 text-xs">
+                    {stats.completed}
+                  </Badge>
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value={activeTab} className="mt-4">
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : filteredCounts.length === 0 ? (
+                  <Card className="p-12 text-center">
+                    <ClipboardCheck className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-muted-foreground">No stock counts found</p>
+                    <Button
+                      className="mt-4"
+                      onClick={() => navigate('/inventory/stock-counts/new')}
                     >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <CardTitle className="text-base">
-                              {sc.count_number}
-                            </CardTitle>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {sc.counted_by_name ?? 'Unknown'}
-                            </p>
-                          </div>
-                          <StatusBadge status={sc.status} />
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-0 space-y-3">
-                        {/* Date & items */}
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3.5 w-3.5" />
-                            {format(countDate, 'dd MMM yyyy')}
-                          </span>
-                          <span>
-                            {formatDistanceToNow(countDate, { addSuffix: true })}
-                          </span>
-                        </div>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Start a Count
+                    </Button>
+                  </Card>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {filteredCounts.map((sc) => {
+                      const itemCount = sc.items?.length ?? 0
+                      const largeVarCount =
+                        sc.items?.filter((i) =>
+                          isLargeVariance(
+                            i.actual_quantity,
+                            i.expected_quantity,
+                            0,
+                            10,
+                            0
+                          )
+                        ).length ?? 0
+                      const countDate =
+                        sc.count_date instanceof Date
+                          ? sc.count_date
+                          : new Date(sc.count_date)
 
-                        {/* Variance bar */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">
-                              {itemCount} items
-                            </span>
-                            <span
-                              className={`font-semibold ${
-                                (sc.total_variance_value ?? 0) < 0
-                                  ? 'text-red-600'
-                                  : 'text-green-600'
-                              }`}
-                            >
-                              {formatCurrency(sc.total_variance_value ?? 0)}
-                            </span>
-                          </div>
-                          <Progress
-                            value={Math.min(
-                              100,
-                              itemCount > 0 ? ((itemCount - largeVarCount) / itemCount) * 100 : 100
+                      return (
+                        <Card
+                          key={sc.id}
+                          className="hover:shadow-md transition-shadow cursor-pointer"
+                          onClick={() => openVarianceSummary(sc)}
+                        >
+                          <CardHeader className="pb-2">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <CardTitle className="text-base">
+                                  {sc.count_number}
+                                </CardTitle>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {sc.counted_by_name ?? 'Unknown'}
+                                </p>
+                              </div>
+                              <StatusBadge status={sc.status} />
+                            </div>
+                          </CardHeader>
+                          <CardContent className="pt-0 space-y-3">
+                            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3.5 w-3.5" />
+                                {format(countDate, 'dd MMM yyyy')}
+                              </span>
+                              <span>
+                                {formatDistanceToNow(countDate, { addSuffix: true })}
+                              </span>
+                            </div>
+
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                  {itemCount} items
+                                </span>
+                                <span
+                                  className={`font-semibold ${
+                                    (sc.total_variance_value ?? 0) < 0
+                                      ? 'text-red-600'
+                                      : 'text-green-600'
+                                  }`}
+                                >
+                                  {formatCurrency(sc.total_variance_value ?? 0)}
+                                </span>
+                              </div>
+                              <Progress
+                                value={Math.min(
+                                  100,
+                                  itemCount > 0 ? ((itemCount - largeVarCount) / itemCount) * 100 : 100
+                                )}
+                                className="h-1.5"
+                              />
+                            </div>
+
+                            {largeVarCount > 0 && (
+                              <div className="flex items-center gap-1.5 text-xs text-amber-600">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                {largeVarCount} item{largeVarCount > 1 ? 's' : ''} with
+                                large variance
+                              </div>
                             )}
-                            className="h-1.5"
-                          />
-                        </div>
 
-                        {/* Flags */}
-                        {largeVarCount > 0 && (
-                          <div className="flex items-center gap-1.5 text-xs text-amber-600">
-                            <AlertTriangle className="h-3.5 w-3.5" />
-                            {largeVarCount} item{largeVarCount > 1 ? 's' : ''} with
-                            large variance
-                          </div>
-                        )}
-
-                        {/* Actions */}
-                        <div className="flex gap-2 pt-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              openVarianceSummary(sc)
-                            }}
-                          >
-                            <Eye className="h-3.5 w-3.5 mr-1" />
-                            Review
-                          </Button>
-                          {sc.status === 'in-progress' && (
-                            <Button
-                              size="sm"
-                              className="flex-1 text-xs"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                navigate('/inventory/stock-counts/new')
-                              }}
-                            >
-                              Continue
-                            </Button>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
-            )}
+                            <div className="flex gap-2 pt-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openVarianceSummary(sc)
+                                }}
+                              >
+                                <Eye className="h-3.5 w-3.5 mr-1" />
+                                Review
+                              </Button>
+                              {sc.status === 'in-progress' && (
+                                <Button
+                                  size="sm"
+                                  className="flex-1 text-xs"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    navigate('/inventory/stock-counts/new')
+                                  }}
+                                >
+                                  Continue
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setDeleteTarget(sc)
+                                }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
       </div>
@@ -587,6 +798,37 @@ export default function StockCounts() {
         open={showVariance}
         onOpenChange={setShowVariance}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Stock Count</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete{' '}
+              <span className="font-semibold">{deleteTarget?.count_number}</span>?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteTarget) deleteCountMutation.mutate(deleteTarget.id)
+              }}
+              disabled={deleteCountMutation.isPending}
+            >
+              {deleteCountMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageShell>
   )
 }

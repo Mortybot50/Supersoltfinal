@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ShoppingCart, AlertTriangle, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
@@ -44,6 +44,8 @@ function getDaysOfStockBadge(days: number) {
 
 export default function OrderGuide() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const highlightIngredientId = searchParams.get('ingredient')
   const { currentVenue, currentOrg, user, profile } = useAuth()
   const { suppliers, ingredients, purchaseOrders, orders, wasteLogs, loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB, loadWasteLogsFromDB } = useDataStore()
 
@@ -58,6 +60,15 @@ export default function OrderGuide() {
     loadPurchaseOrdersFromDB()
     loadWasteLogsFromDB()
   }, [loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB, loadWasteLogsFromDB])
+
+  // Auto-select supplier when arriving via deep link from a below-par alert
+  useEffect(() => {
+    if (!highlightIngredientId || !ingredients.length || !suppliers.length) return
+    const ing = ingredients.find((i) => i.id === highlightIngredientId)
+    if (ing?.supplier_id && !selectedSupplierId) {
+      setSelectedSupplierId(ing.supplier_id)
+    }
+  }, [highlightIngredientId, ingredients, suppliers, selectedSupplierId])
 
   // Compute 30-day waste-based daily usage per ingredient
   const wasteUsageMap = useMemo(() => {
@@ -401,6 +412,47 @@ export default function OrderGuide() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [suppliers, ingredients, wasteUsageMap, receivedUsageMap])
 
+  // Per-supplier ordering status for the overview panel
+  const supplierOrderStatus = useMemo(() => {
+    return suppliers
+      .filter((s) => s.active)
+      .map((supplier) => {
+        const supplierProducts = ingredients.filter(
+          (p) => p.supplier_id === supplier.id && p.active
+        )
+        const nextDelivery = getNextDeliveryDate(supplier)
+        const daysUntilDelivery = differenceInDays(nextDelivery, new Date())
+
+        const itemStatuses = supplierProducts.map((product) => {
+          const dailyUsage = getDailyUsage(product.id)
+          const days = getDaysOfStock(product.current_stock, dailyUsage)
+          return {
+            product,
+            daysOfStock: days,
+            urgency: days < 2 ? 'critical' : days <= 4 ? 'low' : 'adequate',
+          }
+        })
+
+        return {
+          supplier,
+          nextDelivery,
+          daysUntilDelivery,
+          criticalItems: itemStatuses.filter((s) => s.urgency === 'critical'),
+          lowItems: itemStatuses.filter((s) => s.urgency === 'low'),
+          totalProducts: supplierProducts.length,
+        }
+      })
+      .filter((s) => s.totalProducts > 0)
+      .sort((a, b) => {
+        if (a.criticalItems.length !== b.criticalItems.length)
+          return b.criticalItems.length - a.criticalItems.length
+        if (a.lowItems.length !== b.lowItems.length)
+          return b.lowItems.length - a.lowItems.length
+        return a.daysUntilDelivery - b.daysUntilDelivery
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suppliers, ingredients, wasteUsageMap, receivedUsageMap])
+
   const urgencyBadge = (urgency: string) => {
     switch (urgency) {
       case 'critical':
@@ -521,6 +573,7 @@ export default function OrderGuide() {
                   {orderRecommendations.map((rec) => {
                     const orderQty = getOrderQuantity(rec)
                     const isSelected = selectedProducts.has(rec.product.id)
+                    const isHighlighted = rec.product.id === highlightIngredientId
                     const dailyUsage = rec.estimated_usage / 7
                     const daysOfStock = getDaysOfStock(rec.current_stock, dailyUsage)
                     const daysColor = getDaysOfStockColor(daysOfStock)
@@ -528,8 +581,8 @@ export default function OrderGuide() {
                     return (
                       <TableRow
                         key={rec.product.id}
-                        className={`${isSelected ? 'bg-blue-50 dark:bg-blue-950' : ''} ${
-                          daysOfStock < 2 ? 'bg-red-50/30 dark:bg-red-950/20' : ''
+                        className={`${isHighlighted ? 'ring-2 ring-inset ring-orange-400 bg-orange-50/60 dark:bg-orange-950/20' : isSelected ? 'bg-blue-50 dark:bg-blue-950' : ''} ${
+                          !isHighlighted && daysOfStock < 2 ? 'bg-red-50/30 dark:bg-red-950/20' : ''
                         }`}
                       >
                         <TableCell>
@@ -651,21 +704,84 @@ export default function OrderGuide() {
       )}
 
       {!selectedSupplier && (
-        <Card className="p-12 text-center">
-          <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Select a Supplier</h3>
-          <p className="text-sm text-muted-foreground mb-6">
-            Choose a supplier above to see their products and ordering recommendations.
-            {(globalStats.criticalCount > 0 || globalStats.lowCount > 0) && (
-              <> Or use <strong>Generate All Orders</strong> to auto-create POs for all low-stock items.</>
-            )}
-          </p>
-          {suppliers.length === 0 && (
-            <Button onClick={() => navigate('/suppliers')}>
-              Add Suppliers
-            </Button>
+        <>
+          {suppliers.length === 0 ? (
+            <Card className="p-12 text-center">
+              <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Suppliers Yet</h3>
+              <p className="text-sm text-muted-foreground mb-6">
+                Add suppliers to start managing your ordering.
+              </p>
+              <Button onClick={() => navigate('/suppliers')}>
+                Add Suppliers
+              </Button>
+            </Card>
+          ) : supplierOrderStatus.length === 0 ? (
+            <Card className="p-12 text-center">
+              <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Select a Supplier</h3>
+              <p className="text-sm text-muted-foreground">
+                Choose a supplier above to see their products and ordering recommendations.
+              </p>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Select a supplier to view their order guide, or use{' '}
+                <strong>Generate All Orders</strong> to auto-create POs for all low-stock items.
+              </p>
+              {supplierOrderStatus.map(({ supplier, nextDelivery, daysUntilDelivery, criticalItems, lowItems, totalProducts }) => {
+                const hasUrgent = criticalItems.length > 0 || lowItems.length > 0
+                return (
+                  <Card
+                    key={supplier.id}
+                    className={`cursor-pointer hover:shadow-md transition-shadow ${hasUrgent ? 'border-amber-200' : ''}`}
+                    onClick={() => setSelectedSupplierId(supplier.id)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold">{supplier.name}</p>
+                            {criticalItems.length > 0 && (
+                              <Badge variant="destructive" className="text-xs">
+                                {criticalItems.length} critical
+                              </Badge>
+                            )}
+                            {lowItems.length > 0 && (
+                              <Badge className="bg-amber-500 text-xs">
+                                {lowItems.length} low
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-0.5">
+                            {totalProducts} product{totalProducts !== 1 ? 's' : ''} · Next delivery:{' '}
+                            <span className={daysUntilDelivery <= 1 ? 'text-amber-600 font-medium' : ''}>
+                              {format(nextDelivery, 'EEE dd MMM')}
+                              {daysUntilDelivery === 0 ? ' (today)' : daysUntilDelivery === 1 ? ' (tomorrow)' : ` (${daysUntilDelivery}d)`}
+                            </span>
+                          </p>
+                          {(criticalItems.length > 0 || lowItems.length > 0) && (
+                            <p className="text-xs text-muted-foreground mt-1 truncate">
+                              {[...criticalItems, ...lowItems]
+                                .slice(0, 4)
+                                .map((s) => s.product.name)
+                                .join(', ')}
+                              {criticalItems.length + lowItems.length > 4 && ` +${criticalItems.length + lowItems.length - 4} more`}
+                            </p>
+                          )}
+                        </div>
+                        <Button variant="outline" size="sm" className="shrink-0">
+                          View
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
           )}
-        </Card>
+        </>
       )}
       </div>
     </PageShell>

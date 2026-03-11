@@ -64,9 +64,11 @@ import type { StockCount, StockCountItem } from '@/types'
 function SetupModal({
   open,
   onStart,
+  onClose,
 }: {
   open: boolean
   onStart: (type: 'full' | 'cycle', category?: string) => void
+  onClose: () => void
 }) {
   const [countType, setCountType] = useState<'full' | 'cycle'>('full')
   const [category, setCategory] = useState<string>('all')
@@ -78,7 +80,7 @@ function SetupModal({
   }, [ingredients])
 
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose() }}>
       <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -602,7 +604,11 @@ export default function NewStockCount() {
   if (showSetup) {
     return (
       <PageShell>
-        <SetupModal open={showSetup} onStart={handleSetupStart} />
+        <SetupModal
+          open={showSetup}
+          onStart={handleSetupStart}
+          onClose={() => navigate('/inventory/stock-counts')}
+        />
       </PageShell>
     )
   }

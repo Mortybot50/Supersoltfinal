@@ -51,7 +51,8 @@ const mainGroups: NavGroup[] = [
     items: [
       { title: "Sales", url: "/sales" },
       { title: "Labour", url: "/workforce/reports" },
-      { title: "Inventory", url: "/inventory/overview" },
+      { title: "Inventory", url: "/insights/inventory" },
+      { title: "P&L", url: "/insights/pl" },
     ],
   },
   {
@@ -73,12 +74,8 @@ const mainGroups: NavGroup[] = [
       { title: "Invoices", url: "/inventory/invoices" },
       { title: "Stock Counts", url: "/inventory/stock-counts" },
       { title: "Waste", url: "/inventory/waste" },
-      { title: "Food Cost AvT", url: "/inventory/food-cost" },
-      { title: "Price Tracking", url: "/inventory/price-tracking" },
-      { title: "Stock Dashboard", url: "/inventory/stock-dashboard" },
-      { title: "Smart Orders", url: "/inventory/smart-orders" },
-      { title: "POS Mapping", url: "/inventory/pos-mapping" },
       { title: "Suppliers", url: "/suppliers" },
+      // Hidden for MVP: Food Cost AvT, Price Tracking, Stock Dashboard, Smart Orders, POS Mapping
     ],
   },
   {
@@ -86,7 +83,7 @@ const mainGroups: NavGroup[] = [
     icon: Users,
     items: [
       { title: "People", url: "/workforce/people" },
-      { title: "Qualifications", url: "/workforce/qualifications" },
+      // Hidden for MVP: { title: "Qualifications", url: "/workforce/qualifications" },
       { title: "Roster", url: "/workforce/roster" },
       { title: "Availability & Leave", url: "/workforce/availability" },
       { title: "Timesheets", url: "/workforce/timesheets" },
@@ -98,7 +95,7 @@ const mainGroups: NavGroup[] = [
     icon: ClipboardList,
     items: [
       { title: "Daybook", url: "/operations/daybook" },
-      { title: "Compliance", url: "/operations/compliance" },
+      // Hidden for MVP: { title: "Compliance", url: "/operations/compliance" },
     ],
   },
 ]
@@ -111,7 +108,7 @@ const settingsGroup: NavGroup = {
     { title: "Venue", url: "/admin/venue-settings" },
     { title: "Locations", url: "/admin/locations" },
     { title: "Access & Roles", url: "/admin/access-roles" },
-    { title: "Data Imports", url: "/admin/data-imports" },
+    // Hidden for MVP: { title: "Data Imports", url: "/admin/data-imports" },
     { title: "Integrations", url: "/admin/integrations" },
   ],
 }
@@ -196,13 +193,11 @@ function AppSidebar({
 
   const toggleGroup = (title: string) => {
     setExpandedGroups((prev) => {
-      const next = new Set(prev)
-      if (next.has(title)) {
-        next.delete(title)
-      } else {
-        next.add(title)
+      // Exclusive: clicking open group closes all; clicking closed group opens only that one
+      if (prev.has(title)) {
+        return new Set<string>()
       }
-      return next
+      return new Set<string>([title])
     })
   }
 

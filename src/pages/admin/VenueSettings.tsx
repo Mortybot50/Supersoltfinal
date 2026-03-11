@@ -473,9 +473,9 @@ export default function VenueSettings() {
           <TabsTrigger value="menu">Menu & Pricing</TabsTrigger>
           <TabsTrigger value="suppliers">Suppliers & Ordering</TabsTrigger>
           <TabsTrigger value="workforce">Workforce</TabsTrigger>
-          <TabsTrigger value="pos">POS & Printers</TabsTrigger>
-          <TabsTrigger value="calendar">Calendar</TabsTrigger>
-          <TabsTrigger value="guardrails">Guardrails</TabsTrigger>
+          {/* Hidden for MVP: <TabsTrigger value="pos">POS & Printers</TabsTrigger> */}
+          {/* Hidden for MVP: <TabsTrigger value="calendar">Calendar</TabsTrigger> */}
+          {/* Hidden for MVP: <TabsTrigger value="guardrails">Guardrails</TabsTrigger> */}
           <TabsTrigger value="audit">Audit</TabsTrigger>
         </TabsList>
 

@@ -19,7 +19,6 @@ import {
 import { Search, Plus, MoreVertical, Mail, Phone, FileText, Calendar, Send, Copy, Check, Clock, UserPlus, Users, Upload } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { Staff, OnboardingInvite, OnboardingStep } from "@/types"
-import { formatCurrency } from "@/lib/utils/formatters"
 import { StaffDialog } from "@/components/StaffDialog"
 import { BulkStaffImport } from "@/components/BulkStaffImport"
 import { useDataStore } from "@/lib/store/dataStore"
@@ -340,7 +339,6 @@ export default function People() {
           <TableHead>Role</TableHead>
           <TableHead>Employment</TableHead>
           <TableHead>Contact</TableHead>
-          <TableHead>Rate</TableHead>
           <TableHead>Next Shift</TableHead>
           <TableHead>Status</TableHead>
           <TableHead className="text-right">Actions</TableHead>
@@ -349,7 +347,7 @@ export default function People() {
       <TableBody>
         {tableStaff.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={8} className="text-center text-muted-foreground h-32">
+            <TableCell colSpan={7} className="text-center text-muted-foreground h-32">
               No staff members found.
             </TableCell>
           </TableRow>
@@ -398,7 +396,6 @@ export default function People() {
                     )}
                   </div>
                 </TableCell>
-                <TableCell className="font-medium">{formatCurrency(person.hourly_rate)}/hr</TableCell>
                 <TableCell>
                   {nextShift ? (
                     <div className="text-xs text-muted-foreground">

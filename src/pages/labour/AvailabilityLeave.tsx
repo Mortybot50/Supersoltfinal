@@ -67,6 +67,7 @@ import {
   Calendar,
   Clock,
 } from 'lucide-react'
+import { PageShell, PageToolbar } from '@/components/shared'
 
 // ─── Constants ────────────────────────────────────────────────
 
@@ -994,21 +995,19 @@ export default function AvailabilityLeave() {
   // ── Render ───────────────────────────────────────────────────
 
   return (
+    <PageShell
+      toolbar={
+        <PageToolbar
+          title="Availability &amp; Leave"
+          primaryAction={{
+            label: 'Request Leave',
+            icon: Plus,
+            onClick: () => setShowRequestDialog(true),
+          }}
+        />
+      }
+    >
     <div className="p-4 md:p-6 max-w-[1400px] mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-xl font-bold">Availability &amp; Leave</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Manage recurring availability patterns and staff leave requests.
-          </p>
-        </div>
-        <Button onClick={() => setShowRequestDialog(true)}>
-          <Plus className="h-4 w-4 mr-1.5" />
-          Request Leave
-        </Button>
-      </div>
-
       {/* ── Section 1: Recurring Availability ─────────────────── */}
       <section className="rounded-xl border bg-card shadow-sm">
         <div className="px-4 py-3 border-b flex items-center gap-2">
@@ -1135,5 +1134,6 @@ export default function AvailabilityLeave() {
         onAction={invalidateLeave}
       />
     </div>
+    </PageShell>
   )
 }

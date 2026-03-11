@@ -23,7 +23,6 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
-  BookOpen,
   Users,
   Settings,
   FileText,
@@ -59,14 +58,8 @@ interface XeroConnection {
 }
 
 // ── Coming-soon card config (Xero removed — it's live now) ───────────
+// Hidden for MVP: MYOB integration removed — keep only Square POS and Xero
 const COMING_SOON = [
-  {
-    id: 'myob',
-    name: 'MYOB',
-    description: 'Sync payroll, invoices, and financial data',
-    icon: BookOpen,
-    color: 'bg-purple-700',
-  },
   {
     id: 'deputy',
     name: 'Deputy / Tanda',

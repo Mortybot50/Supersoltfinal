@@ -41,10 +41,10 @@ import {
   ShoppingCart,
   ClipboardList,
   Trash2,
-  Upload,
   Package,
   FileText,
   ChevronRight,
+  ShoppingBag,
 } from "lucide-react"
 import {
   AreaChart,
@@ -276,6 +276,9 @@ export default function Dashboard() {
   // GP% = (revenue - COGS) / revenue × 100
   const actualCOGS = (cogs.metrics?.actual_cogs ?? 0) / 100
   const gpPct = netRevenue > 0 ? ((netRevenue - actualCOGS) / netRevenue) * 100 : 0
+
+  // COGS % = actual_cogs / net_revenue × 100
+  const cogsPct = netRevenue > 0 ? (actualCOGS / netRevenue) * 100 : 0
 
   // ============ SPARKLINE DATA (last 7 days of orders) ============
   const sparklineData = useMemo(() => {
@@ -519,11 +522,11 @@ export default function Dashboard() {
       <div className="p-4 space-y-4 max-w-[1400px] mx-auto">
         {/* ====== ROW 1: KPI CARDS ====== */}
         {isLoading ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => <KPICardSkeleton key={i} />)}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, i) => <KPICardSkeleton key={i} />)}
           </div>
         ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           {/* Net Revenue */}
           <KPICard
             title="Net Revenue"
@@ -574,6 +577,23 @@ export default function Dashboard() {
                 : gpPct >= 65
                 ? "good"
                 : gpPct >= 55
+                ? "warn"
+                : "bad"
+            }
+            loading={isLoading}
+          />
+
+          {/* COGS % */}
+          <KPICard
+            title="COGS %"
+            value={cogsPct === 0 ? "—" : fmtPct(cogsPct)}
+            subtitle="Target: <30%"
+            status={
+              cogsPct === 0
+                ? "neutral"
+                : cogsPct <= 30
+                ? "good"
+                : cogsPct <= 35
                 ? "warn"
                 : "bad"
             }
@@ -876,13 +896,7 @@ export default function Dashboard() {
         </div>
 
         {/* ====== ROW 4: QUICK ACTIONS ====== */}
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-          <QuickAction
-            icon={Upload}
-            label="Import Sales Data"
-            description="Upload CSV from POS"
-            onClick={() => navigate("/admin/data-imports")}
-          />
+        <div className="grid gap-3 md:grid-cols-3">
           <QuickAction
             icon={Calendar}
             label="Create Roster"
