@@ -36,11 +36,14 @@ import { PageShell, PageToolbar, StatusBadge } from "@/components/shared"
 import { StatCards } from "@/components/ui/StatCards"
 import { SecondaryStats } from "@/components/ui/SecondaryStats"
 import { calculateShiftHoursAndCost } from "@/lib/utils/rosterCalculations"
+import { useAuth } from "@/contexts/AuthContext"
+import { approveTimesheetInDB, rejectTimesheetInDB, updateTimesheetInDB, addTimesheetToDB } from "@/lib/services/labourService"
 
 type StatusFilter = "all" | "pending" | "approved" | "rejected"
 
 export default function Timesheets() {
   const navigate = useNavigate()
+  const { currentOrg } = useAuth()
   const { timesheets, rosterShifts, staff, isLoading, addTimesheet, approveTimesheet, rejectTimesheet, updateTimesheet } = useDataStore()
   const rosterMetrics = useRosterMetrics()
 
@@ -71,12 +74,22 @@ export default function Timesheets() {
     return { totalCount: filteredTimesheets.length, pendingCount: pending.length, approvedCount: approved.length, totalHours, totalPay }
   }, [filteredTimesheets])
 
-  const handleApprove = (id: string) => { approveTimesheet(id); toast.success("Timesheet approved") }
-  const handleReject = (id: string) => { rejectTimesheet(id); toast.success("Timesheet rejected") }
-  const handleBulkApprove = () => {
+  const handleApprove = async (id: string) => {
+    const ok = await approveTimesheetInDB(id, currentOrg?.id ?? '')
+    if (ok) { approveTimesheet(id); toast.success("Timesheet approved") }
+  }
+  const handleReject = async (id: string) => {
+    const ok = await rejectTimesheetInDB(id)
+    if (ok) { rejectTimesheet(id); toast.success("Timesheet rejected") }
+  }
+  const handleBulkApprove = async () => {
     const pending = filteredTimesheets.filter((ts) => ts.status === "pending")
-    pending.forEach((ts) => approveTimesheet(ts.id))
-    toast.success(`${pending.length} timesheets approved`)
+    let approved = 0
+    for (const ts of pending) {
+      const ok = await approveTimesheetInDB(ts.id, currentOrg?.id ?? '')
+      if (ok) { approveTimesheet(ts.id); approved++ }
+    }
+    toast.success(`${approved} timesheets approved`)
   }
 
   const formatTime = (date: Date | string | undefined) => {
@@ -95,7 +108,7 @@ export default function Timesheets() {
   }
 
   // Generate timesheets from confirmed roster shifts
-  const handleGenerateFromRoster = useCallback(() => {
+  const handleGenerateFromRoster = useCallback(async () => {
     const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd })
     const weekShifts = rosterShifts.filter((s) => {
       if (s.status === "cancelled" || s.is_open_shift) return false
@@ -122,7 +135,7 @@ export default function Timesheets() {
     }
 
     let created = 0
-    newShifts.forEach((shift) => {
+    for (const shift of newShifts) {
       const shiftDate = new Date(shift.date)
       const [startH, startM] = shift.start_time.split(":").map(Number)
       const [endH, endM] = shift.end_time.split(":").map(Number)
@@ -157,12 +170,12 @@ export default function Timesheets() {
         status: "pending",
         notes: `Generated from roster shift ${shift.start_time}-${shift.end_time}`,
       }
-      addTimesheet(timesheet)
-      created++
-    })
+      const saved = await addTimesheetToDB(timesheet, currentOrg?.id ?? '')
+      if (saved) { addTimesheet(timesheet); created++ }
+    }
 
     toast.success(`Generated ${created} timesheet entries from roster`)
-  }, [weekStart, weekEnd, rosterShifts, timesheets, staff, addTimesheet])
+  }, [weekStart, weekEnd, rosterShifts, timesheets, staff, addTimesheet, currentOrg?.id])
 
   // Open adjustment dialog
   const handleAdjust = (ts: Timesheet) => {
@@ -173,7 +186,7 @@ export default function Timesheets() {
   }
 
   // Save adjustment
-  const handleSaveAdjustment = () => {
+  const handleSaveAdjustment = async () => {
     if (!adjustTarget || !adjustReason.trim()) {
       toast.error("Please provide a reason for the adjustment")
       return
@@ -186,19 +199,18 @@ export default function Timesheets() {
 
     const staffMember = staff.find((s) => s.id === adjustTarget.staff_id)
     const hourlyRate = staffMember?.hourly_rate || 0
-    // Recalculate pay based on adjusted hours (simple linear for adjustments)
     const payPerHour = adjustTarget.total_hours > 0 ? adjustTarget.gross_pay / adjustTarget.total_hours : hourlyRate
     const newPay = Math.round(newHours * payPerHour)
+    const newNotes = `${adjustTarget.notes ? adjustTarget.notes + " | " : ""}Adjusted: ${adjustReason} (was ${adjustTarget.total_hours.toFixed(2)}h)`
 
-    updateTimesheet(adjustTarget.id, {
-      total_hours: newHours,
-      gross_pay: newPay,
-      notes: `${adjustTarget.notes ? adjustTarget.notes + " | " : ""}Adjusted: ${adjustReason} (was ${adjustTarget.total_hours.toFixed(2)}h)`,
-    })
-
-    toast.success(`Hours adjusted to ${newHours.toFixed(2)}h`)
-    setAdjustDialogOpen(false)
-    setAdjustTarget(null)
+    const updates = { total_hours: newHours, gross_pay: newPay, notes: newNotes }
+    const ok = await updateTimesheetInDB(adjustTarget.id, updates)
+    if (ok) {
+      updateTimesheet(adjustTarget.id, updates)
+      toast.success(`Hours adjusted to ${newHours.toFixed(2)}h`)
+      setAdjustDialogOpen(false)
+      setAdjustTarget(null)
+    }
   }
 
   // Count roster shifts this week that don't have timesheets yet

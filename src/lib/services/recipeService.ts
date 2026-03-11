@@ -52,10 +52,14 @@ function mapDBRecipeIngredientToApp(
   db: DBRecipeIngredient,
   ingredient?: Ingredient
 ): RecipeIngredient {
+  const isSubRecipe = (db as Record<string, unknown>).is_sub_recipe === true
+  const subRecipeId = (db as Record<string, unknown>).sub_recipe_id as string | undefined
   return {
     id: db.id,
     recipe_id: db.recipe_id,
-    product_id: db.ingredient_id,
+    product_id: isSubRecipe ? (subRecipeId ?? '') : (db.ingredient_id ?? ''),
+    sub_recipe_id: isSubRecipe ? subRecipeId : undefined,
+    is_sub_recipe: isSubRecipe,
     product_name: ingredient?.name || '',
     quantity: db.quantity,
     unit: (db.unit || 'g') as RecipeIngredient['unit'],
@@ -92,7 +96,7 @@ export async function loadRecipesFromDB(): Promise<{
   if (riError) throw riError
 
   // Load ingredients for cost/unit lookups
-  const ingredientIds = [...new Set((riData || []).map((ri) => ri.ingredient_id))]
+  const ingredientIds = [...new Set((riData || []).filter((ri) => ri.ingredient_id).map((ri) => ri.ingredient_id as string))]
   let ingredientsMap: Record<string, Ingredient> = {}
 
   if (ingredientIds.length > 0) {
@@ -112,10 +116,51 @@ export async function loadRecipesFromDB(): Promise<{
     )
   }
 
-  const recipes = (recipesData || []).map(mapDBRecipeToApp)
-  const recipeIngredients = (riData || []).map((ri) =>
-    mapDBRecipeIngredientToApp(ri, ingredientsMap[ri.ingredient_id])
-  )
+  // Load sub-recipe data for lines that reference another recipe
+  // Sub-recipe lines have is_sub_recipe=true and sub_recipe_id set (ingredient_id is null)
+  const subRecipeIds = [
+    ...new Set(
+      (riData || [])
+        .filter((ri) => (ri as Record<string, unknown>).is_sub_recipe === true)
+        .map((ri) => (ri as Record<string, unknown>).sub_recipe_id as string)
+        .filter(Boolean)
+    ),
+  ]
+  // We already loaded all recipes above — build a quick lookup from recipesData
+  const recipesData2 = recipesData || []
+  const subRecipeMap: Record<string, { name: string; cost_per_serve: number }> = {}
+  for (const id of subRecipeIds) {
+    const r = recipesData2.find((r) => r.id === id)
+    if (r) {
+      subRecipeMap[id] = { name: r.name, cost_per_serve: r.cost_per_serve ?? 0 }
+    }
+  }
+
+  const recipes = recipesData2.map(mapDBRecipeToApp)
+  const recipeIngredients = (riData || []).map((ri) => {
+    const isSubRecipe = (ri as Record<string, unknown>).is_sub_recipe === true
+    if (isSubRecipe) {
+      const subId = (ri as Record<string, unknown>).sub_recipe_id as string
+      const subData = subRecipeMap[subId]
+      // Build a synthetic ingredient-like object so the mapper can populate name & cost
+      const syntheticIngredient = subData
+        ? ({
+            id: subId,
+            name: subData.name,
+            cost_per_unit: subData.cost_per_serve,
+            unit_cost_ex_base: subData.cost_per_serve,
+            unit: 'ea',
+          } as unknown as Ingredient)
+        : undefined
+      const mapped = mapDBRecipeIngredientToApp(ri, syntheticIngredient)
+      // Override line_cost with current sub-recipe cost × quantity (not stale stored cost)
+      if (subData && ri.quantity != null) {
+        mapped.line_cost = Math.round(subData.cost_per_serve * ri.quantity)
+      }
+      return mapped
+    }
+    return mapDBRecipeIngredientToApp(ri, ingredientsMap[ri.ingredient_id ?? ''])
+  })
 
   return { recipes, recipeIngredients }
 }
@@ -180,18 +225,19 @@ export async function saveRecipeToDB(
     if (delError) throw delError
   }
 
-  // Insert new ingredients
-  const validIngredients = ingredients.filter((ing) => ing.product_id)
+  // Insert new ingredients (including sub-recipes which have is_sub_recipe=true and sub_recipe_id set)
+  const validIngredients = ingredients.filter((ing) => ing.product_id || ing.is_sub_recipe)
   if (validIngredients.length > 0) {
     const dbIngredients = validIngredients.map((ing, index) => ({
       id: ing.id,
       recipe_id: recipe.id,
-      ingredient_id: ing.product_id,
+      ingredient_id: ing.is_sub_recipe ? null : ing.product_id,
+      sub_recipe_id: ing.is_sub_recipe ? (ing.sub_recipe_id ?? ing.product_id) : null,
       quantity: ing.quantity,
       unit: ing.unit,
       cost: ing.line_cost,
       sort_order: index,
-      is_sub_recipe: false,
+      is_sub_recipe: ing.is_sub_recipe ?? false,
     }))
 
     const { error: insError } = await supabase

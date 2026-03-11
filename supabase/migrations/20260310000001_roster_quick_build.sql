@@ -1,6 +1,23 @@
 -- Roster Quick Build: roster_patterns table + template_shifts column on shift_templates
 -- Phase 1: templates, copy, patterns, auto-fill
 
+-- ── 0. Ensure helper functions exist (safe to re-run) ─────────────────────────
+CREATE OR REPLACE FUNCTION get_user_org_ids()
+RETURNS SETOF UUID AS $$
+  SELECT org_id FROM org_members WHERE user_id = auth.uid() AND is_active = true;
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+CREATE OR REPLACE FUNCTION is_org_admin(check_org_id UUID)
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM org_members
+    WHERE user_id = auth.uid()
+      AND org_id = check_org_id
+      AND role IN ('owner', 'manager')
+      AND is_active = true
+  );
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
 -- ── 1. Add template_shifts column to shift_templates ──────────────────────────
 ALTER TABLE shift_templates
   ADD COLUMN IF NOT EXISTS template_shifts JSONB NOT NULL DEFAULT '[]';
@@ -29,6 +46,9 @@ CREATE TRIGGER update_roster_patterns_updated_at
 
 -- ── RLS ───────────────────────────────────────────────────────────────────────
 ALTER TABLE roster_patterns ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Members can view roster patterns"  ON roster_patterns;
+DROP POLICY IF EXISTS "Managers can manage roster patterns" ON roster_patterns;
 
 CREATE POLICY "Members can view roster patterns"
   ON roster_patterns FOR SELECT

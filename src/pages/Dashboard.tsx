@@ -412,7 +412,7 @@ export default function Dashboard() {
     if (labourPct > 32 && labourPct > 0) {
       items.push({
         type: "warning",
-        message: `Labour at ${labourPct.toFixed(1)}% — above 32% target`,
+        message: `Labour at ${labourPct.toFixed(1)}% — above 32% threshold (target: 28%)`,
         action: "View Reports",
         path: "/workforce/reports",
       })
@@ -422,7 +422,7 @@ export default function Dashboard() {
     if (gpPct < 55 && gpPct > 0) {
       items.push({
         type: "warning",
-        message: `GP at ${gpPct.toFixed(1)}% — below 55% threshold`,
+        message: `GP at ${gpPct.toFixed(1)}% — below 55% warning zone (target: 65%)`,
         action: "View COGS",
         path: "/menu/recipes",
       })

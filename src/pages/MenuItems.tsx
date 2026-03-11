@@ -49,7 +49,7 @@ export default function MenuItems() {
     calculateSectionTotals,
     calculateMenuAnalytics,
   } = useDataStore()
-  const { currentOrg } = useAuth()
+  const { currentOrg, currentVenue } = useAuth()
 
   useEffect(() => {
     loadMenuSectionsFromDB()
@@ -297,6 +297,7 @@ export default function MenuItems() {
       const newItem = {
         id: crypto.randomUUID(),
         organization_id: currentOrg?.id || '',
+        venue_id: currentVenue?.id || '',
         ...itemData,
         display_order: sectionItems.length,
         created_at: new Date(),
