@@ -98,7 +98,7 @@ const mainGroups: NavGroup[] = [
     icon: ClipboardList,
     items: [
       { title: "Daybook", url: "/operations/daybook" },
-      { title: "Compliance", url: "/operations/compliance" },
+      // Hidden for MVP: { title: "Compliance", url: "/operations/compliance" },
     ],
   },
 ]
@@ -111,7 +111,7 @@ const settingsGroup: NavGroup = {
     { title: "Venue", url: "/admin/venue-settings" },
     { title: "Locations", url: "/admin/locations" },
     { title: "Access & Roles", url: "/admin/access-roles" },
-    { title: "Data Imports", url: "/admin/data-imports" },
+    // Hidden for MVP: { title: "Data Imports", url: "/admin/data-imports" },
     { title: "Integrations", url: "/admin/integrations" },
   ],
 }
