@@ -75,11 +75,8 @@ export function matchSenderToSupplier(
  *  5. Notify venue staff via real-time channel
  */
 export async function processInboundEmail(email: InboundEmail): Promise<void> {
-  console.log('[emailIngestion] Received inbound email from:', email.from)
-  console.log('[emailIngestion] Subject:', email.subject)
-  console.log('[emailIngestion] Attachments:', email.attachments.length)
-
   // TODO: implement full pipeline
+  void email // suppress unused param warning until implemented
   // const supplier = matchSenderToSupplier(email.from, suppliers)
   // if (!supplier) { ... }
   // for (const attachment of email.attachments) { ... }

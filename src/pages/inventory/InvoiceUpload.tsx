@@ -17,6 +17,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useDataStore } from '@/lib/store/dataStore'
 import { useAuth } from '@/contexts/AuthContext'
@@ -72,6 +82,7 @@ export default function InvoiceUpload() {
   const [invoiceDate, setInvoiceDate] = useState('')
   const [selectedSupplierId, setSelectedSupplierId] = useState(preselectSupplierId ?? '')
   const [notes, setNotes] = useState('')
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false)
 
   const dropRef = useRef<HTMLDivElement>(null)
 
@@ -167,24 +178,8 @@ export default function InvoiceUpload() {
     )
   }
 
-  const handleSave = async () => {
-    if (!currentVenue?.id || currentVenue.id === 'all') {
-      toast.error('Please select a specific venue.')
-      return
-    }
-    if (!currentOrg?.id) {
-      toast.error('No organisation found.')
-      return
-    }
-
-    const isDuplicate = checkDuplicate()
-    if (isDuplicate) {
-      const proceed = window.confirm(
-        `An invoice with number "${invoiceNumber}" from this supplier already exists. Save as duplicate?`
-      )
-      if (!proceed) return
-    }
-
+  const performSave = async (asDuplicate: boolean) => {
+    if (!currentVenue?.id || currentOrg?.id == null) return
     setStep('saving')
 
     try {
@@ -224,7 +219,7 @@ export default function InvoiceUpload() {
         total_amount: parsedData?.total_amount ?? undefined,
         currency: parsedData?.currency ?? 'AUD',
         document_type: parsedData?.document_type ?? 'invoice',
-        status: isDuplicate ? 'duplicate' : 'pending_review',
+        status: asDuplicate ? 'duplicate' : 'pending_review',
         notes: notes || undefined,
         processing_metadata: parsedData ? { raw: parsedData } : undefined,
         created_at: now,
@@ -261,6 +256,22 @@ export default function InvoiceUpload() {
       toast.error(msg)
       setStep('review')
     }
+  }
+
+  const handleSave = async () => {
+    if (!currentVenue?.id || currentVenue.id === 'all') {
+      toast.error('Please select a specific venue.')
+      return
+    }
+    if (!currentOrg?.id) {
+      toast.error('No organisation found.')
+      return
+    }
+    if (checkDuplicate()) {
+      setShowDuplicateDialog(true)
+      return
+    }
+    performSave(false)
   }
 
   const toolbar = (
@@ -583,6 +594,27 @@ export default function InvoiceUpload() {
           </div>
         )}
       </div>
+
+      {/* Duplicate invoice confirmation dialog */}
+      <AlertDialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Duplicate Invoice Detected</AlertDialogTitle>
+            <AlertDialogDescription>
+              An invoice with number &ldquo;{invoiceNumber}&rdquo; from this supplier already exists.
+              Would you like to save this as a duplicate?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { setShowDuplicateDialog(false); performSave(true) }}
+            >
+              Save as Duplicate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageShell>
   )
 }

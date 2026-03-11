@@ -773,6 +773,195 @@ export type Database = {
           },
         ]
       }
+      invoice_line_items: {
+        Row: {
+          confidence_score: number | null
+          confirmed_quantity: number | null
+          confirmed_unit_price: number | null
+          created_at: string
+          extracted_discount: number | null
+          extracted_line_total: number | null
+          extracted_quantity: number | null
+          extracted_tax: number | null
+          extracted_unit: string | null
+          extracted_unit_price: number | null
+          id: string
+          ingredient_id: string | null
+          invoice_id: string
+          match_status: string
+          raw_description: string
+          variance_notes: string | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          confirmed_quantity?: number | null
+          confirmed_unit_price?: number | null
+          created_at?: string
+          extracted_discount?: number | null
+          extracted_line_total?: number | null
+          extracted_quantity?: number | null
+          extracted_tax?: number | null
+          extracted_unit?: string | null
+          extracted_unit_price?: number | null
+          id?: string
+          ingredient_id?: string | null
+          invoice_id: string
+          match_status?: string
+          raw_description: string
+          variance_notes?: string | null
+        }
+        Update: {
+          confidence_score?: number | null
+          confirmed_quantity?: number | null
+          confirmed_unit_price?: number | null
+          created_at?: string
+          extracted_discount?: number | null
+          extracted_line_total?: number | null
+          extracted_quantity?: number | null
+          extracted_tax?: number | null
+          extracted_unit?: string | null
+          extracted_unit_price?: number | null
+          id?: string
+          ingredient_id?: string | null
+          invoice_id?: string
+          match_status?: string
+          raw_description?: string
+          variance_notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_line_items_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_line_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          currency: string
+          document_type: string
+          due_date: string | null
+          id: string
+          invoice_date: string | null
+          invoice_number: string | null
+          matched_po_id: string | null
+          notes: string | null
+          org_id: string
+          original_file_url: string | null
+          original_filename: string | null
+          processing_metadata: Json | null
+          sender_email: string | null
+          source: string
+          status: string
+          subtotal: number | null
+          supplier_id: string | null
+          tax_amount: number | null
+          total_amount: number | null
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          currency?: string
+          document_type?: string
+          due_date?: string | null
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          matched_po_id?: string | null
+          notes?: string | null
+          org_id: string
+          original_file_url?: string | null
+          original_filename?: string | null
+          processing_metadata?: Json | null
+          sender_email?: string | null
+          source?: string
+          status?: string
+          subtotal?: number | null
+          supplier_id?: string | null
+          tax_amount?: number | null
+          total_amount?: number | null
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          currency?: string
+          document_type?: string
+          due_date?: string | null
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          matched_po_id?: string | null
+          notes?: string | null
+          org_id?: string
+          original_file_url?: string | null
+          original_filename?: string | null
+          processing_metadata?: Json | null
+          sender_email?: string | null
+          source?: string
+          status?: string
+          subtotal?: number | null
+          supplier_id?: string | null
+          tax_amount?: number | null
+          total_amount?: number | null
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_confirmed_by_fkey"
+            columns: ["confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_matched_po_id_fkey"
+            columns: ["matched_po_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       labor_budgets: {
         Row: {
           actual_amount: number | null
@@ -1423,6 +1612,7 @@ export type Database = {
           order_date: string
           org_id: string | null
           po_number: string
+          received_by_name: string | null
           status: string
           submitted_at: string | null
           submitted_by: string | null
@@ -1448,6 +1638,7 @@ export type Database = {
           order_date?: string
           org_id?: string | null
           po_number: string
+          received_by_name?: string | null
           status?: string
           submitted_at?: string | null
           submitted_by?: string | null
@@ -1473,6 +1664,7 @@ export type Database = {
           order_date?: string
           org_id?: string | null
           po_number?: string
+          received_by_name?: string | null
           status?: string
           submitted_at?: string | null
           submitted_by?: string | null
@@ -1504,6 +1696,47 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      qualification_types: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          org_id: string
+          required_for_roles: string[]
+          updated_at: string
+          validity_months: number | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          org_id: string
+          required_for_roles?: string[]
+          updated_at?: string
+          validity_months?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          org_id?: string
+          required_for_roles?: string[]
+          updated_at?: string
+          validity_months?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qualification_types_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -1668,6 +1901,154 @@ export type Database = {
           },
         ]
       }
+      reconciliation_line_items: {
+        Row: {
+          actual_unit_price: number | null
+          expected_quantity: number | null
+          expected_unit_price: number | null
+          id: string
+          ingredient_id: string | null
+          invoice_line_item_id: string | null
+          notes: string | null
+          po_line_item_id: string | null
+          price_variance: number | null
+          quantity_variance: number | null
+          received_quantity: number | null
+          reconciliation_id: string
+          status: string
+        }
+        Insert: {
+          actual_unit_price?: number | null
+          expected_quantity?: number | null
+          expected_unit_price?: number | null
+          id?: string
+          ingredient_id?: string | null
+          invoice_line_item_id?: string | null
+          notes?: string | null
+          po_line_item_id?: string | null
+          price_variance?: number | null
+          quantity_variance?: number | null
+          received_quantity?: number | null
+          reconciliation_id: string
+          status?: string
+        }
+        Update: {
+          actual_unit_price?: number | null
+          expected_quantity?: number | null
+          expected_unit_price?: number | null
+          id?: string
+          ingredient_id?: string | null
+          invoice_line_item_id?: string | null
+          notes?: string | null
+          po_line_item_id?: string | null
+          price_variance?: number | null
+          quantity_variance?: number | null
+          received_quantity?: number | null
+          reconciliation_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reconciliation_line_items_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_line_items_invoice_line_item_id_fkey"
+            columns: ["invoice_line_item_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_line_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_line_items_po_line_item_id_fkey"
+            columns: ["po_line_item_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_line_items_reconciliation_id_fkey"
+            columns: ["reconciliation_id"]
+            isOneToOne: false
+            referencedRelation: "reconciliation_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reconciliation_logs: {
+        Row: {
+          id: string
+          invoice_id: string
+          notes: string | null
+          purchase_order_id: string | null
+          reconciled_at: string
+          reconciled_by: string | null
+          status: string
+          total_expected_value: number | null
+          total_received_value: number | null
+          total_variance: number | null
+          venue_id: string
+        }
+        Insert: {
+          id?: string
+          invoice_id: string
+          notes?: string | null
+          purchase_order_id?: string | null
+          reconciled_at?: string
+          reconciled_by?: string | null
+          status?: string
+          total_expected_value?: number | null
+          total_received_value?: number | null
+          total_variance?: number | null
+          venue_id: string
+        }
+        Update: {
+          id?: string
+          invoice_id?: string
+          notes?: string | null
+          purchase_order_id?: string | null
+          reconciled_at?: string
+          reconciled_by?: string | null
+          status?: string
+          total_expected_value?: number | null
+          total_received_value?: number | null
+          total_variance?: number | null
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reconciliation_logs_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_logs_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_logs_reconciled_by_fkey"
+            columns: ["reconciled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_logs_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_definitions: {
         Row: {
           approval_limits: Json | null
@@ -1711,6 +2092,57 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roster_patterns: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          org_id: string
+          shifts: Json
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          org_id: string
+          shifts?: Json
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          org_id?: string
+          shifts?: Json
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roster_patterns_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roster_patterns_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -1941,6 +2373,7 @@ export type Database = {
           org_id: string
           position: string
           start_time: string
+          template_shifts: Json
           updated_at: string
           usage_count: number | null
           venue_id: string
@@ -1959,6 +2392,7 @@ export type Database = {
           org_id: string
           position?: string
           start_time: string
+          template_shifts?: Json
           updated_at?: string
           usage_count?: number | null
           venue_id: string
@@ -1977,6 +2411,7 @@ export type Database = {
           org_id?: string
           position?: string
           start_time?: string
+          template_shifts?: Json
           updated_at?: string
           usage_count?: number | null
           venue_id?: string
@@ -2243,6 +2678,70 @@ export type Database = {
           },
         ]
       }
+      staff_qualifications: {
+        Row: {
+          certificate_number: string | null
+          created_at: string
+          evidence_url: string | null
+          expiry_date: string | null
+          id: string
+          issue_date: string | null
+          org_id: string
+          qualification_type_id: string
+          staff_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          certificate_number?: string | null
+          created_at?: string
+          evidence_url?: string | null
+          expiry_date?: string | null
+          id?: string
+          issue_date?: string | null
+          org_id: string
+          qualification_type_id: string
+          staff_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          certificate_number?: string | null
+          created_at?: string
+          evidence_url?: string | null
+          expiry_date?: string | null
+          id?: string
+          issue_date?: string | null
+          org_id?: string
+          qualification_type_id?: string
+          staff_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_qualifications_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_qualifications_qualification_type_id_fkey"
+            columns: ["qualification_type_id"]
+            isOneToOne: false
+            referencedRelation: "qualification_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_qualifications_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_count_items: {
         Row: {
           actual_quantity: number
@@ -2356,70 +2855,100 @@ export type Database = {
       }
       suppliers: {
         Row: {
+          abn: string | null
           account_number: string | null
           active: boolean
           address: string | null
           category: string
+          certificate_expiry: string | null
+          certificate_number: string | null
           contact_person: string | null
           created_at: string
           cutoff_time: string
           delivery_days: number[]
           delivery_lead_days: number
+          delivery_schedule: Json | null
           email: string | null
+          haccp_certified: boolean | null
           id: string
+          invoice_email_domains: string[] | null
+          is_gst_registered: boolean | null
           minimum_order: number | null
           name: string
           notes: string | null
+          order_method: string | null
           organization_id: string
           payment_terms: string | null
           phone: string | null
           postcode: string | null
+          preferred_order_channel: string | null
+          schedule_overrides: Json | null
           state: string | null
           suburb: string | null
           updated_at: string
         }
         Insert: {
+          abn?: string | null
           account_number?: string | null
           active?: boolean
           address?: string | null
           category?: string
+          certificate_expiry?: string | null
+          certificate_number?: string | null
           contact_person?: string | null
           created_at?: string
           cutoff_time?: string
           delivery_days?: number[]
           delivery_lead_days?: number
+          delivery_schedule?: Json | null
           email?: string | null
+          haccp_certified?: boolean | null
           id?: string
+          invoice_email_domains?: string[] | null
+          is_gst_registered?: boolean | null
           minimum_order?: number | null
           name: string
           notes?: string | null
+          order_method?: string | null
           organization_id: string
           payment_terms?: string | null
           phone?: string | null
           postcode?: string | null
+          preferred_order_channel?: string | null
+          schedule_overrides?: Json | null
           state?: string | null
           suburb?: string | null
           updated_at?: string
         }
         Update: {
+          abn?: string | null
           account_number?: string | null
           active?: boolean
           address?: string | null
           category?: string
+          certificate_expiry?: string | null
+          certificate_number?: string | null
           contact_person?: string | null
           created_at?: string
           cutoff_time?: string
           delivery_days?: number[]
           delivery_lead_days?: number
+          delivery_schedule?: Json | null
           email?: string | null
+          haccp_certified?: boolean | null
           id?: string
+          invoice_email_domains?: string[] | null
+          is_gst_registered?: boolean | null
           minimum_order?: number | null
           name?: string
           notes?: string | null
+          order_method?: string | null
           organization_id?: string
           payment_terms?: string | null
           phone?: string | null
           postcode?: string | null
+          preferred_order_channel?: string | null
+          schedule_overrides?: Json | null
           state?: string | null
           suburb?: string | null
           updated_at?: string
@@ -2884,14 +3413,18 @@ export type Database = {
       }
       waste_logs: {
         Row: {
+          cost_at_time: number | null
           created_at: string
+          daypart: string | null
           id: string
           ingredient_id: string
           ingredient_name: string
           notes: string | null
           org_id: string | null
+          photo_url: string | null
           quantity: number
           reason: string
+          reason_code: string | null
           recorded_by_name: string | null
           recorded_by_user_id: string
           unit: string
@@ -2901,14 +3434,18 @@ export type Database = {
           waste_time: string
         }
         Insert: {
+          cost_at_time?: number | null
           created_at?: string
+          daypart?: string | null
           id?: string
           ingredient_id: string
           ingredient_name: string
           notes?: string | null
           org_id?: string | null
+          photo_url?: string | null
           quantity: number
           reason: string
+          reason_code?: string | null
           recorded_by_name?: string | null
           recorded_by_user_id: string
           unit: string
@@ -2918,14 +3455,18 @@ export type Database = {
           waste_time: string
         }
         Update: {
+          cost_at_time?: number | null
           created_at?: string
+          daypart?: string | null
           id?: string
           ingredient_id?: string
           ingredient_name?: string
           notes?: string | null
           org_id?: string | null
+          photo_url?: string | null
           quantity?: number
           reason?: string
+          reason_code?: string | null
           recorded_by_name?: string | null
           recorded_by_user_id?: string
           unit?: string
@@ -2972,6 +3513,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_org_admin: { Args: { check_org_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"

@@ -9,7 +9,6 @@ const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || ''
 
 export function initSentry() {
   if (!SENTRY_DSN) {
-    console.log('[Sentry] No DSN configured — error tracking disabled')
     return
   }
 
@@ -34,7 +33,6 @@ export function initSentry() {
     ],
   })
 
-  console.log('[Sentry] Initialized')
 }
 
 export { Sentry }

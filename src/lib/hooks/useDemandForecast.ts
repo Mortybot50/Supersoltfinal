@@ -67,8 +67,7 @@ async function fetchDemandSlots(
   const oldest = datePairs[datePairs.length - 1].from
   const newest = datePairs[0].to
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase query
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('orders')
     .select('order_datetime')
     .eq('venue_id', venueId)
