@@ -112,7 +112,7 @@ interface CountSchedule {
 }
 
 export default function Locations() {
-  const { currentVenue } = useAuth()
+  const { currentVenue, currentOrg } = useAuth()
   const [locations, setLocations] = useState<Location[]>([])
   const [schedules, setSchedules] = useState<CountSchedule[]>([])
   const [loading, setLoading] = useState(true)
@@ -287,9 +287,10 @@ export default function Locations() {
         return
       }
 
-      const payload: Partial<Location> & { venue_id: string } = {
+      const payload: Partial<Location> & { venue_id: string; org_id: string } = {
         ...locationForm,
         venue_id: currentVenueId,
+        org_id: currentOrg?.id || '',
         name: locationForm.name || '',
         type: locationForm.type || 'Other',
       }

@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -33,10 +33,25 @@ interface OrgMember {
   };
 }
 
+type PermissionLevel = 'none' | 'read' | 'write'
+type RolePermissions = Record<string, Record<string, PermissionLevel>>
+
+const PERMISSION_ROLES = ['owner', 'manager', 'supervisor', 'staff'] as const
+const PERMISSION_MODULES = ['dashboard', 'sales', 'menu', 'inventory', 'workforce', 'operations', 'settings'] as const
+
+const DEFAULT_PERMISSIONS: RolePermissions = {
+  owner:      { dashboard: 'write', sales: 'write', menu: 'write', inventory: 'write', workforce: 'write', operations: 'write', settings: 'write' },
+  manager:    { dashboard: 'read',  sales: 'write', menu: 'write', inventory: 'write', workforce: 'write', operations: 'write', settings: 'read'  },
+  supervisor: { dashboard: 'read',  sales: 'read',  menu: 'read',  inventory: 'write', workforce: 'read',  operations: 'write', settings: 'none'  },
+  staff:      { dashboard: 'read',  sales: 'none',  menu: 'read',  inventory: 'none',  workforce: 'read',  operations: 'read',  settings: 'none'  },
+}
+
 export default function AccessRoles() {
   const { currentOrg } = useAuth();
   const [activeTab, setActiveTab] = useState('members');
   const orgId = currentOrg?.id || '';
+  const [permissions, setPermissions] = useState<RolePermissions>(DEFAULT_PERMISSIONS)
+  const [permSaving, setPermSaving] = useState(false)
 
   // Members state (from org_members + profiles)
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -62,6 +77,43 @@ export default function AccessRoles() {
     filterMembers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [members, memberSearch, memberStatusFilter]); // filterMembers is a local function
+
+  // Load permissions from org settings
+  useEffect(() => {
+    if (!orgId) return
+    supabase
+      .from('organizations')
+      .select('settings')
+      .eq('id', orgId)
+      .single()
+      .then(({ data }) => {
+        const stored = (data?.settings as Record<string, unknown>)?.role_permissions as RolePermissions | undefined
+        if (stored) setPermissions({ ...DEFAULT_PERMISSIONS, ...stored })
+      })
+  }, [orgId])
+
+  const handleSavePermissions = async () => {
+    if (!orgId) return
+    setPermSaving(true)
+    try {
+      const { data: orgData } = await supabase
+        .from('organizations')
+        .select('settings')
+        .eq('id', orgId)
+        .single()
+      const existingSettings = (orgData?.settings as Record<string, unknown>) || {}
+      const { error } = await supabase
+        .from('organizations')
+        .update({ settings: { ...existingSettings, role_permissions: permissions } })
+        .eq('id', orgId)
+      if (error) throw error
+      toast.success('Permissions saved')
+    } catch (err) {
+      toast.error('Failed to save permissions', { description: err instanceof Error ? err.message : undefined })
+    } finally {
+      setPermSaving(false)
+    }
+  }
 
   const loadMembers = async () => {
     const { data, error } = await supabase
@@ -373,29 +425,63 @@ export default function AccessRoles() {
 
         {/* ROLES TAB */}
         <TabsContent value="roles" className="space-y-4">
-          <Card className="p-6">
-            <div className="space-y-4">
-              <h3 className="font-semibold">Role Hierarchy</h3>
-              <p className="text-sm text-muted-foreground">
-                Roles control what each team member can see and do. Change a member's role from the Members tab.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[
-                  { role: 'Owner', desc: 'Full access to all settings, billing, and data. Can manage other owners.', color: 'bg-purple-100 dark:bg-purple-950 border-purple-200 dark:border-purple-800' },
-                  { role: 'Manager', desc: 'Can manage inventory, recipes, rosters, and reporting. Cannot access billing or org settings.', color: 'bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800' },
-                  { role: 'Supervisor', desc: 'Can view reports, manage day-to-day operations, approve timesheets. Limited settings access.', color: 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800' },
-                  { role: 'Crew', desc: 'Can clock in/out, view their roster, and submit availability. Read-only for most features.', color: 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700' },
-                ].map(r => (
-                  <Card key={r.role} className={`p-4 ${r.color}`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Shield className="w-4 h-4" />
-                      <h4 className="font-semibold">{r.role}</h4>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{r.desc}</p>
-                  </Card>
-                ))}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Permission Grid</CardTitle>
+                <CardDescription>Control what each role can see and do across modules</CardDescription>
               </div>
-            </div>
+              <Button onClick={handleSavePermissions} disabled={permSaving} size="sm">
+                {permSaving ? 'Saving...' : 'Save Permissions'}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr>
+                      <th className="text-left py-2 pr-4 font-medium text-muted-foreground w-28">Role</th>
+                      {PERMISSION_MODULES.map(mod => (
+                        <th key={mod} className="text-center py-2 px-2 font-medium text-muted-foreground capitalize min-w-[90px]">
+                          {mod}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {PERMISSION_ROLES.map(role => (
+                      <tr key={role} className="border-t">
+                        <td className="py-2 pr-4 font-medium capitalize">{role}</td>
+                        {PERMISSION_MODULES.map(mod => (
+                          <td key={mod} className="py-2 px-2 text-center">
+                            <Select
+                              value={permissions[role]?.[mod] ?? 'none'}
+                              onValueChange={(val: PermissionLevel) =>
+                                setPermissions(prev => ({
+                                  ...prev,
+                                  [role]: { ...prev[role], [mod]: val },
+                                }))
+                              }
+                              disabled={role === 'owner'}
+                            >
+                              <SelectTrigger className="h-7 w-20 text-xs mx-auto">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">None</SelectItem>
+                                <SelectItem value="read">Read</SelectItem>
+                                <SelectItem value="write">Write</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">Owner always has full write access to all modules.</p>
+            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
