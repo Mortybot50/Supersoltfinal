@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
 type StatusVariant =
@@ -33,42 +32,63 @@ type StatusVariant =
   | "info"
   | "success"
   | "error"
+  | "complete"
+  | "archived"
+  | "closed"
+  | "in-progress"
+  | "processing"
 
-const STATUS_STYLES: Record<StatusVariant, string> = {
-  // Yellow family
-  scheduled: "bg-yellow-50 text-yellow-700 border-yellow-200",
-  pending: "bg-yellow-50 text-yellow-700 border-yellow-200",
-  draft: "bg-yellow-50 text-yellow-700 border-yellow-200",
-  warning: "bg-orange-50 text-orange-700 border-orange-200",
-  overstocked: "bg-orange-50 text-orange-700 border-orange-200",
+type BadgeConfig = {
+  bg: string
+  color: string
+}
 
-  // Green family
-  confirmed: "bg-green-50 text-green-700 border-green-200",
-  approved: "bg-green-50 text-green-700 border-green-200",
-  active: "bg-green-50 text-green-700 border-green-200",
-  adequate: "bg-green-50 text-green-700 border-green-200",
-  success: "bg-green-50 text-green-700 border-green-200",
-  delivered: "bg-green-100 text-green-800 border-green-300",
-  received: "bg-green-100 text-green-800 border-green-300",
+const STATUS_MAP: Record<StatusVariant, BadgeConfig> = {
+  // Success green
+  active:      { bg: "rgba(16,185,129,0.12)", color: "#065F46" },
+  complete:    { bg: "rgba(16,185,129,0.12)", color: "#065F46" },
+  approved:    { bg: "rgba(16,185,129,0.12)", color: "#065F46" },
+  published:   { bg: "rgba(16,185,129,0.12)", color: "#065F46" },
+  confirmed:   { bg: "rgba(16,185,129,0.12)", color: "#065F46" },
+  delivered:   { bg: "rgba(16,185,129,0.12)", color: "#065F46" },
+  received:    { bg: "rgba(16,185,129,0.12)", color: "#065F46" },
+  adequate:    { bg: "rgba(16,185,129,0.12)", color: "#065F46" },
+  success:     { bg: "rgba(16,185,129,0.12)", color: "#065F46" },
 
-  // Blue family
-  published: "bg-blue-50 text-blue-700 border-blue-200",
-  submitted: "bg-blue-50 text-blue-700 border-blue-200",
-  info: "bg-blue-50 text-blue-700 border-blue-200",
-  invited: "bg-blue-50 text-blue-700 border-blue-200",
+  // Warning amber
+  pending:     { bg: "rgba(245,158,11,0.12)", color: "#92400E" },
+  draft:       { bg: "rgba(245,158,11,0.12)", color: "#92400E" },
+  scheduled:   { bg: "rgba(245,158,11,0.12)", color: "#92400E" },
+  invited:     { bg: "rgba(245,158,11,0.12)", color: "#92400E" },
 
-  // Red family
-  cancelled: "bg-red-50 text-red-700 border-red-200",
-  rejected: "bg-red-50 text-red-700 border-red-200",
-  critical: "bg-red-100 text-red-800 border-red-300",
-  error: "bg-red-50 text-red-700 border-red-200",
-  inactive: "bg-gray-100 text-gray-600 border-gray-200",
+  // Error red
+  cancelled:   { bg: "rgba(239,68,68,0.12)", color: "#991B1B" },
+  rejected:    { bg: "rgba(239,68,68,0.12)", color: "#991B1B" },
+  error:       { bg: "rgba(239,68,68,0.12)", color: "#991B1B" },
+  critical:    { bg: "rgba(239,68,68,0.12)", color: "#991B1B" },
+
+  // Grey
+  inactive:    { bg: "rgba(17,17,17,0.06)", color: "#6B7280" },
+  archived:    { bg: "rgba(17,17,17,0.06)", color: "#6B7280" },
+  closed:      { bg: "rgba(17,17,17,0.06)", color: "#6B7280" },
+
+  // Info blue
+  info:        { bg: "rgba(59,130,246,0.12)", color: "#1E40AF" },
+  submitted:   { bg: "rgba(59,130,246,0.12)", color: "#1E40AF" },
+  "in-progress": { bg: "rgba(59,130,246,0.12)", color: "#1E40AF" },
+  processing:  { bg: "rgba(59,130,246,0.12)", color: "#1E40AF" },
+
+  // Orange
+  warning:     { bg: "rgba(249,115,22,0.12)", color: "#9A3412" },
+  overstocked: { bg: "rgba(249,115,22,0.12)", color: "#9A3412" },
 
   // Roles
-  manager: "bg-teal-50 text-teal-800 border-teal-200",
-  supervisor: "bg-blue-50 text-blue-800 border-blue-200",
-  crew: "bg-gray-100 text-gray-700 border-gray-200",
+  manager:     { bg: "rgba(20,184,166,0.12)", color: "#0F766E" },
+  supervisor:  { bg: "rgba(59,130,246,0.12)", color: "#1E40AF" },
+  crew:        { bg: "rgba(17,17,17,0.06)", color: "#6B7280" },
 }
+
+const FALLBACK: BadgeConfig = { bg: "rgba(17,17,17,0.06)", color: "#6B7280" }
 
 interface StatusBadgeProps {
   status: StatusVariant
@@ -83,18 +103,20 @@ export function StatusBadge({
   size = "default",
   className,
 }: StatusBadgeProps) {
-  const label = children || status.charAt(0).toUpperCase() + status.slice(1)
+  const config = STATUS_MAP[status] || FALLBACK
+  const label = children || status.charAt(0).toUpperCase() + status.slice(1).replace(/-/g, " ")
+
   return (
-    <Badge
-      variant="outline"
+    <span
       className={cn(
-        STATUS_STYLES[status] || "bg-gray-50 text-gray-700 border-gray-200",
-        size === "sm" && "text-[10px] px-1.5 py-0",
+        "ss-badge",
+        size === "sm" && "text-[10px] px-2 py-0",
         className
       )}
+      style={{ background: config.bg, color: config.color }}
     >
       {label}
-    </Badge>
+    </span>
   )
 }
 

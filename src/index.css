@@ -262,6 +262,88 @@
     background: var(--surface-subtle);
     color: var(--dark);
   }
+
+  /* ── Tab patterns ── */
+
+  /* Page-level tab (text + teal underline) */
+  .ss-tab {
+    padding: 8px 4px;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--dark-tertiary);
+    border-bottom: 2px solid transparent;
+    transition: color 150ms, border-color 150ms;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .ss-tab:hover {
+    color: var(--dark);
+  }
+
+  .ss-tab[data-active="true"],
+  .ss-tab.active {
+    font-weight: 600;
+    color: #14B8A6;
+    border-bottom-color: #14B8A6;
+  }
+
+  /* Filter chip */
+  .ss-chip {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    background: var(--surface-subtle);
+    color: var(--dark-tertiary);
+    border: 1px solid transparent;
+  }
+
+  .ss-chip:hover {
+    color: var(--dark);
+  }
+
+  .ss-chip[data-active="true"],
+  .ss-chip.active {
+    background: #14B8A6;
+    color: #fff;
+    border-color: #14B8A6;
+  }
+
+  /* Segmented control */
+  .ss-segment {
+    display: inline-flex;
+    background: var(--surface-subtle);
+    border-radius: 8px;
+    padding: 2px;
+    gap: 2px;
+  }
+
+  .ss-segment-item {
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    color: var(--dark-tertiary);
+    background: transparent;
+    border: none;
+  }
+
+  .ss-segment-item[data-active="true"],
+  .ss-segment-item.active {
+    background: #111111;
+    color: #fff;
+  }
+
+  /* ── Primary button press ── */
+  button[class*="bg-primary"]:active,
+  button[class*="bg-teal"]:active {
+    transform: scale(0.98);
+  }
 }
 
 /* ── Keyframes ───────────────────────────────────────────────── */
