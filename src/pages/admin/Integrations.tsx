@@ -28,8 +28,6 @@ import {
   Settings,
   FileText,
 } from 'lucide-react'
-import XeroSettings from './XeroSettings'
-
 // ── Types ────────────────────────────────────────────────────────────
 
 interface PosConnection {
@@ -99,7 +97,6 @@ export default function Integrations() {
   const [xeroSyncing, setXeroSyncing] = useState(false)
   const [xeroDisconnecting, setXeroDisconnecting] = useState(false)
   const [confirmXeroDisconnect, setConfirmXeroDisconnect] = useState(false)
-  const [showXeroSettings, setShowXeroSettings] = useState(false)
 
   // ── Load Square connection ────────────────────────────────────────
   const loadSquare = useCallback(async () => {
@@ -347,20 +344,6 @@ export default function Integrations() {
 
   const toolbar = <PageToolbar title="Integrations" />
 
-  // ── Xero account mapping view ─────────────────────────────────────
-  if (showXeroSettings) {
-    return (
-      <PageShell toolbar={<PageToolbar title="Xero — Account Mapping" />}>
-        <div className="p-4 md:p-6 space-y-4">
-          <Button variant="outline" size="sm" onClick={() => setShowXeroSettings(false)}>
-            ← Back to Integrations
-          </Button>
-          <XeroSettings />
-        </div>
-      </PageShell>
-    )
-  }
-
   return (
     <PageShell toolbar={toolbar}>
       <div className="p-4 md:p-6 space-y-6">
@@ -559,7 +542,7 @@ export default function Integrations() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => setShowXeroSettings(true)}
+                      onClick={() => navigate('/admin/integrations/xero/mappings')}
                     >
                       <Settings className="h-4 w-4 mr-1" />
                       Mappings
