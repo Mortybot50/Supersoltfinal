@@ -166,20 +166,23 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
   }, [staff, moveShift, setPendingShift])
 
   // ── doAddShift — the actual shift creation, called after qual check ──────
+  // Uses the current pendingShift from the store directly (not from closure)
+  // to avoid stale-closure issues with useCallback.
 
   const doAddShift = useCallback((config: ShiftConfig) => {
-    if (!pendingShift) return
+    const currentPending = useRosterStore.getState().pendingShift
+    if (!currentPending) return
     const breakdown = calculateShiftCostBreakdown(
       config.startTime, config.endTime, config.breakMinutes,
-      pendingShift.hourlyRateCents,
-      pendingShift.venueId,
-      pendingShift.date,
-      pendingShift.employmentType,
+      currentPending.hourlyRateCents || 0,
+      currentPending.venueId,
+      currentPending.date,
+      currentPending.employmentType,
     )
     addShift({
-      staff_id: pendingShift.staffId,
-      staff_name: pendingShift.staffName,
-      date: pendingShift.date,
+      staff_id: currentPending.staffId,
+      staff_name: currentPending.staffName,
+      date: currentPending.date,
       start_time: config.startTime,
       end_time: config.endTime,
       break_minutes: config.breakMinutes,
@@ -192,21 +195,26 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
       penalty_multiplier: breakdown.penalty_multiplier,
     })
     setPendingShift(null)
-  }, [pendingShift, addShift, setPendingShift])
+  }, [addShift, setPendingShift])
 
   // ── handleShiftConfirm — checks quals before creating ────────────────────
 
   const handleShiftConfirm = useCallback(async (config: ShiftConfig) => {
-    if (!pendingShift) return
+    const currentPending = useRosterStore.getState().pendingShift
+    if (!currentPending) return
 
-    const expiredQuals = await checkExpiredQualifications(pendingShift.staffId, config.role)
-    if (expiredQuals.length > 0) {
-      setQualWarning({ expiredQuals, pendingConfig: config })
-      return
+    try {
+      const expiredQuals = await checkExpiredQualifications(currentPending.staffId, config.role)
+      if (expiredQuals.length > 0) {
+        setQualWarning({ expiredQuals, pendingConfig: config })
+        return
+      }
+    } catch {
+      // Don't block shift creation if qual check fails
     }
 
     doAddShift(config)
-  }, [pendingShift, doAddShift])
+  }, [doAddShift])
 
   const handleShiftCancel = useCallback(() => {
     setPendingShift(null)
@@ -220,6 +228,8 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
     setQualWarning(null)
     doAddShift(config)
   }, [qualWarning, doAddShift])
+
+
 
   const handleQualCancel = useCallback(() => {
     setQualWarning(null)
