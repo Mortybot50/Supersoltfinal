@@ -11,7 +11,7 @@
 |----------|-------|-------|------------|
 | Critical | 1     | 1     | 0          |
 | High     | 0     | 0     | 0          |
-| Medium   | 3     | 0     | 3          |
+| Medium   | 4     | 1     | 3          |
 | Low      | 2     | 0     | 2          |
 
 ---
@@ -28,20 +28,26 @@
 
 ## MEDIUM
 
-### M1 — Email webhook (`/api/inbound-email`) has no authentication
+### M1 — `parse-invoice` endpoint: Bearer presence check without token verification
+- **File:** `api/parse-invoice/index.ts` (lines 83–87, prior to fix)
+- **Issue:** The endpoint only checked that the `Authorization` header started with `"Bearer "` — it did not call `verifyUser()` to validate the token with Supabase. Any HTTP client sending `Authorization: Bearer anything` would pass the check and invoke a Claude claude-sonnet-4-6 (vision) API call, incurring unbounded Anthropic API costs.
+- **Fix:** Replaced the header presence check with `extractToken(req)` + `verifyUser(token)`. Also changed rate-limit key from raw token prefix to `user.id` (a genuine identifier).
+- **Status:** ✅ Fixed
+
+### M2 — Email webhook (`/api/inbound-email`) has no authentication
 - **File:** `api/inbound-email/index.ts` line 22
 - **Issue:** The endpoint accepts POST requests from any source without signature validation. A TODO comment acknowledges this.
 - **Risk:** An attacker who discovers the endpoint URL could POST arbitrary email payloads. Currently low impact since `processInboundEmail` is a stub that takes no destructive action. **Will become High severity once an email provider is connected.**
 - **Action required before going live:** Implement HMAC signature verification for the chosen provider (SendGrid: `x-twilio-email-event-webhook-signature`, Postmark: `X-Postmark-Signature`).
 - **Status:** ⚠️ Documented — acceptable as long as endpoint remains unconnected to a provider
 
-### M2 — No explicit CORS configuration on API routes
+### M3 — No explicit CORS configuration on API routes
 - **File:** `vercel.json`
 - **Issue:** Vercel serves API routes without explicit `Access-Control-Allow-Origin` configuration. Defaults to same-origin for browser requests, but explicit configuration is best practice for APIs that may be called from multiple domains.
 - **Impact:** Low in current setup (single-origin Vercel deployment). Would be a gap if the API were called from a mobile app or third-party integration.
 - **Status:** ⚠️ Documented — acceptable for current deployment
 
-### M3 — No explicit request body size limits on file-accepting endpoints
+### M4 — No explicit request body size limits on file-accepting endpoints
 - **Files:** `api/parse-invoice/index.ts`, `api/inventory/index.ts`
 - **Issue:** No explicit `Content-Length` or size validation before processing. Vercel Pro has 100MB default limit. The invoice parser accepts base64-encoded PDFs/images without checking size before passing to Claude API.
 - **Impact:** A large malicious payload could cause slow responses or hit Claude API limits unnecessarily.

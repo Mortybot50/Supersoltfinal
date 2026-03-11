@@ -13,8 +13,8 @@
 | Phase 2 — Code quality (TypeScript, state bugs) | 11 | 5 | 6 |
 | Phase 3 — Frontend (a11y, responsiveness) | 12 | 3 | 9 |
 | Phase 4 — Tests | 58 tests written/fixed | — | — |
-| Phase 5 — Security | 6 | 1 (pre-audit) | 5 |
-| **Total** | **42** | **14** | **28** |
+| Phase 5 — Security | 7 | 2 | 5 |
+| **Total** | **43** | **15** | **28** |
 
 **Commits in this branch:**
 ```
@@ -143,6 +143,7 @@ c3c40d4 fix: database audit — RLS, indexes, schema cleanup
 | # | Issue | Severity |
 |---|-------|----------|
 | C1 | `api/square/callback.ts`: partial service role key logged to Vercel logs | Critical |
+| M1 | `api/parse-invoice/index.ts`: Bearer presence check only — any string passed auth; replaced with `verifyUser()` | Medium |
 
 ### Verified Secure ✅
 | Area | Status |
@@ -161,9 +162,9 @@ c3c40d4 fix: database audit — RLS, indexes, schema cleanup
 ### Documented (action required)
 | # | Issue | Severity | Action |
 |---|-------|----------|--------|
-| M1 | `/api/inbound-email` has no HMAC signature validation | Medium | **Must fix before connecting email provider** |
-| M2 | No explicit CORS config on API routes | Medium | Add when supporting mobile/third-party clients |
-| M3 | No request body size limits on `parse-invoice` / `inventory` endpoints | Medium | Add 10MB guard before Claude API call |
+| M2 | `/api/inbound-email` has no HMAC signature validation | Medium | **Must fix before connecting email provider** |
+| M3 | No explicit CORS config on API routes | Medium | Add when supporting mobile/third-party clients |
+| M4 | No request body size limits on `parse-invoice` / `inventory` endpoints | Medium | Add 10MB guard before Claude API call |
 | L1 | `staff_availability` unencrypted (notes not yet added) | Low | Review when schema complete |
 | L2 | TFN/bank fields not yet implemented | Low | Must encrypt at rest when added |
 
