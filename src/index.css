@@ -357,3 +357,40 @@
     transform: translateY(0);
   }
 }
+
+/* ── Micro-interactions ─────────────────────────────────────── */
+
+/* Card hover lift */
+.ss-card-hover {
+  cursor: pointer;
+}
+
+/* Button active scale (all primary/secondary buttons) */
+[data-slot="button"]:active {
+  transform: scale(0.98);
+  transition-duration: 100ms;
+}
+
+/* Smooth focus ring on all interactive elements */
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.25);
+  border-radius: 6px;
+}
+
+/* Input focus override (more specific than :focus-visible for inputs) */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+}
+
+/* Dropdown/popover entrance */
+[data-radix-popper-content-wrapper] {
+  animation: ss-fade-in 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dialog entrance */
+[role="dialog"] {
+  animation: ss-fade-in 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
