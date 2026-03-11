@@ -144,7 +144,9 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
 
     if (activeData?.type === DRAGGABLE_SHIFT_TYPE) {
       const shift: RosterShift = activeData.shift
-      if (shift.staff_id === targetStaffId && isSameDay(shift.date instanceof Date ? shift.date : new Date(shift.date), targetDate)) {
+      // Use parse() not new Date() to avoid UTC-midnight timezone rollback on date-only strings
+      const shiftDate = shift.date instanceof Date ? shift.date : parse(String(shift.date).slice(0, 10), 'yyyy-MM-dd', new Date())
+      if (shift.staff_id === targetStaffId && isSameDay(shiftDate, targetDate)) {
         return
       }
       moveShift(shift.id, targetStaffId, targetDate)
