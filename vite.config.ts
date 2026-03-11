@@ -5,6 +5,15 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  test: {
+    globals: true,
+    environment: "node",
+    include: ["src/**/*.test.{ts,tsx}"],
+    exclude: ["SuperSoltMVP-main/**", "supersolt/**", "node_modules/**"],
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
   server: {
     host: "localhost",
     port: 8080,
