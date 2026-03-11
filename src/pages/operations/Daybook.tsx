@@ -408,6 +408,19 @@ export default function Daybook() {
         </div>
       )}
 
+      {/* TODO: AI-generated prep lists based on forecasted sales — key differentiator */}
+      <Card className="border-dashed border-2 border-muted bg-muted/20">
+        <CardContent className="flex flex-col items-center justify-center py-10 text-center">
+          <div className="text-muted-foreground/50 mb-3">
+            <ClipboardList className="h-10 w-10 mx-auto" />
+          </div>
+          <h3 className="font-semibold text-muted-foreground">Prep Suggestions Coming Soon</h3>
+          <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+            Will recommend prep quantities based on sales forecast
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Add/Edit Entry Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">

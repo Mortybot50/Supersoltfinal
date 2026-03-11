@@ -281,16 +281,16 @@ export default function OrgSettings() {
       
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-9">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="venue-defaults">Venue Defaults</TabsTrigger>
           <TabsTrigger value="branding">Branding</TabsTrigger>
           <TabsTrigger value="menu">Menu</TabsTrigger>
           <TabsTrigger value="approvals">Approvals</TabsTrigger>
           <TabsTrigger value="holidays">Holidays</TabsTrigger>
-          <TabsTrigger value="exports">Exports</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="audit">Audit</TabsTrigger>
+          {/* Hidden for MVP: <TabsTrigger value="exports">Exports</TabsTrigger> */}
+          {/* Hidden for MVP: <TabsTrigger value="security">Security</TabsTrigger> */}
+          {/* Hidden for MVP: <TabsTrigger value="audit">Audit</TabsTrigger> */}
         </TabsList>
         
         {/* Profile Tab */}
@@ -355,7 +355,23 @@ export default function OrgSettings() {
                   </p>
                 </div>
               </div>
-              
+
+              {/* TODO: add `address` column to organizations table — currently stored in settings JSON */}
+              <div className="space-y-2">
+                <Label htmlFor="org-address">Street Address</Label>
+                <Input
+                  id="org-address"
+                  placeholder="123 Collins St, Melbourne VIC 3000"
+                  value={(formData.organization as Record<string, unknown>).address as string || ''}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      organization: { ...prev.organization, address: e.target.value } as typeof prev.organization,
+                    }))
+                  }
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="timezone">Timezone</Label>
