@@ -616,10 +616,21 @@ export default function Waste() {
 
       <div className="p-4 md:p-6 space-y-6">
         {/* Dashboard Section */}
-        {showDashboard && wasteLogs.length > 0 && (
+        {showDashboard && (
           <div className="space-y-4">
+            {/* Empty state when no waste logged yet */}
+            {wasteLogs.length === 0 && (
+              <Card className="p-8 text-center">
+                <Trash2 className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                <p className="font-medium mb-1">No waste data yet</p>
+                <p className="text-sm text-muted-foreground">
+                  Log waste entries to see your dashboard analytics here.
+                </p>
+              </Card>
+            )}
+
             {/* Quick-Add Chips */}
-            {dashboardData.frequentIds.length > 0 && (
+            {wasteLogs.length > 0 && dashboardData.frequentIds.length > 0 && (
               <Card className="p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Zap className="h-4 w-4 text-amber-500" />
@@ -649,7 +660,7 @@ export default function Waste() {
             )}
 
             {/* Charts: stack vertically on mobile, side-by-side on desktop */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {wasteLogs.length > 0 && <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Waste by Reason (horizontal bar) */}
               {dashboardData.reasonChartData.length > 0 && (
                 <Card className="p-4">
@@ -718,7 +729,7 @@ export default function Waste() {
                   </LineChart>
                 </ResponsiveContainer>
               </Card>
-            </div>
+            </div>}
 
             {/* Top Wasted Items */}
             {dashboardData.topItems.length > 0 && (
