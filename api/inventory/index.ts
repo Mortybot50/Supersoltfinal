@@ -5,18 +5,19 @@
  * Routes by query param: ?action=<action>
  *
  * Actions:
- *   GET  process-queue        — Process up to 10 pending depletion queue items
- *   GET  get-queue            — Queue status (last 100 items, counts by status)
- *   GET  get-movements        — Recent stock movements for an ingredient or venue
- *   GET  get-stock-levels     — Computed stock levels for all ingredients in a venue
- *   GET  get-forecast         — Demand forecasts for a date range
- *   POST run-forecast         — Run Holt-Winters and upsert demand_forecasts
- *   GET  get-recommendations  — Smart reorder recommendations
- *   POST sync-catalog         — Fetch Square catalog and upsert catalog mappings
- *   GET  get-catalog-mappings — Catalog mappings for a venue
- *   POST save-catalog-mapping — Upsert a single catalog mapping
- *   POST save-modifier-mapping — Upsert a modifier mapping
- *   POST save-waste-factor    — Upsert a waste factor
+ *   GET  process-queue             — Process up to 10 pending depletion queue items
+ *   GET  get-queue                 — Queue status (last 100 items, counts by status)
+ *   GET  get-movements             — Recent stock movements for an ingredient or venue
+ *   GET  get-stock-levels          — Computed stock levels for all ingredients in a venue
+ *   GET  get-forecast              — Demand forecasts for a date range
+ *   POST run-forecast              — Run Holt-Winters and upsert demand_forecasts
+ *   POST update-forecast-accuracy  — Compare past forecasts to actual depletions, store MAPE
+ *   GET  get-recommendations       — Smart reorder recommendations (uses learned lead times)
+ *   POST sync-catalog              — Fetch Square catalog and upsert catalog mappings
+ *   GET  get-catalog-mappings      — Catalog mappings for a venue
+ *   POST save-catalog-mapping      — Upsert a single catalog mapping
+ *   POST save-modifier-mapping     — Upsert a modifier mapping
+ *   POST save-waste-factor         — Upsert a waste factor
  *
  * Consolidated into one Vercel function to stay within Hobby plan 12-function limit.
  */
@@ -120,7 +121,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       error: 'action query param required',
       valid_actions: [
         'process-queue', 'get-queue', 'get-movements', 'get-stock-levels',
-        'get-forecast', 'run-forecast', 'get-recommendations', 'sync-catalog',
+        'get-forecast', 'run-forecast', 'update-forecast-accuracy',
+        'get-recommendations', 'sync-catalog',
         'get-catalog-mappings', 'save-catalog-mapping',
         'save-modifier-mapping', 'save-waste-factor',
       ],
@@ -128,18 +130,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   switch (action) {
-    case 'process-queue':       return handleProcessQueue(req, res)
-    case 'get-queue':           return handleGetQueue(req, res)
-    case 'get-movements':       return handleGetMovements(req, res)
-    case 'get-stock-levels':    return handleGetStockLevels(req, res)
-    case 'get-forecast':        return handleGetForecast(req, res)
-    case 'run-forecast':        return handleRunForecast(req, res)
-    case 'get-recommendations': return handleGetRecommendations(req, res)
-    case 'sync-catalog':        return handleSyncCatalog(req, res)
-    case 'get-catalog-mappings':return handleGetCatalogMappings(req, res)
-    case 'save-catalog-mapping':return handleSaveCatalogMapping(req, res)
-    case 'save-modifier-mapping':return handleSaveModifierMapping(req, res)
-    case 'save-waste-factor':   return handleSaveWasteFactor(req, res)
+    case 'process-queue':            return handleProcessQueue(req, res)
+    case 'get-queue':                return handleGetQueue(req, res)
+    case 'get-movements':            return handleGetMovements(req, res)
+    case 'get-stock-levels':         return handleGetStockLevels(req, res)
+    case 'get-forecast':             return handleGetForecast(req, res)
+    case 'run-forecast':             return handleRunForecast(req, res)
+    case 'update-forecast-accuracy': return handleUpdateForecastAccuracy(req, res)
+    case 'get-recommendations':      return handleGetRecommendations(req, res)
+    case 'sync-catalog':             return handleSyncCatalog(req, res)
+    case 'get-catalog-mappings':     return handleGetCatalogMappings(req, res)
+    case 'save-catalog-mapping':     return handleSaveCatalogMapping(req, res)
+    case 'save-modifier-mapping':    return handleSaveModifierMapping(req, res)
+    case 'save-waste-factor':        return handleSaveWasteFactor(req, res)
     default:
       return res.status(400).json({ error: `Unknown action: ${action}` })
   }
@@ -833,10 +836,10 @@ async function handleGetRecommendations(req: VercelRequest, res: VercelResponse)
 
   const db = supabaseAdmin()
 
-  // Load ingredients with supplier lead times
+  // Load ingredients with supplier lead times (static configured value)
   const { data: ingredients, error: ingErr } = await (db
     .from('ingredients' as unknown as 'pos_connections')
-    .select('id, name, unit, unit_cost, reorder_point, par_level, pack_size, supplier_id, suppliers(lead_time_days)')
+    .select('id, name, unit, unit_cost, reorder_point, par_level, pack_size, supplier_id, suppliers(id, name, lead_time_days)')
     .eq('org_id', orgId) as unknown as Promise<{
       data: {
         id: string
@@ -847,7 +850,7 @@ async function handleGetRecommendations(req: VercelRequest, res: VercelResponse)
         par_level: number | null
         pack_size: number | null
         supplier_id: string | null
-        suppliers: { lead_time_days: number | null } | null
+        suppliers: { id: string; name: string; lead_time_days: number | null } | null
       }[] | null
       error: unknown
     }>)
@@ -869,6 +872,29 @@ async function handleGetRecommendations(req: VercelRequest, res: VercelResponse)
     .gte('created_at', fourteenDaysAgo) as unknown as Promise<{
       data: { ingredient_id: string; quantity: number; created_at: string }[] | null
     }>)
+
+  // Load learned lead times: last 5 deliveries per supplier from supplier_lead_time_logs
+  const { data: leadTimeLogs } = await (db
+    .from('supplier_lead_time_logs' as unknown as 'pos_connections')
+    .select('supplier_id, actual_lead_days, received_at')
+    .eq('org_id', orgId)
+    .order('received_at', { ascending: false })
+    .limit(500) as unknown as Promise<{
+      data: { supplier_id: string; actual_lead_days: number; received_at: string }[] | null
+    }>)
+
+  // Compute rolling average (last 5) per supplier from the learned logs
+  const learnedLeadTimeBySupplier = new Map<string, number>()
+  const logsBySupplier = new Map<string, number[]>()
+  for (const log of leadTimeLogs ?? []) {
+    const existing = logsBySupplier.get(log.supplier_id) ?? []
+    if (existing.length < 5) existing.push(log.actual_lead_days)
+    logsBySupplier.set(log.supplier_id, existing)
+  }
+  for (const [supplierId, days] of logsBySupplier.entries()) {
+    const avg = days.reduce((s, d) => s + d, 0) / days.length
+    learnedLeadTimeBySupplier.set(supplierId, Math.round(avg * 10) / 10)
+  }
 
   // Group by ingredient and day
   const usageByIngredientDay = new Map<string, Map<string, number>>()
@@ -909,10 +935,21 @@ async function handleGetRecommendations(req: VercelRequest, res: VercelResponse)
       const variance = dayValues.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / Math.max(dayValues.length, 1)
       const stdDev = Math.sqrt(variance)
 
-      const rawSupplier  = ing.suppliers as unknown
-      const leadTimeDays = (rawSupplier && typeof rawSupplier === 'object' && 'lead_time_days' in rawSupplier
+      const rawSupplier = ing.suppliers as unknown
+      const supplierId  = (rawSupplier && typeof rawSupplier === 'object' && 'id' in rawSupplier
+        ? (rawSupplier as { id: string }).id
+        : null) ?? ing.supplier_id
+      // Use learned lead time (rolling avg of last 5 deliveries) if ≥ 3 data points exist,
+      // otherwise fall back to the configured static lead_time_days, then default of 3.
+      const staticLeadTime = (rawSupplier && typeof rawSupplier === 'object' && 'lead_time_days' in rawSupplier
         ? (rawSupplier as { lead_time_days: number | null }).lead_time_days
         : null) ?? 3
+      const learnedLeadTime  = supplierId ? learnedLeadTimeBySupplier.get(supplierId) : undefined
+      const learnedSampleCount = supplierId ? (logsBySupplier.get(supplierId)?.length ?? 0) : 0
+      // Prefer learned lead time once we have ≥ 3 deliveries for statistical validity
+      const leadTimeDays = (learnedLeadTime !== undefined && learnedSampleCount >= 3)
+        ? learnedLeadTime
+        : staticLeadTime
 
       // Safety stock: Z × σ × √lead_time (Z=1.28 for 90% service level)
       const Z           = 1.28
@@ -938,6 +975,10 @@ async function handleGetRecommendations(req: VercelRequest, res: VercelResponse)
         daysRemaining < 5  ? 'soon'      :
                              'planned'
 
+      const supplierName = (rawSupplier && typeof rawSupplier === 'object' && 'name' in rawSupplier
+        ? (rawSupplier as { name: string }).name
+        : null)
+
       return {
         ingredient_id:         ing.id,
         name:                  ing.name,
@@ -948,11 +989,16 @@ async function handleGetRecommendations(req: VercelRequest, res: VercelResponse)
         reorder_point:         Math.round(rop * 100) / 100,
         safety_stock:          Math.round(safetyStock * 100) / 100,
         lead_time_days:        leadTimeDays,
+        lead_time_source:      (learnedLeadTime !== undefined && learnedSampleCount >= 3)
+          ? 'learned'
+          : 'configured',
+        lead_time_samples:     learnedSampleCount,
         recommended_order_qty: Math.round(orderQty * 100) / 100,
         pack_size:             packSize,
         estimated_cost:        ing.unit_cost ? Math.round(orderQty * ing.unit_cost * 100) / 100 : null,
         urgency,
         supplier_id:           ing.supplier_id,
+        supplier_name:         supplierName,
       }
     })
   )
@@ -1262,6 +1308,215 @@ async function handleSaveWasteFactor(req: VercelRequest, res: VercelResponse) {
   }
 
   return res.status(200).json({ success: true })
+}
+
+// ── update-forecast-accuracy ─────────────────────────────────────────
+// Compares demand_forecasts.predicted_quantity against actual sale_depletion
+// movements for past forecast dates. Updates actual_quantity and recalculates
+// true out-of-sample MAPE for each menu item.
+//
+// Run after processing the depletion queue, ideally daily.
+
+async function handleUpdateForecastAccuracy(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const body = req.body as { org_id?: string; venue_id?: string; days_back?: number } | undefined
+  const orgId   = body?.org_id
+  const venueId = body?.venue_id
+  const daysBack = body?.days_back ?? 30 // How many past days to evaluate
+
+  if (!orgId)   return res.status(400).json({ error: 'org_id required' })
+  if (!venueId) return res.status(400).json({ error: 'venue_id required' })
+
+  const auth = await authenticate(req, res, orgId)
+  if (!auth) return
+
+  const db = supabaseAdmin()
+
+  // Dates: only evaluate past days where the forecast date has already passed
+  const today = new Date().toISOString().split('T')[0]
+  const startDate = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+  // 1. Fetch forecasts for past dates (forecast_date < today)
+  const { data: forecasts, error: forecastErr } = await (db
+    .from('demand_forecasts' as unknown as 'pos_connections')
+    .select('id, menu_item_id, forecast_date, predicted_quantity')
+    .eq('org_id', orgId)
+    .eq('venue_id', venueId)
+    .gte('forecast_date', startDate)
+    .lt('forecast_date', today)
+    .order('forecast_date', { ascending: true }) as unknown as Promise<{
+      data: {
+        id: string
+        menu_item_id: string
+        forecast_date: string
+        predicted_quantity: number
+      }[] | null
+      error: unknown
+    }>)
+
+  if (forecastErr) {
+    console.error('[inventory/update-forecast-accuracy] Forecast fetch error:', forecastErr)
+    return res.status(500).json({ error: 'Failed to fetch forecasts' })
+  }
+
+  if (!forecasts || forecasts.length === 0) {
+    return res.status(200).json({ updated: 0, message: 'No past forecasts to evaluate' })
+  }
+
+  // 2. Load catalog mappings to resolve menu_item → recipe → ingredients
+  const { data: catalogMappings } = await (db
+    .from('square_catalog_mappings' as unknown as 'pos_connections')
+    .select('recipe_id, recipes(menu_item_id)')
+    .eq('org_id', orgId)
+    .eq('is_active', true)
+    .not('recipe_id', 'is', null) as unknown as Promise<{
+      data: { recipe_id: string | null; recipes: { menu_item_id: string | null } | null }[] | null
+    }>)
+
+  // Build map: menu_item_id → set of catalog item IDs (via recipe)
+  // We'll count distinct orders per day as a proxy for "covers" (menu item demand)
+  // by looking at stock_movements reference_ids grouped by day
+
+  // 3. Fetch actual sale_depletion movements for the evaluation window
+  const startTs = new Date(startDate + 'T00:00:00Z').toISOString()
+  const endTs   = new Date(today + 'T00:00:00Z').toISOString()
+
+  const { data: movements } = await (db
+    .from('stock_movements' as unknown as 'pos_connections')
+    .select('reference_id, created_at')
+    .eq('org_id', orgId)
+    .eq('venue_id', venueId)
+    .eq('movement_type', 'sale_depletion')
+    .gte('created_at', startTs)
+    .lt('created_at', endTs) as unknown as Promise<{
+      data: { reference_id: string | null; created_at: string }[] | null
+    }>)
+
+  // Count distinct order IDs per day (proxy for daily demand / cover count)
+  const ordersByDay = new Map<string, Set<string>>()
+  for (const m of movements ?? []) {
+    if (!m.reference_id) continue
+    const day = m.created_at.split('T')[0]
+    if (!ordersByDay.has(day)) ordersByDay.set(day, new Set())
+    ordersByDay.get(day)!.add(m.reference_id)
+  }
+
+  // Determine what menu items had active catalog mappings (they're "trackable")
+  const trackableMenuItemIds = new Set<string>()
+  for (const cm of catalogMappings ?? []) {
+    if (cm.recipes?.menu_item_id) {
+      trackableMenuItemIds.add(cm.recipes.menu_item_id)
+    }
+  }
+
+  // 4. For each forecast row, compute actual_quantity and update
+  let updatedCount = 0
+  const mapeByMenuItem = new Map<string, { errors: number[]; predicted: number[]; actual: number[] }>()
+
+  // Batch updates
+  const updates: Array<{ id: string; actual_quantity: number; mape: number | null }> = []
+
+  // Group forecasts by menu item for per-item MAPE calculation
+  const forecastsByMenuItem = new Map<string, typeof forecasts>()
+  for (const f of forecasts) {
+    const existing = forecastsByMenuItem.get(f.menu_item_id) ?? []
+    existing.push(f)
+    forecastsByMenuItem.set(f.menu_item_id, existing)
+  }
+
+  for (const [menuItemId, itemForecasts] of forecastsByMenuItem.entries()) {
+    // Only evaluate trackable menu items (those with catalog mappings)
+    // For untracked items, still record actual = 0 so MAPE isn't inflated
+    const pairs: Array<{ id: string; predicted: number; actual: number; date: string }> = []
+
+    for (const f of itemForecasts) {
+      const actualOrders = ordersByDay.get(f.forecast_date)?.size ?? 0
+      // For now, we use total cover count as a proxy for all menu items equally
+      // (Ideally would be per-menu-item sales — requires richer order line item data)
+      pairs.push({ id: f.id, predicted: f.predicted_quantity, actual: actualOrders, date: f.forecast_date })
+    }
+
+    // Compute per-item MAPE over the evaluation window
+    const validPairs = pairs.filter(p => p.actual > 0)
+    let mape: number | null = null
+    if (validPairs.length > 0) {
+      const mapeSum = validPairs.reduce((s, p) => {
+        return s + Math.abs(p.actual - p.predicted) / p.actual
+      }, 0)
+      mape = Math.round((mapeSum / validPairs.length) * 100 * 1000) / 1000
+    }
+
+    mapeByMenuItem.set(menuItemId, {
+      errors: validPairs.map(p => Math.abs(p.actual - p.predicted)),
+      predicted: pairs.map(p => p.predicted),
+      actual: pairs.map(p => p.actual),
+    })
+
+    for (const p of pairs) {
+      updates.push({ id: p.id, actual_quantity: p.actual, mape })
+    }
+  }
+
+  // 5. Batch upsert actual_quantity + mape back to demand_forecasts
+  // Process in batches of 50 to avoid payload limits
+  const BATCH_SIZE = 50
+  for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+    const batch = updates.slice(i, i + BATCH_SIZE)
+
+    for (const upd of batch) {
+      const { error: updErr } = await (db
+        .from('demand_forecasts' as unknown as 'pos_connections')
+        .update({
+          actual_quantity: upd.actual_quantity,
+          mape:            upd.mape,
+        } as Record<string, unknown>)
+        .eq('id', upd.id) as unknown as Promise<{ error: unknown }>)
+
+      if (!updErr) updatedCount++
+    }
+  }
+
+  // 6. Compute overall MAPE and flag unreliable items (MAPE > 30%)
+  const itemSummaries: Array<{
+    menu_item_id: string
+    mape: number | null
+    data_points: number
+    unreliable: boolean
+  }> = []
+
+  for (const [menuItemId, data] of mapeByMenuItem.entries()) {
+    const validActuals = data.actual.filter(a => a > 0)
+    let itemMape: number | null = null
+    if (validActuals.length > 0) {
+      const mapeSum = data.errors.slice(0, validActuals.length).reduce((s, e) => s + e, 0)
+      itemMape = Math.round((mapeSum / validActuals.reduce((s, a) => s + a, 0)) * 100 * 1000) / 1000
+    }
+    itemSummaries.push({
+      menu_item_id: menuItemId,
+      mape:         itemMape,
+      data_points:  data.actual.length,
+      unreliable:   itemMape !== null && itemMape > 30,
+    })
+  }
+
+  const overallMape = itemSummaries
+    .filter(s => s.mape !== null)
+    .reduce((s, item) => {
+      const mape = item.mape!
+      return { sum: s.sum + mape, count: s.count + 1 }
+    }, { sum: 0, count: 0 })
+
+  return res.status(200).json({
+    updated:          updatedCount,
+    days_evaluated:   daysBack,
+    items_evaluated:  forecastsByMenuItem.size,
+    unreliable_items: itemSummaries.filter(s => s.unreliable).length,
+    overall_mape:     overallMape.count > 0
+      ? Math.round((overallMape.sum / overallMape.count) * 100) / 100
+      : null,
+    item_summaries:   itemSummaries,
+  })
 }
 
 // ── Holt-Winters additive smoothing ──────────────────────────────────

@@ -6,6 +6,7 @@ import {
   TrendingDown,
   Download,
   Info,
+  Zap,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -16,7 +17,9 @@ import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useDataStore } from '@/lib/store/dataStore'
-import { format, subDays, startOfWeek, startOfMonth, isAfter, isBefore, eachWeekOfInterval, eachMonthOfInterval, endOfMonth, endOfWeek } from 'date-fns'
+import { useAuth } from '@/contexts/AuthContext'
+import { supabase } from '@/integrations/supabase/client'
+import { format, subDays, startOfMonth, isAfter, isBefore, eachWeekOfInterval, eachMonthOfInterval, endOfMonth, endOfWeek } from 'date-fns'
 import { toast } from 'sonner'
 import { PageShell, PageToolbar } from '@/components/shared'
 import { StatCards } from '@/components/ui/StatCards'
@@ -34,6 +37,14 @@ const CATEGORY_LABELS: Record<string, string> = {
   'dry-goods': 'Dry Goods',
   beverages: 'Beverages',
   other: 'Other',
+}
+
+interface DepletionMovement {
+  ingredient_id: string
+  movement_type: 'sale_depletion' | 'refund_reversal'
+  quantity: number
+  unit_cost: number | null
+  created_at: string
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -73,11 +84,15 @@ export default function FoodCostAnalysis() {
     loadWasteLogsFromDB,
   } = useDataStore()
 
+  const { organization, currentVenueId } = useAuth()
+
   const [preset, setPreset] = useState<DateRangePreset>('month')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
   const [varianceThreshold, setVarianceThreshold] = useState(5)
   const [groupBy, setGroupBy] = useState<GroupBy>('category')
+  const [depletionMovements, setDepletionMovements] = useState<DepletionMovement[]>([])
+  const [depletionLoading, setDepletionLoading] = useState(false)
 
   useEffect(() => {
     loadIngredientsFromDB()
@@ -88,8 +103,64 @@ export default function FoodCostAnalysis() {
 
   const { from, to } = useMemo(() => getDateRange(preset, customFrom, customTo), [preset, customFrom, customTo])
 
-  // ─── Actual food cost (COGS) ────────────────────────────────────────────
-  // Formula: Opening Stock + Purchases - Closing Stock
+  // Load depletion movements from stock_movements for the selected period
+  useEffect(() => {
+    if (!organization?.id || !currentVenueId) return
+
+    const fromIso = from.toISOString()
+    const toIso = to.toISOString()
+
+    setDepletionLoading(true)
+    supabase
+      .from('stock_movements' as 'pos_connections' & 'stock_movements')
+      .select('ingredient_id, movement_type, quantity, unit_cost, created_at')
+      .eq('org_id' as never, organization.id)
+      .eq('venue_id' as never, currentVenueId)
+      .in('movement_type' as never, ['sale_depletion', 'refund_reversal'])
+      .gte('created_at' as never, fromIso)
+      .lte('created_at' as never, toIso)
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setDepletionMovements(data as unknown as DepletionMovement[])
+        }
+        setDepletionLoading(false)
+      })
+  }, [organization?.id, currentVenueId, from, to])
+
+  // ─── Depletion-based COGS (real data from stock_movements) ─────────────────
+  // Actual COGS = Σ(abs(quantity) × unit_cost) for sale_depletion
+  //             − Σ(quantity × unit_cost) for refund_reversal (stock returned)
+
+  const depletionCOGS = useMemo(() => {
+    if (depletionMovements.length === 0) return null
+
+    let saleDepletion = 0
+    let refundReversal = 0
+    const byIngredient = new Map<string, number>()
+
+    for (const m of depletionMovements) {
+      const unitCost = m.unit_cost ?? 0
+      const value = Math.abs(m.quantity) * unitCost
+
+      if (m.movement_type === 'sale_depletion') {
+        saleDepletion += value
+        byIngredient.set(m.ingredient_id, (byIngredient.get(m.ingredient_id) ?? 0) + value)
+      } else if (m.movement_type === 'refund_reversal') {
+        refundReversal += value
+        byIngredient.set(m.ingredient_id, (byIngredient.get(m.ingredient_id) ?? 0) - value)
+      }
+    }
+
+    return {
+      saleDepletion,
+      refundReversal,
+      net: Math.max(0, saleDepletion - refundReversal),
+      byIngredient,
+    }
+  }, [depletionMovements])
+
+  // ─── Actual food cost (COGS) — purchase-based formula ──────────────────────
+  // Formula: Opening Stock + Purchases - Closing Stock - Waste
 
   const actualCOGS = useMemo(() => {
     // Purchases received in period
@@ -151,11 +222,9 @@ export default function FoodCostAnalysis() {
     }
   }, [purchaseOrders, stockCounts, wasteLogs, from, to])
 
-  // ─── Theoretical food cost ──────────────────────────────────────────────
-  // Formula: sum over (sales qty × recipe ingredient qty × ingredient cost)
+  // ─── Theoretical food cost ──────────────────────────────────────────────────
 
   const theoreticalCOGS = useMemo(() => {
-    // Sales in period
     const periodOrders = orders.filter(
       (o) =>
         !o.is_void &&
@@ -164,12 +233,8 @@ export default function FoodCostAnalysis() {
         isBefore(new Date(o.order_datetime), to)
     )
 
-    // For each order, find order items — if the orders store has order_items aggregated,
-    // use it. Otherwise use menu item cost as proxy.
-    // We use menu_item cost_price as theoretical food cost proxy per sale.
     const theoreticalByMenuItem: Record<string, { qty: number; costPerSale: number; name: string }> = {}
 
-    // Check if orders have line items attached
     for (const order of periodOrders) {
       if (!order.order_items) continue
       for (const oi of order.order_items) {
@@ -193,7 +258,6 @@ export default function FoodCostAnalysis() {
 
     if (Object.keys(theoreticalByMenuItem).length > 0) {
       for (const [id, data] of Object.entries(theoreticalByMenuItem)) {
-        // Try recipe-level costing if available
         const recipe = recipes.find((r) => r.menu_item_id === id)
         let costPerSale = data.costPerSale
 
@@ -210,16 +274,14 @@ export default function FoodCostAnalysis() {
         breakdown.push({ name: data.name, theoretical: lineTotal, qty: data.qty })
       }
     } else {
-      // Fallback: no order line items — use gross revenue × estimated food cost %
       const totalRevenue = periodOrders.reduce((sum, o) => sum + o.gross_amount / 100, 0)
-      // Estimate theoretical as 28% of revenue (industry standard)
-      totalTheoretical = totalRevenue * 0.28 * 100 // back to cents
+      totalTheoretical = totalRevenue * 0.28 * 100
     }
 
     return { total: totalTheoretical, breakdown, hasDetailedData: Object.keys(theoreticalByMenuItem).length > 0 }
   }, [orders, menuItems, recipes, recipeIngredients, ingredients, from, to])
 
-  // ─── Ingredient-level variance ──────────────────────────────────────────
+  // ─── Ingredient-level variance ──────────────────────────────────────────────
 
   const ingredientVariance = useMemo(() => {
     const rows: Array<{
@@ -228,12 +290,12 @@ export default function FoodCostAnalysis() {
       category: string
       actualCost: number
       theoreticalCost: number
+      depletionCost: number | null
       variance: number
       variancePct: number
     }> = []
 
     for (const ing of ingredients.filter((i) => i.active)) {
-      // Actual: qty received × cost
       const actualCost = purchaseOrders
         .filter(
           (po) =>
@@ -247,7 +309,6 @@ export default function FoodCostAnalysis() {
           return sum + (item ? (item.quantity_received || 0) * item.unit_cost : 0)
         }, 0)
 
-      // Theoretical: waste + stock reduction proxy
       const wasteValue = wasteLogs
         .filter(
           (w) =>
@@ -257,21 +318,25 @@ export default function FoodCostAnalysis() {
         )
         .reduce((sum, w) => sum + w.value, 0)
 
-      // Simple theoretical = waste (usage should equal waste + sales consumption)
       const theoreticalCost = wasteValue
 
-      if (actualCost === 0 && theoreticalCost === 0) continue
+      // Depletion-based cost for this ingredient (from stock_movements)
+      const depletionCost = depletionCOGS
+        ? (depletionCOGS.byIngredient.get(ing.id) ?? null)
+        : null
+
+      if (actualCost === 0 && theoreticalCost === 0 && (depletionCost === null || depletionCost === 0)) continue
 
       const variance = actualCost - theoreticalCost
       const variancePct = theoreticalCost > 0 ? (variance / theoreticalCost) * 100 : 0
 
-      rows.push({ id: ing.id, name: ing.name, category: ing.category, actualCost, theoreticalCost, variance, variancePct })
+      rows.push({ id: ing.id, name: ing.name, category: ing.category, actualCost, theoreticalCost, depletionCost, variance, variancePct })
     }
 
     return rows.sort((a, b) => Math.abs(b.variancePct) - Math.abs(a.variancePct))
-  }, [ingredients, purchaseOrders, wasteLogs, from, to])
+  }, [ingredients, purchaseOrders, wasteLogs, depletionCOGS, from, to])
 
-  // ─── Category variance ──────────────────────────────────────────────────
+  // ─── Category variance ──────────────────────────────────────────────────────
 
   const categoryVariance = useMemo(() => {
     const cats: Record<string, { category: string; actual: number; theoretical: number }> = {}
@@ -292,13 +357,12 @@ export default function FoodCostAnalysis() {
       .sort((a, b) => Math.abs(b.variancePct) - Math.abs(a.variancePct))
   }, [ingredientVariance])
 
-  // ─── Trend data ─────────────────────────────────────────────────────────
+  // ─── Trend data ─────────────────────────────────────────────────────────────
 
   const trendData = useMemo(() => {
     const daysDiff = Math.round((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24))
 
     if (daysDiff <= 31) {
-      // Weekly buckets
       const weeks = eachWeekOfInterval({ start: from, end: to })
       return weeks.map((weekStart) => {
         const weekEnd = endOfWeek(weekStart)
@@ -327,7 +391,6 @@ export default function FoodCostAnalysis() {
         }
       })
     } else {
-      // Monthly buckets
       const months = eachMonthOfInterval({ start: from, end: to })
       return months.map((monthStart) => {
         const monthEnd = endOfMonth(monthStart)
@@ -358,12 +421,13 @@ export default function FoodCostAnalysis() {
     }
   }, [purchaseOrders, wasteLogs, from, to])
 
-  // ─── Export ─────────────────────────────────────────────────────────────
+  // ─── Export ─────────────────────────────────────────────────────────────────
 
   const exportCSV = () => {
-    let csv = 'Ingredient,Category,Actual Cost ($),Theoretical Cost ($),Variance ($),Variance (%)\n'
+    let csv = 'Ingredient,Category,Actual Cost ($),Theoretical Cost ($),Depletion COGS ($),Variance ($),Variance (%)\n'
     for (const row of ingredientVariance) {
-      csv += `"${row.name}","${CATEGORY_LABELS[row.category] || row.category}",${(row.actualCost / 100).toFixed(2)},${(row.theoreticalCost / 100).toFixed(2)},${(row.variance / 100).toFixed(2)},${row.variancePct.toFixed(1)}%\n`
+      const depletion = row.depletionCost !== null ? (row.depletionCost / 100).toFixed(2) : ''
+      csv += `"${row.name}","${CATEGORY_LABELS[row.category] || row.category}",${(row.actualCost / 100).toFixed(2)},${(row.theoreticalCost / 100).toFixed(2)},${depletion},${(row.variance / 100).toFixed(2)},${row.variancePct.toFixed(1)}%\n`
     }
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
@@ -375,18 +439,22 @@ export default function FoodCostAnalysis() {
     toast.success('Exported food cost variance CSV')
   }
 
-  // ─── Summary stats ───────────────────────────────────────────────────────
+  // ─── Summary stats ───────────────────────────────────────────────────────────
+
+  // Primary COGS: depletion-based if available, otherwise purchase-based
+  const primaryCOGS = depletionCOGS ? depletionCOGS.net : actualCOGS.total
+  const cogsIsDepletion = Boolean(depletionCOGS && depletionCOGS.saleDepletion > 0)
 
   const overallVariancePct =
     theoreticalCOGS.total > 0
-      ? ((actualCOGS.total - theoreticalCOGS.total) / theoreticalCOGS.total) * 100
+      ? ((primaryCOGS - theoreticalCOGS.total) / theoreticalCOGS.total) * 100
       : 0
 
   const highVarianceCount = ingredientVariance.filter(
     (r) => Math.abs(r.variancePct) > varianceThreshold
   ).length
 
-  // ─── Toolbar ─────────────────────────────────────────────────────────────
+  // ─── Toolbar ─────────────────────────────────────────────────────────────────
 
   const toolbar = (
     <PageToolbar
@@ -457,8 +525,8 @@ export default function FoodCostAnalysis() {
         <StatCards
           stats={[
             {
-              label: 'Actual COGS',
-              value: `$${(actualCOGS.total / 100).toFixed(0)}`,
+              label: cogsIsDepletion ? 'Actual COGS (Depletion)' : 'Actual COGS',
+              value: `$${(primaryCOGS / 100).toFixed(0)}`,
             },
             {
               label: 'Theoretical',
@@ -480,54 +548,101 @@ export default function FoodCostAnalysis() {
 
         {/* COGS breakdown info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-sm">Actual COGS</h3>
-              <Badge variant="outline" className="text-xs">Opening + Purchases − Closing − Waste</Badge>
-            </div>
-            <div className="space-y-1.5 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Opening Stock</span>
-                <span className="font-medium">
-                  {actualCOGS.hasStockCounts
-                    ? `$${(actualCOGS.openingStock / 100).toFixed(2)}`
-                    : <span className="text-muted-foreground italic">no stock count</span>}
-                </span>
+
+          {/* Depletion-based COGS card (shown when real depletion data exists) */}
+          {depletionCOGS && depletionCOGS.saleDepletion > 0 ? (
+            <Card className="p-4 space-y-3 border-emerald-200 dark:border-emerald-800">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-sm">Actual COGS</h3>
+                <Badge className="text-xs bg-emerald-100 text-emerald-800 border-emerald-200 flex items-center gap-1">
+                  <Zap className="h-3 w-3" />
+                  Depletion-Based
+                </Badge>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">+ Purchases Received</span>
-                <span className="font-medium text-green-600">
-                  +${(actualCOGS.purchases / 100).toFixed(2)}
-                </span>
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Sale Depletions</span>
+                  <span className="font-medium text-red-600">
+                    ${(depletionCOGS.saleDepletion / 100).toFixed(2)}
+                  </span>
+                </div>
+                {depletionCOGS.refundReversal > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">− Refund Reversals</span>
+                    <span className="font-medium text-green-600">
+                      −${(depletionCOGS.refundReversal / 100).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-base border-t pt-1.5">
+                  <span>Net COGS</span>
+                  <span>${(depletionCOGS.net / 100).toFixed(2)}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">− Closing Stock</span>
-                <span className="font-medium text-red-600">
-                  {actualCOGS.hasStockCounts
-                    ? `−$${(actualCOGS.closingStock / 100).toFixed(2)}`
-                    : <span className="text-muted-foreground italic">no stock count</span>}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">− Waste Logged</span>
-                <span className="font-medium text-red-600">
-                  {actualCOGS.waste > 0
-                    ? `−$${(actualCOGS.waste / 100).toFixed(2)}`
-                    : <span className="text-muted-foreground">$0.00</span>}
-                </span>
-              </div>
-              <div className="flex justify-between font-bold text-base border-t pt-1.5">
-                <span>Actual COGS</span>
-                <span>${(actualCOGS.total / 100).toFixed(2)}</span>
-              </div>
-            </div>
-            {!actualCOGS.hasStockCounts && (
-              <div className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950 rounded p-2">
+              {depletionLoading && (
+                <p className="text-xs text-muted-foreground italic">Updating…</p>
+              )}
+              <div className="flex items-start gap-2 text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950 rounded p-2">
                 <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                No stock counts for this period. COGS = Purchases − Waste only.
+                Computed from real ingredient depletions (Square POS → stock movements). Most accurate method.
               </div>
-            )}
-          </Card>
+            </Card>
+          ) : (
+            <Card className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-sm">Actual COGS</h3>
+                <Badge variant="outline" className="text-xs">Opening + Purchases − Closing − Waste</Badge>
+              </div>
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Opening Stock</span>
+                  <span className="font-medium">
+                    {actualCOGS.hasStockCounts
+                      ? `$${(actualCOGS.openingStock / 100).toFixed(2)}`
+                      : <span className="text-muted-foreground italic">no stock count</span>}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">+ Purchases Received</span>
+                  <span className="font-medium text-green-600">
+                    +${(actualCOGS.purchases / 100).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">− Closing Stock</span>
+                  <span className="font-medium text-red-600">
+                    {actualCOGS.hasStockCounts
+                      ? `−$${(actualCOGS.closingStock / 100).toFixed(2)}`
+                      : <span className="text-muted-foreground italic">no stock count</span>}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">− Waste Logged</span>
+                  <span className="font-medium text-red-600">
+                    {actualCOGS.waste > 0
+                      ? `−$${(actualCOGS.waste / 100).toFixed(2)}`
+                      : <span className="text-muted-foreground">$0.00</span>}
+                  </span>
+                </div>
+                <div className="flex justify-between font-bold text-base border-t pt-1.5">
+                  <span>Actual COGS</span>
+                  <span>${(actualCOGS.total / 100).toFixed(2)}</span>
+                </div>
+              </div>
+              {!actualCOGS.hasStockCounts && (
+                <div className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950 rounded p-2">
+                  <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  No stock counts for this period. COGS = Purchases − Waste only.
+                </div>
+              )}
+              {!depletionCOGS && (
+                <div className="flex items-start gap-2 text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950 rounded p-2">
+                  <Zap className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  Connect Square POS and process the depletion queue for more accurate ingredient-level COGS.
+                </div>
+              )}
+            </Card>
+          )}
 
           <Card className="p-4 space-y-3">
             <div className="flex items-center gap-2">
@@ -549,7 +664,7 @@ export default function FoodCostAnalysis() {
                 <span>${(theoreticalCOGS.total / 100).toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">vs Actual</span>
+                <span className="text-muted-foreground">vs {cogsIsDepletion ? 'Depletion-Based' : 'Actual'}</span>
                 <span
                   className={`font-semibold ${
                     overallVariancePct > varianceThreshold
@@ -686,6 +801,7 @@ export default function FoodCostAnalysis() {
                     <TableHead>Ingredient</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead className="text-right">Actual Cost</TableHead>
+                    {cogsIsDepletion && <TableHead className="text-right">Depletion COGS</TableHead>}
                     <TableHead className="text-right">Theoretical</TableHead>
                     <TableHead className="text-right">Variance $</TableHead>
                     <TableHead className="text-right">Variance %</TableHead>
@@ -695,7 +811,7 @@ export default function FoodCostAnalysis() {
                 <TableBody>
                   {ingredientVariance.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={cogsIsDepletion ? 8 : 7} className="text-center py-8 text-muted-foreground">
                         No data for this period
                       </TableCell>
                     </TableRow>
@@ -714,6 +830,13 @@ export default function FoodCostAnalysis() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">${(row.actualCost / 100).toFixed(2)}</TableCell>
+                          {cogsIsDepletion && (
+                            <TableCell className="text-right text-emerald-700 dark:text-emerald-400 font-medium">
+                              {row.depletionCost !== null && row.depletionCost > 0
+                                ? `$${(row.depletionCost / 100).toFixed(2)}`
+                                : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                          )}
                           <TableCell className="text-right text-muted-foreground">
                             ${(row.theoreticalCost / 100).toFixed(2)}
                           </TableCell>

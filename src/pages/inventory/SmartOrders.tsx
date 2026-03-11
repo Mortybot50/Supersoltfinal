@@ -10,6 +10,9 @@ import {
   ChevronDown,
   ChevronRight,
   Info,
+  AlertTriangle,
+  CheckCircle2,
+  Target,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format, isValid } from 'date-fns'
@@ -39,6 +42,9 @@ interface OrderRecommendation {
   urgency: Urgency
   unit_cost: number // cents
   estimated_value: number // cents
+  lead_time_days: number
+  lead_time_source: 'learned' | 'configured'
+  lead_time_samples: number
 }
 
 interface ForecastAccuracy {
@@ -55,6 +61,20 @@ interface RecommendationsResponse {
   last_run_at: string | null
 }
 
+interface AccuracyUpdateResult {
+  updated: number
+  days_evaluated: number
+  items_evaluated: number
+  unreliable_items: number
+  overall_mape: number | null
+  item_summaries: Array<{
+    menu_item_id: string
+    mape: number | null
+    data_points: number
+    unreliable: boolean
+  }>
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function urgencyBadge(urgency: Urgency) {
@@ -68,6 +88,26 @@ function urgencyBadge(urgency: Urgency) {
   }
 }
 
+function mapeBadge(mape: number) {
+  if (mape < 15) {
+    return (
+      <span className="flex items-center gap-1 text-green-600 font-medium">
+        <CheckCircle2 className="h-3.5 w-3.5" />
+        {mape.toFixed(1)}%
+      </span>
+    )
+  }
+  if (mape < 30) {
+    return <span className="text-amber-600 font-medium">{mape.toFixed(1)}%</span>
+  }
+  return (
+    <span className="flex items-center gap-1 text-red-600 font-medium">
+      <AlertTriangle className="h-3.5 w-3.5" />
+      {mape.toFixed(1)}%
+    </span>
+  )
+}
+
 function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`
 }
@@ -79,7 +119,6 @@ function safeFormat(dateStr: string | null, fmt: string): string {
 }
 
 // ── Sparkline bar chart ───────────────────────────────────────────────────────
-// Simple div-based bar chart — no charting library required
 
 interface SparkBarProps {
   values: number[]
@@ -155,6 +194,31 @@ export default function SmartOrders() {
     },
   })
 
+  const accuracyMutation = useMutation<AccuracyUpdateResult>({
+    mutationFn: async () => {
+      const res = await fetch(`/api/inventory?action=update-forecast-accuracy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ org_id: orgId, venue_id: currentVenueId, days_back: 30 }),
+      })
+      if (!res.ok) throw new Error('Accuracy update failed')
+      return res.json()
+    },
+    onMutate: () => {
+      toast.loading('Updating forecast accuracy…', { id: 'update-accuracy' })
+    },
+    onSuccess: (result) => {
+      const msg = result.unreliable_items > 0
+        ? `Accuracy updated. ${result.unreliable_items} item(s) flagged as unreliable (MAPE > 30%).`
+        : `Accuracy updated across ${result.items_evaluated} items.`
+      toast.success(msg, { id: 'update-accuracy' })
+      queryClient.invalidateQueries({ queryKey: ['smart-order-recommendations', orgId, currentVenueId] })
+    },
+    onError: (err: Error) => {
+      toast.error(err.message, { id: 'update-accuracy' })
+    },
+  })
+
   // ── Derived data ──────────────────────────────────────────────────────────────
 
   const recommendations = useMemo(() => data?.recommendations ?? [], [data?.recommendations])
@@ -175,7 +239,6 @@ export default function SmartOrders() {
       }
       groups[rec.supplier_id].items.push(rec)
     }
-    // Sort: immediate first, then soon, then planned
     const urgencyOrder: Record<Urgency, number> = { immediate: 0, soon: 1, planned: 2 }
     return Object.values(groups).map((g) => ({
       ...g,
@@ -186,7 +249,7 @@ export default function SmartOrders() {
     }))
   }, [recommendations])
 
-  // Top 5 ingredients by forecast demand for sparklines (mock daily breakdown)
+  // Top 5 ingredients by forecast demand for sparklines
   const topFive = useMemo(
     () =>
       [...recommendations]
@@ -194,6 +257,9 @@ export default function SmartOrders() {
         .slice(0, 5),
     [recommendations]
   )
+
+  // Accuracy summary from last update
+  const lastAccuracyResult = accuracyMutation.data
 
   function toggleSupplier(supplierId: string) {
     setExpandedSuppliers((prev) => {
@@ -204,7 +270,6 @@ export default function SmartOrders() {
   }
 
   function handleCreatePO(group: { supplier_id: string; supplier_name: string; items: OrderRecommendation[] }) {
-    // TODO: PurchaseOrders page should read location.state.prefillItems on mount
     navigate('/inventory/purchase-orders', {
       state: {
         prefillItems: group.items.map((item) => ({
@@ -241,7 +306,21 @@ export default function SmartOrders() {
                 disabled={isLoading}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh Forecast
+                Refresh
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => accuracyMutation.mutate()}
+                disabled={accuracyMutation.isPending}
+                title="Compare past forecasts to actual depletions and update MAPE"
+              >
+                {accuracyMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Target className="h-4 w-4 mr-2" />
+                )}
+                Update Accuracy
               </Button>
               <Button
                 size="sm"
@@ -264,6 +343,20 @@ export default function SmartOrders() {
         {isError && (
           <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
             Failed to load recommendations. Check your inventory configuration.
+          </div>
+        )}
+
+        {/* Accuracy update result banner */}
+        {lastAccuracyResult && lastAccuracyResult.unreliable_items > 0 && (
+          <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>
+              <strong>{lastAccuracyResult.unreliable_items}</strong> item(s) have unreliable forecasts (MAPE &gt; 30%).
+              Consider collecting more sales history or reviewing catalog mappings.
+              {lastAccuracyResult.overall_mape !== null && (
+                <> Overall accuracy: <strong>{lastAccuracyResult.overall_mape.toFixed(1)}%</strong> MAPE.</>
+              )}
+            </span>
           </div>
         )}
 
@@ -314,23 +407,39 @@ export default function SmartOrders() {
                         <DialogHeader>
                           <DialogTitle>Forecast Accuracy (MAPE per item)</DialogTitle>
                         </DialogHeader>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          MAPE &lt; 15% = excellent · 15–30% = acceptable · &gt; 30% = unreliable
+                        </p>
                         <div className="max-h-72 overflow-y-auto divide-y text-sm">
                           {data?.forecast_accuracy.map((fa) => (
                             <div key={fa.ingredient_id} className="flex justify-between py-2">
-                              <span className="truncate">{fa.ingredient_name}</span>
-                              <span
-                                className={`font-medium ml-4 shrink-0 ${
-                                  fa.mape < 15
-                                    ? 'text-green-600'
-                                    : fa.mape < 30
-                                    ? 'text-amber-600'
-                                    : 'text-red-600'
-                                }`}
-                              >
-                                {fa.mape.toFixed(1)}%
+                              <span className="truncate flex items-center gap-1.5">
+                                {fa.mape > 30 && (
+                                  <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                                )}
+                                {fa.ingredient_name}
+                              </span>
+                              <span className="ml-4 shrink-0">
+                                {mapeBadge(fa.mape)}
                               </span>
                             </div>
                           ))}
+                        </div>
+                        <div className="pt-3 border-t">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => accuracyMutation.mutate()}
+                            disabled={accuracyMutation.isPending}
+                          >
+                            {accuracyMutation.isPending ? (
+                              <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                            ) : (
+                              <Target className="h-3.5 w-3.5 mr-2" />
+                            )}
+                            Refresh Accuracy Data
+                          </Button>
                         </div>
                       </DialogContent>
                     </Dialog>
@@ -355,7 +464,6 @@ export default function SmartOrders() {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                   {topFive.map((item) => {
-                    // Synthesise a 7-bar daily breakdown from total (evenly distributed + some variation)
                     const daily = Array.from({ length: 7 }, (_, i) => {
                       const base = item.forecast_demand_14d / 14
                       return Math.max(0, Math.round(base * (0.7 + 0.6 * Math.sin(i * 1.3 + item.ingredient_id.charCodeAt(0)))))
@@ -486,6 +594,7 @@ function RecommendationTable({ items }: { items: OrderRecommendation[] }) {
           <TableHead className="text-right">Forecast (14d)</TableHead>
           <TableHead className="text-right">Rec. Qty</TableHead>
           <TableHead>Urgency</TableHead>
+          <TableHead className="text-right">Lead Time</TableHead>
           <TableHead className="text-right">Unit Cost</TableHead>
           <TableHead className="text-right">Est. Value</TableHead>
         </TableRow>
@@ -522,6 +631,18 @@ function RecommendationTable({ items }: { items: OrderRecommendation[] }) {
               {item.recommended_qty.toLocaleString()} {item.unit}
             </TableCell>
             <TableCell>{urgencyBadge(item.urgency)}</TableCell>
+            <TableCell className="text-right tabular-nums text-sm">
+              <span
+                className={item.lead_time_source === 'learned' ? 'text-emerald-600 font-medium' : ''}
+                title={
+                  item.lead_time_source === 'learned'
+                    ? `Learned from ${item.lead_time_samples} deliveries`
+                    : 'Configured default'
+                }
+              >
+                {item.lead_time_days}d
+              </span>
+            </TableCell>
             <TableCell className="text-right tabular-nums text-sm">
               {formatCents(item.unit_cost)}/{item.unit}
             </TableCell>
