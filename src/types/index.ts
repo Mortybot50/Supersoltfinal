@@ -1603,6 +1603,140 @@ export interface ReconciliationLineItem {
   ingredient_name?: string
 }
 
+// ============================================
+// INVENTORY DEPLETION ENGINE TYPES
+// ============================================
+
+export interface DepletionQueueItem {
+  id: string
+  org_id: string
+  venue_id: string
+  square_order_id: string
+  line_items: Array<{
+    catalog_item_id: string
+    variation_id?: string
+    quantity: number
+    modifiers?: Array<{ modifier_id: string; modifier_name: string }>
+  }>
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  error_message?: string | null
+  processed_at?: string | null
+  created_at: string
+}
+
+// ============================================
+// INVENTORY DEPLETION ENGINE TYPES
+// ============================================
+
+export type DepletionStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'skipped'
+
+export interface DepletionQueueItem {
+  id: string
+  org_id: string
+  venue_id: string
+  square_order_id: string
+  line_items: Array<{
+    catalog_item_id: string
+    variation_id?: string
+    quantity: number
+    modifiers?: Array<{ modifier_id: string; modifier_name: string }>
+  }>
+  status: DepletionStatus
+  error_message?: string | null
+  retry_count: number
+  processed_at?: string | null
+  created_at: string
+}
+
+export type MovementType =
+  | 'sale_depletion'
+  | 'purchase_receipt'
+  | 'waste_log'
+  | 'manual_adjustment'
+  | 'opening_stock'
+  | 'stock_count_adjustment'
+  | 'refund_reversal'
+
+export interface StockMovement {
+  id: string
+  org_id: string
+  venue_id: string
+  ingredient_id: string
+  ingredient_name?: string // joined
+  movement_type:
+    | 'sale_depletion'
+    | 'purchase_receipt'
+    | 'waste_log'
+    | 'manual_adjustment'
+    | 'opening_stock'
+    | 'stock_count_adjustment'
+  quantity: number // positive = stock added, negative = stock removed
+  unit: string
+  unit_cost?: number | null
+  reference_type?: string | null
+  reference_id?: string | null
+  notes?: string | null
+  created_by?: string | null
+  created_at: string
+}
+
+export interface StockLevel {
+  ingredient_id: string
+  ingredient_name: string
+  venue_id: string
+  unit: string
+  current_stock: number     // computed from movements
+  par_level: number
+  reorder_point: number
+  weighted_avg_cost: number | null
+  last_movement_at: string | null
+  status: 'healthy' | 'low' | 'critical' | 'out'
+}
+
+// ============================================
+// DEMAND FORECASTING TYPES
+// ============================================
+
+export interface DemandForecast {
+  id: string
+  venue_id: string
+  menu_item_id: string
+  menu_item_name?: string  // joined
+  forecast_date: string    // ISO date YYYY-MM-DD
+  predicted_quantity: number
+  lower_bound: number
+  upper_bound: number
+  mape?: number | null     // Mean Absolute Percentage Error from last fit
+  model_params?: Record<string, number> | null  // alpha, beta, gamma stored
+  created_at: string
+  updated_at: string
+}
+
+// ============================================
+// REORDER ENGINE TYPES
+// ============================================
+
+export interface OrderRecommendation {
+  ingredient_id: string
+  ingredient_name: string
+  venue_id: string
+  supplier_id?: string | null
+  supplier_name?: string | null
+  current_stock: number
+  par_level: number
+  reorder_point: number
+  avg_daily_demand: number
+  lead_time_days: number
+  recommended_order_qty: number
+  pack_size?: number | null
+  unit: string
+  unit_cost?: number | null
+  estimated_order_value?: number | null
+  days_remaining?: number | null
+  status: 'healthy' | 'low' | 'critical' | 'out'
+  reason: string  // human-readable justification
+}
+
 export interface DayStats {
   date: Date
   totalHours: number
