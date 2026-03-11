@@ -51,7 +51,8 @@ const mainGroups: NavGroup[] = [
     items: [
       { title: "Sales", url: "/sales" },
       { title: "Labour", url: "/workforce/reports" },
-      { title: "Inventory", url: "/inventory/overview" },
+      { title: "Inventory", url: "/insights/inventory" },
+      { title: "P&L", url: "/insights/pl" },
     ],
   },
   {
@@ -73,12 +74,8 @@ const mainGroups: NavGroup[] = [
       { title: "Invoices", url: "/inventory/invoices" },
       { title: "Stock Counts", url: "/inventory/stock-counts" },
       { title: "Waste", url: "/inventory/waste" },
-      { title: "Food Cost AvT", url: "/inventory/food-cost" },
-      { title: "Price Tracking", url: "/inventory/price-tracking" },
-      { title: "Stock Dashboard", url: "/inventory/stock-dashboard" },
-      { title: "Smart Orders", url: "/inventory/smart-orders" },
-      { title: "POS Mapping", url: "/inventory/pos-mapping" },
       { title: "Suppliers", url: "/suppliers" },
+      // Hidden for MVP: Food Cost AvT, Price Tracking, Stock Dashboard, Smart Orders, POS Mapping
     ],
   },
   {
@@ -196,13 +193,11 @@ function AppSidebar({
 
   const toggleGroup = (title: string) => {
     setExpandedGroups((prev) => {
-      const next = new Set(prev)
-      if (next.has(title)) {
-        next.delete(title)
-      } else {
-        next.add(title)
+      // Exclusive: clicking open group closes all; clicking closed group opens only that one
+      if (prev.has(title)) {
+        return new Set<string>()
       }
-      return next
+      return new Set<string>([title])
     })
   }
 
