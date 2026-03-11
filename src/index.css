@@ -1,99 +1,229 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* ── Design Token CSS Custom Properties ─────────────────────── */
+:root {
+  /* Brand (lime green — logo/icon only, NOT buttons) */
+  --brand: #B8E636;
+  --brand-hover: #A5CC2E;
+  --brand-muted: rgba(184, 230, 54, 0.15);
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+  /* Primary Action (teal — buttons, links, active states) */
+  --primary-action: #14B8A6;
+  --primary-action-hover: #0D9488;
+  --primary-action-muted: rgba(20, 184, 166, 0.12);
 
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+  /* Dark Base */
+  --dark: #111111;
+  --dark-secondary: rgba(17, 17, 17, 0.68);
+  --dark-tertiary: rgba(17, 17, 17, 0.54);
+  --dark-quaternary: rgba(17, 17, 17, 0.38);
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
+  /* Surfaces */
+  --surface-page: #F9FAFB;
+  --surface-card: #FFFFFF;
+  --surface-subtle: #F3F4F6;
+  --border-color: #E5E7EB;
+  --border-light: #F3F4F6;
 
-    --primary: 76 78% 56%;
-    --primary-foreground: 220 17% 8%;
+  /* Status */
+  --success: #10B981;
+  --success-muted: rgba(16, 185, 129, 0.12);
+  --warning: #F59E0B;
+  --warning-muted: rgba(245, 158, 11, 0.12);
+  --error: #EF4444;
+  --error-muted: rgba(239, 68, 68, 0.12);
+  --info: #3B82F6;
+  --info-muted: rgba(59, 130, 246, 0.12);
 
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
+  /* Shadcn/ui HSL tokens (keep for component compat) */
+  --background: 249 250 251;
+  --foreground: 17 17 17;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 3.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 3.9%;
+  --primary: 174 77% 40%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 4.8% 95.9%;
+  --secondary-foreground: 240 5.9% 10%;
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --accent: 240 4.8% 95.9%;
+  --accent-foreground: 240 5.9% 10%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 174 77% 40%;
+  --radius: 0.5rem;
 
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
+  /* Sidebar tokens (shadcn compat) */
+  --sidebar-background: 0 0% 98%;
+  --sidebar-foreground: 240 5.3% 26.1%;
+  --sidebar-primary: 174 77% 40%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 240 4.8% 95.9%;
+  --sidebar-accent-foreground: 240 5.9% 10%;
+  --sidebar-border: 220 13% 91%;
+  --sidebar-ring: 174 77% 40%;
 
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 76 78% 56%;
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 76 78% 56%;
-    --sidebar-primary-foreground: 220 17% 8%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 76 78% 56%;
-  }
-
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-
-    --primary: 76 78% 56%;
-    --primary-foreground: 220 17% 8%;
-
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 76 78% 56%;
-
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 76 78% 56%;
-    --sidebar-primary-foreground: 220 17% 8%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 76 78% 56%;
-  }
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
+.dark {
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+  --card: 240 10% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --popover: 240 10% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 174 77% 40%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 3.7% 15.9%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  --accent: 240 3.7% 15.9%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --ring: 174 77% 40%;
+  --sidebar-background: 240 5.9% 10%;
+  --sidebar-foreground: 240 4.8% 95.9%;
+  --sidebar-primary: 174 77% 40%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 240 3.7% 15.9%;
+  --sidebar-accent-foreground: 240 4.8% 95.9%;
+  --sidebar-border: 240 3.7% 15.9%;
+  --sidebar-ring: 174 77% 40%;
+}
+
+/* ── Base ────────────────────────────────────────────────────── */
 @layer base {
   * {
     @apply border-border;
   }
 
+  html {
+    font-family: var(--font-sans);
+  }
+
   body {
     @apply bg-background text-foreground;
+    background-color: var(--surface-page);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* ── Component Utilities ─────────────────────────────────────── */
+@layer utilities {
+  /* Cards */
+  .ss-card {
+    background: var(--surface-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    transition: box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1),
+                transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .ss-card-hover:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+  }
+
+  /* Status badge base */
+  .ss-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  /* Table headers */
+  .ss-th {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--dark-tertiary);
+    border-bottom: 1px solid var(--border-color);
+    padding: 12px 16px;
+  }
+
+  /* Table rows */
+  .ss-tr {
+    font-size: 14px;
+    color: var(--dark-secondary);
+    min-height: 56px;
+    transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .ss-tr:hover {
+    background-color: var(--surface-subtle);
+  }
+
+  .ss-tr:nth-child(even) {
+    background-color: rgba(17, 17, 17, 0.02);
+  }
+
+  .ss-tr:nth-child(even):hover {
+    background-color: var(--surface-subtle);
+  }
+
+  /* Focus ring */
+  .ss-focus:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--primary-action-muted);
+    border-color: var(--primary-action);
+  }
+
+  /* Input focus */
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
+    border-color: var(--primary-action) !important;
+    box-shadow: 0 0 0 3px var(--primary-action-muted) !important;
+  }
+
+  /* Button press micro-interaction */
+  .ss-btn-press:active {
+    transform: scale(0.98);
+    transition: transform 100ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Page fade-in on mount */
+  .ss-page-enter {
+    animation: ss-fade-in 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Sidebar collapse transition */
+  .ss-sidebar-transition {
+    transition: width 250ms ease-in-out, transform 250ms ease-in-out;
+  }
+}
+
+/* ── Keyframes ───────────────────────────────────────────────── */
+@keyframes ss-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
