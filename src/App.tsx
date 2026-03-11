@@ -75,6 +75,7 @@ const Compliance           = lazy(() => import("./pages/operations/Compliance"))
 
 // Admin
 const AdminIntegrations    = lazy(() => import("./pages/admin/Integrations"))
+const XeroAccountMappings  = lazy(() => import("./pages/admin/XeroAccountMappings"))
 const DataImports          = lazy(() => import("./pages/admin/DataImports"))
 const OrgSettings          = lazy(() => import("./pages/admin/OrgSettings"))
 const VenueSettings        = lazy(() => import("./pages/admin/VenueSettings"))
@@ -174,6 +175,7 @@ const App = () => (
               <Route path="admin/locations" element={<Locations />} />
               <Route path="admin/access-roles" element={<ProtectedRoute requiredRole="admin"><AccessRoles /></ProtectedRoute>} />
               <Route path="admin/integrations" element={<ProtectedRoute requiredRole="admin"><AdminIntegrations /></ProtectedRoute>} />
+              <Route path="admin/integrations/xero/mappings" element={<ProtectedRoute requiredRole="admin"><XeroAccountMappings /></ProtectedRoute>} />
 
               {/* Legacy route redirects */}
               <Route path="menu/ingredients" element={<Navigate to="/inventory/ingredients" replace />} />
