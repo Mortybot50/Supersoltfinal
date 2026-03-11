@@ -237,20 +237,24 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
-      {children}
-      <DragOverlay>
-        {draggingShift && (
-          <div className="w-[120px] pointer-events-none rotate-2 shadow-xl opacity-90">
-            <ShiftBlock shift={draggingShift} />
-          </div>
-        )}
-      </DragOverlay>
+    <>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        {children}
+        <DragOverlay dropAnimation={null}>
+          {draggingShift && (
+            <div className="w-[120px] pointer-events-none rotate-2 shadow-xl opacity-90">
+              <ShiftBlock shift={draggingShift} />
+            </div>
+          )}
+        </DragOverlay>
+      </DndContext>
+
+      {/* Dialogs rendered OUTSIDE DndContext to prevent DragOverlay z-index from blocking clicks */}
       <ShiftCreateDialog
         pendingShift={pendingShift}
         onConfirm={handleShiftConfirm}
@@ -315,6 +319,6 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </DndContext>
+    </>
   )
 }
