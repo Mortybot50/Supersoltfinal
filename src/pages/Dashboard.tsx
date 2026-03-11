@@ -800,7 +800,7 @@ export default function Dashboard() {
                           {shift.start_time}–{shift.end_time}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {shift.total_hours.toFixed(1)}h
+                          {(shift.total_hours ?? 0).toFixed(1)}h
                         </div>
                       </div>
                     </div>
@@ -808,11 +808,11 @@ export default function Dashboard() {
                   <div className="pt-2 border-t text-xs text-muted-foreground flex justify-between">
                     <span>
                       {rosterToday.length} shifts ·{" "}
-                      {rosterToday.reduce((s, sh) => s + sh.total_hours, 0).toFixed(1)}h
+                      {rosterToday.reduce((s, sh) => s + (sh.total_hours ?? 0), 0).toFixed(1)}h
                     </span>
                     <span>
                       {roster.formatLabourCost(
-                        rosterToday.reduce((s, sh) => s + sh.total_cost, 0)
+                        rosterToday.reduce((s, sh) => s + (sh.total_cost ?? 0), 0)
                       )}
                     </span>
                   </div>
