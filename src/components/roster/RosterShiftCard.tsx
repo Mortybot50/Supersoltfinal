@@ -72,8 +72,9 @@ export function RosterShiftCard({
               size="icon"
               className="h-4 w-4 opacity-0 group-hover:opacity-100"
               onClick={(e) => e.stopPropagation()}
+              aria-label="Shift actions"
             >
-              <MoreVertical className="h-3 w-3" />
+              <MoreVertical className="h-3 w-3" aria-hidden="true" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

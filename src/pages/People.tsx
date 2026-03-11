@@ -332,6 +332,7 @@ export default function People() {
   }
 
   const StaffTable = ({ staff: tableStaff }: { staff: Staff[] }) => (
+    <div className="overflow-x-auto">
     <Table>
       <TableHeader>
         <TableRow>
@@ -436,6 +437,7 @@ export default function People() {
         )}
       </TableBody>
     </Table>
+    </div>
   )
 
   const pendingReviewCount = invitedStaff.filter(s => s.staff.onboarding_status === "pending_review").length

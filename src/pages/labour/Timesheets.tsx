@@ -292,7 +292,7 @@ export default function Timesheets() {
         </div>
       )}
 
-      <div className="p-4">
+      <div className="p-4 overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
