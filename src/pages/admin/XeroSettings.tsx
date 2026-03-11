@@ -123,7 +123,7 @@ export default function XeroSettings() {
     setAccountsError(null)
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch(`/api/xero/accounts?org_id=${currentOrg.id}`, {
+      const res = await fetch(`/api/xero/api?action=accounts&org_id=${currentOrg.id}`, {
         headers: { Authorization: `Bearer ${session?.access_token}` },
       })
       const json = await res.json() as { accounts?: XeroAccount[]; error?: string }

@@ -271,7 +271,7 @@ export default function Integrations() {
     setXeroSyncing(true)
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch('/api/xero/sync', {
+      const res = await fetch('/api/xero/api?action=sync', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -311,7 +311,7 @@ export default function Integrations() {
     setXeroDisconnecting(true)
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch('/api/xero/disconnect', {
+      const res = await fetch('/api/xero/api?action=disconnect', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
