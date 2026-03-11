@@ -36,7 +36,10 @@ import {
   FileSpreadsheet,
   RefreshCw,
   X,
+  BarChart3,
+  ExternalLink,
 } from "lucide-react"
+import { Link } from "react-router-dom"
 import { toast } from "sonner"
 import { PageShell, PageToolbar, StatusBadge, EmptyState } from "@/components/shared"
 import { StatCards } from "@/components/ui/StatCards"
@@ -110,6 +113,45 @@ const paymentLabel = (pm: string | null) => {
     eftpos: "EFTPOS",
   }
   return map[pm] || pm.charAt(0).toUpperCase() + pm.slice(1).replace(/_/g, " ")
+}
+
+// ─── Sales Mix Section ───────────────────────────────
+function SalesMixSection({ orders, isLoading }: { orders: OrderRow[]; isLoading: boolean }) {
+  // Check if we have any channel-level data to infer item mix
+  // The orders table captures totals only — item-level data requires POS integration
+  const hasItemLevelData = false // order_items table not yet in schema
+
+  if (isLoading) return null
+
+  if (!hasItemLevelData) {
+    return (
+      <div className="border-t px-4 py-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            Sales Mix
+          </h3>
+        </div>
+        <div className="rounded-lg border border-dashed p-6 text-center">
+          <BarChart3 className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+          <p className="text-sm font-medium">Connect your POS to see sales mix</p>
+          <p className="text-xs text-muted-foreground mt-1 mb-3">
+            Item-level data (menu items sold, qty, revenue by item) requires a POS integration.
+          </p>
+          <Link
+            to="/admin/integrations"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-brand hover:underline"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            Set up integrations
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  // Future: render item-level mix table sorted by qty / revenue
+  return null
 }
 
 // ─── Component ──────────────────────────────────────
@@ -380,6 +422,9 @@ export default function Sales() {
           {filteredOrders.length} of {orders.length} transactions
         </span>
       </div>
+
+      {/* Sales Mix */}
+      <SalesMixSection orders={orders} isLoading={isLoading} />
 
       {/* Table */}
       <div className="flex-1 overflow-auto">

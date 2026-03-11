@@ -60,6 +60,10 @@ const RecipeEditor         = lazy(() => import("./pages/menu/RecipeEditor"))
 // Sales
 const Sales                = lazy(() => import("./pages/Sales"))
 
+// Insights
+const ProfitAndLoss        = lazy(() => import("./pages/insights/ProfitAndLoss"))
+const InventoryInsights    = lazy(() => import("./pages/insights/InventoryInsights"))
+
 // Workforce
 const Roster               = lazy(() => import("./pages/labour/Roster"))
 const Timesheets           = lazy(() => import("./pages/labour/Timesheets"))
@@ -124,6 +128,10 @@ const App = () => (
 
               {/* Sales */}
               <Route path="sales" element={<Sales />} />
+
+              {/* Insights */}
+              <Route path="insights/pl" element={<ProfitAndLoss />} />
+              <Route path="insights/inventory" element={<InventoryInsights />} />
 
               {/* Inventory */}
               <Route path="inventory" element={<InventoryOverview />} />

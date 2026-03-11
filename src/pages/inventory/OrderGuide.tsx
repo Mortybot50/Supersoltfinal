@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ShoppingCart, AlertTriangle, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -44,6 +44,8 @@ function getDaysOfStockBadge(days: number) {
 
 export default function OrderGuide() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const highlightIngredientId = searchParams.get('ingredient')
   const { currentVenue, currentOrg, user, profile } = useAuth()
   const { suppliers, ingredients, purchaseOrders, orders, wasteLogs, loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB, loadWasteLogsFromDB } = useDataStore()
 
@@ -58,6 +60,15 @@ export default function OrderGuide() {
     loadPurchaseOrdersFromDB()
     loadWasteLogsFromDB()
   }, [loadSuppliersFromDB, loadIngredientsFromDB, loadPurchaseOrdersFromDB, loadWasteLogsFromDB])
+
+  // Auto-select supplier when arriving via deep link from a below-par alert
+  useEffect(() => {
+    if (!highlightIngredientId || !ingredients.length || !suppliers.length) return
+    const ing = ingredients.find((i) => i.id === highlightIngredientId)
+    if (ing?.supplier_id && !selectedSupplierId) {
+      setSelectedSupplierId(ing.supplier_id)
+    }
+  }, [highlightIngredientId, ingredients, suppliers, selectedSupplierId])
 
   // Compute 30-day waste-based daily usage per ingredient
   const wasteUsageMap = useMemo(() => {
@@ -562,6 +573,7 @@ export default function OrderGuide() {
                   {orderRecommendations.map((rec) => {
                     const orderQty = getOrderQuantity(rec)
                     const isSelected = selectedProducts.has(rec.product.id)
+                    const isHighlighted = rec.product.id === highlightIngredientId
                     const dailyUsage = rec.estimated_usage / 7
                     const daysOfStock = getDaysOfStock(rec.current_stock, dailyUsage)
                     const daysColor = getDaysOfStockColor(daysOfStock)
@@ -569,8 +581,8 @@ export default function OrderGuide() {
                     return (
                       <TableRow
                         key={rec.product.id}
-                        className={`${isSelected ? 'bg-blue-50 dark:bg-blue-950' : ''} ${
-                          daysOfStock < 2 ? 'bg-red-50/30 dark:bg-red-950/20' : ''
+                        className={`${isHighlighted ? 'ring-2 ring-inset ring-orange-400 bg-orange-50/60 dark:bg-orange-950/20' : isSelected ? 'bg-blue-50 dark:bg-blue-950' : ''} ${
+                          !isHighlighted && daysOfStock < 2 ? 'bg-red-50/30 dark:bg-red-950/20' : ''
                         }`}
                       >
                         <TableCell>

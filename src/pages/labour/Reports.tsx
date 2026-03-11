@@ -39,10 +39,7 @@ import {
   Users,
   AlertTriangle,
   Download,
-  ChevronLeft,
-  ChevronRight,
   Percent,
-  Target,
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import {
@@ -50,18 +47,19 @@ import {
   useLabourPercentReport,
   useRosteredVsActualReport,
   useOvertimeReport,
-  useUtilizationReport,
 } from "@/lib/hooks/useLabourReports"
 import { formatLabourCost } from "@/lib/utils/rosterCalculations"
 import {
   format,
+  startOfDay,
+  endOfDay,
   startOfWeek,
   endOfWeek,
   startOfMonth,
   endOfMonth,
+  subDays,
   subWeeks,
   subMonths,
-  addDays,
 } from "date-fns"
 import { PageShell, PageToolbar } from "@/components/shared"
 
@@ -69,14 +67,13 @@ import { PageShell, PageToolbar } from "@/components/shared"
 // CONSTANTS & TYPES
 // ============================================================
 
-type ReportType = "labour-cost" | "labour-percent" | "rostered-vs-actual" | "overtime" | "utilization"
-type DatePreset = "this-week" | "last-week" | "this-month" | "last-month"
+type ReportType = "labour-cost" | "labour-percent" | "rostered-vs-actual" | "overtime"
+type DatePreset = "today" | "yesterday" | "this-week" | "last-week" | "this-month" | "last-month"
 
 const BRAND_TEAL = "#14b8a6"
 const CHART_ORANGE = "#f97316"
 const CHART_BLUE = "#3b82f6"
 const CHART_PURPLE = "#a855f7"
-const CHART_GREEN = "#22c55e"
 
 const TARGET_LABOUR_PCT = 30
 
@@ -117,13 +114,6 @@ const REPORTS: ReportDef[] = [
     icon: AlertTriangle,
     color: "text-orange-600",
   },
-  {
-    id: "utilization",
-    title: "Utilization",
-    description: "Contracted vs rostered by staff member",
-    icon: Target,
-    color: "text-green-600",
-  },
 ]
 
 // ============================================================
@@ -133,6 +123,12 @@ const REPORTS: ReportDef[] = [
 function getDateRange(preset: DatePreset): { from: Date; to: Date } {
   const now = new Date()
   switch (preset) {
+    case "today":
+      return { from: startOfDay(now), to: endOfDay(now) }
+    case "yesterday": {
+      const y = subDays(now, 1)
+      return { from: startOfDay(y), to: endOfDay(y) }
+    }
     case "this-week":
       return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfWeek(now, { weekStartsOn: 1 }) }
     case "last-week": {
@@ -149,6 +145,9 @@ function getDateRange(preset: DatePreset): { from: Date; to: Date } {
 }
 
 function formatDateLabel(from: Date, to: Date): string {
+  if (format(from, "yyyy-MM-dd") === format(to, "yyyy-MM-dd")) {
+    return format(from, "d MMM yyyy")
+  }
   return `${format(from, "d MMM")} – ${format(to, "d MMM yyyy")}`
 }
 
@@ -853,184 +852,6 @@ function OvertimeReport({
 }
 
 // ============================================================
-// REPORT: STAFF UTILIZATION
-// ============================================================
-
-const FLAG_COLORS: Record<string, string> = {
-  under: "#f97316",
-  over: "#ef4444",
-  ok: "#14b8a6",
-  casual: "#94a3b8",
-}
-
-function UtilizationReport({
-  venueId,
-  dateRange,
-  venueName,
-  rangeLabel,
-}: {
-  venueId: string
-  dateRange: { from: Date; to: Date }
-  venueName: string
-  rangeLabel: string
-}) {
-  const { data, isLoading } = useUtilizationReport(venueId, dateRange)
-
-  const chartData = data.rows
-    .filter(r => r.flag !== "casual")
-    .slice(0, 15)
-    .map(r => ({
-      name: r.staffName.split(" ")[0],
-      "Utilization %": r.utilizationPct,
-      flag: r.flag,
-    }))
-
-  const handleExport = () => {
-    downloadCSV(
-      ["Staff Name", "Employment Type", "Contracted Hours", "Rostered Hours", "Utilization %"],
-      data.rows.map(r => [
-        r.staffName,
-        r.employmentType,
-        r.contractedHours.toFixed(1),
-        r.rosteredHours.toFixed(1),
-        r.flag === "casual" ? "N/A" : `${r.utilizationPct}%`,
-      ]),
-      `supersolt_utilization_${venueName}_${rangeLabel}.csv`
-    )
-  }
-
-  const underCount = data.rows.filter(r => r.flag === "under").length
-  const overCount = data.rows.filter(r => r.flag === "over").length
-
-  if (isLoading) return <ReportSkeleton />
-
-  return (
-    <div className="space-y-4">
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-xs text-muted-foreground">Avg Utilization</p>
-            <p className="text-2xl font-bold">{data.avgUtilization}%</p>
-            <p className="text-xs text-muted-foreground">salaried & part-time</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-xs text-muted-foreground">Staff Rostered</p>
-            <p className="text-2xl font-bold">{data.rows.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-xs text-muted-foreground">Under-utilized</p>
-            <p className="text-2xl font-bold text-orange-600">{underCount}</p>
-            <p className="text-xs text-muted-foreground">&lt;70% contracted</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-xs text-muted-foreground">Over-utilized</p>
-            <p className="text-2xl font-bold text-red-600">{overCount}</p>
-            <p className="text-xs text-muted-foreground">&gt;100% contracted</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Chart — horizontal bar */}
-      {chartData.length > 0 && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div>
-              <CardTitle>Utilization % by Staff</CardTitle>
-              <CardDescription>Sorted by utilization · Orange = under · Red = over · Teal = OK</CardDescription>
-            </div>
-            <Button variant="outline" size="sm" onClick={handleExport}>
-              <Download className="h-4 w-4 mr-1" /> Export CSV
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={Math.max(180, chartData.length * 32)}>
-              <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 40, bottom: 4, left: 60 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
-                <XAxis type="number" tickFormatter={v => `${v}%`} tick={{ fontSize: 11 }} domain={[0, 120]} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={55} />
-                <Tooltip formatter={(v) => [`${v}%`, "Utilization"]} />
-                <Bar dataKey="Utilization %" radius={[0, 3, 3, 0]}>
-                  {chartData.map((entry, i) => (
-                    <Cell key={i} fill={FLAG_COLORS[entry.flag] || BRAND_TEAL} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Table */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle>Per-Staff Utilization</CardTitle>
-          {chartData.length === 0 && (
-            <Button variant="outline" size="sm" onClick={handleExport}>
-              <Download className="h-4 w-4 mr-1" /> Export CSV
-            </Button>
-          )}
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Staff Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead className="text-right">Contracted</TableHead>
-                <TableHead className="text-right">Rostered</TableHead>
-                <TableHead className="text-right">Utilization</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    No staff data in this period
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data.rows.map(r => (
-                  <TableRow key={r.staffId}>
-                    <TableCell className="font-medium">{r.staffName}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize text-xs">{r.employmentType}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{r.contractedHours > 0 ? `${r.contractedHours.toFixed(1)}h` : "—"}</TableCell>
-                    <TableCell className="text-right">{r.rosteredHours.toFixed(1)}h</TableCell>
-                    <TableCell className="text-right font-semibold">
-                      {r.flag === "casual" ? "—" : `${r.utilizationPct}%`}
-                    </TableCell>
-                    <TableCell>
-                      {r.flag === "casual" ? (
-                        <Badge variant="secondary" className="text-xs">Casual</Badge>
-                      ) : r.flag === "under" ? (
-                        <Badge variant="outline" className="text-orange-600 border-orange-300 text-xs">Under</Badge>
-                      ) : r.flag === "over" ? (
-                        <Badge variant="outline" className="text-red-600 border-red-300 text-xs">Over</Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-teal-600 border-teal-300 text-xs">OK</Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-// ============================================================
 // MAIN PAGE
 // ============================================================
 
@@ -1052,6 +873,8 @@ export default function LabourReports() {
   )
 
   const presetOptions: { value: DatePreset; label: string }[] = [
+    { value: "today", label: "Today" },
+    { value: "yesterday", label: "Yesterday" },
     { value: "this-week", label: "This week" },
     { value: "last-week", label: "Last week" },
     { value: "this-month", label: "This month" },
@@ -1060,7 +883,7 @@ export default function LabourReports() {
 
   const toolbar = (
     <PageToolbar
-      title="Labour Reports"
+      title="Labour"
       filters={
         <div className="flex items-center gap-2">
           {venues.length > 1 && (
@@ -1148,7 +971,6 @@ export default function LabourReports() {
             {selectedReport === "labour-percent" && <LabourPercentReport {...reportProps} />}
             {selectedReport === "rostered-vs-actual" && <RosteredVsActualReport {...reportProps} />}
             {selectedReport === "overtime" && <OvertimeReport {...reportProps} />}
-            {selectedReport === "utilization" && <UtilizationReport {...reportProps} />}
           </>
         )}
 

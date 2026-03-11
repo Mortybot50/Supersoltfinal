@@ -280,7 +280,7 @@ export function useInventoryAlerts(venueId?: string) {
         type: 'below-par',
         detail: `${i.current_stock} ${i.unit} (par: ${i.par_level})`,
         actionLabel: 'Order',
-        actionUrl: '/inventory/order-guide',
+        actionUrl: `/inventory/order-guide?ingredient=${i.id}`,
       })
     })
 
