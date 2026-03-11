@@ -34,8 +34,9 @@ import { logPriceChange, runCostCascade, applyCascadeToState, persistCascadeResu
 import { calculateCostPerBaseUnit, calculatePackToBaseFactor } from '@/lib/utils/unitConversions'
 import { getDefaultOrgSettings } from '@/lib/venueSettings'
 import { formatCurrency } from '@/lib/utils/formatters'
+import { supabase } from '@/integrations/supabase/client'
 import { toast } from 'sonner'
-import { format, isValid } from 'date-fns'
+import { format, isValid, differenceInCalendarDays } from 'date-fns'
 import type { PurchaseOrderItem } from '@/types'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -214,6 +215,33 @@ export default function POReceiving() {
           ? [po.notes, `[Receiving notes] ${receivingNotes}`].filter(Boolean).join('\n')
           : po.notes,
       })
+
+      // ── GAP 4: Record actual lead time for supplier learning ──────────────
+      // Log when PO is fully received and has a submitted_at timestamp.
+      if (allReceived && po.supplier_id && po.submitted_at && po.org_id) {
+        try {
+          const submittedAt = new Date(po.submitted_at as unknown as string)
+          const receivedAt  = new Date()
+          const actualLeadDays = Math.max(0, differenceInCalendarDays(receivedAt, submittedAt))
+          const receiverName = profile
+            ? `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || user?.email
+            : user?.email
+
+          await supabase
+            .from('supplier_lead_time_logs' as never)
+            .insert({
+              org_id:            po.org_id,
+              supplier_id:       po.supplier_id,
+              purchase_order_id: po.id,
+              submitted_at:      submittedAt.toISOString(),
+              received_at:       receivedAt.toISOString(),
+              actual_lead_days:  actualLeadDays,
+              notes:             `PO ${po.po_number} received by ${receiverName ?? 'unknown'}`,
+            } as never)
+        } catch {
+          // Non-fatal — don't block the main receive flow
+        }
+      }
 
       // Update ingredient stock and optionally cost, then cascade
       const gpThreshold = getDefaultOrgSettings().below_gp_threshold_alert_percent ?? 60

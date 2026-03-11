@@ -1607,27 +1607,6 @@ export interface ReconciliationLineItem {
 // INVENTORY DEPLETION ENGINE TYPES
 // ============================================
 
-export interface DepletionQueueItem {
-  id: string
-  org_id: string
-  venue_id: string
-  square_order_id: string
-  line_items: Array<{
-    catalog_item_id: string
-    variation_id?: string
-    quantity: number
-    modifiers?: Array<{ modifier_id: string; modifier_name: string }>
-  }>
-  status: 'pending' | 'processing' | 'completed' | 'failed'
-  error_message?: string | null
-  processed_at?: string | null
-  created_at: string
-}
-
-// ============================================
-// INVENTORY DEPLETION ENGINE TYPES
-// ============================================
-
 export type DepletionStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'skipped'
 
 export interface DepletionQueueItem {
@@ -1645,6 +1624,9 @@ export interface DepletionQueueItem {
   error_message?: string | null
   retry_count: number
   processed_at?: string | null
+  // Reversal tracking (GAP 1)
+  reversed_at?: string | null
+  reversal_reason?: string | null
   created_at: string
 }
 
@@ -1663,13 +1645,7 @@ export interface StockMovement {
   venue_id: string
   ingredient_id: string
   ingredient_name?: string // joined
-  movement_type:
-    | 'sale_depletion'
-    | 'purchase_receipt'
-    | 'waste_log'
-    | 'manual_adjustment'
-    | 'opening_stock'
-    | 'stock_count_adjustment'
+  movement_type: MovementType
   quantity: number // positive = stock added, negative = stock removed
   unit: string
   unit_cost?: number | null
@@ -1677,6 +1653,22 @@ export interface StockMovement {
   reference_id?: string | null
   notes?: string | null
   created_by?: string | null
+  created_at: string
+}
+
+// ============================================
+// SUPPLIER LEAD TIME LEARNING TYPES (GAP 4)
+// ============================================
+
+export interface SupplierLeadTimeLog {
+  id: string
+  org_id: string
+  supplier_id: string
+  purchase_order_id: string
+  submitted_at: string
+  received_at: string
+  actual_lead_days: number
+  notes?: string | null
   created_at: string
 }
 
@@ -1706,7 +1698,10 @@ export interface DemandForecast {
   predicted_quantity: number
   lower_bound: number
   upper_bound: number
-  mape?: number | null     // Mean Absolute Percentage Error from last fit
+  // In-sample MAPE from model fitting, or out-of-sample MAPE after update-forecast-accuracy runs
+  mape?: number | null
+  // Actual sales count recorded after the forecast date passes (populated by update-forecast-accuracy)
+  actual_quantity?: number | null
   model_params?: Record<string, number> | null  // alpha, beta, gamma stored
   created_at: string
   updated_at: string
