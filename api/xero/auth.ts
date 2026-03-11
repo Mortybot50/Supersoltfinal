@@ -13,12 +13,14 @@
  */
 
 import type { VercelRequest, VercelResponse } from './_lib'
-import {
+import { requireXeroConfig,
   env, extractToken, verifyUser, checkOrgAccess,
   signState, XERO_OAUTH_BASE, XERO_SCOPES,
 } from './_lib'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireXeroConfig(res)) return
+
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

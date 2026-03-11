@@ -218,3 +218,20 @@ export const DEFAULT_AU_ACCOUNT_MAPPINGS: Array<{
   { supersolt_category: 'overhead_utilities', xero_account_code: '489', xero_account_name: 'Light, Power, Heating' },
   { supersolt_category: 'overhead_marketing', xero_account_code: '400', xero_account_name: 'Advertising and Marketing' },
 ]
+
+// ── Configuration check ──────────────────────────────────────────────
+export const XERO_CONFIGURED =
+  !!process.env.XERO_CLIENT_ID &&
+  !!process.env.XERO_CLIENT_SECRET &&
+  !!process.env.XERO_REDIRECT_URI
+
+export function requireXeroConfig(res: VercelResponse): boolean {
+  if (!XERO_CONFIGURED) {
+    res.status(503).json({
+      error: 'Xero integration not configured',
+      message: 'Set XERO_CLIENT_ID, XERO_CLIENT_SECRET, and XERO_REDIRECT_URI in Vercel environment variables.',
+    })
+    return false
+  }
+  return true
+}

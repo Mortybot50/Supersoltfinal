@@ -15,7 +15,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from './_lib'
-import {
+import { requireXeroConfig,
   extractToken, verifyUser, checkOrgAccess,
   supabaseAdmin, decrypt, encrypt, refreshXeroToken, XERO_API_BASE,
 } from './_lib'
@@ -31,6 +31,8 @@ interface SyncBody {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireXeroConfig(res)) return
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

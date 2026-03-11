@@ -10,12 +10,14 @@
  */
 
 import type { VercelRequest, VercelResponse } from './_lib'
-import {
+import { requireXeroConfig,
   extractToken, verifyUser, checkOrgAccess,
   supabaseAdmin, decrypt, XERO_OAUTH_BASE,
 } from './_lib'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireXeroConfig(res)) return
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }

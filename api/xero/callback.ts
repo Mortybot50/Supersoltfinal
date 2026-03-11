@@ -12,7 +12,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from './_lib'
-import {
+import { requireXeroConfig,
   env, supabaseAdmin, verifyState, encrypt,
   XERO_API_BASE, XERO_OAUTH_BASE, DEFAULT_AU_ACCOUNT_MAPPINGS,
 } from './_lib'
@@ -31,6 +31,8 @@ interface XeroTenant {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireXeroConfig(res)) return
+
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
