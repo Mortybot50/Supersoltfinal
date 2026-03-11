@@ -2751,7 +2751,7 @@ export const useDataStore = create<DataState>()(
   createOpenShift: (shiftData) => {
     const openShift: Types.RosterShift = {
       ...shiftData,
-      id: `shift-open-${Date.now()}`,
+      id: crypto.randomUUID(),
       staff_id: '',
       staff_name: 'Open Shift',
       is_open_shift: true,
