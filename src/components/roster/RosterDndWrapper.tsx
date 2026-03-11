@@ -171,48 +171,67 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
 
   const doAddShift = useCallback((config: ShiftConfig) => {
     const currentPending = useRosterStore.getState().pendingShift
-    if (!currentPending) return
-    const breakdown = calculateShiftCostBreakdown(
-      config.startTime, config.endTime, config.breakMinutes,
-      currentPending.hourlyRateCents || 0,
-      currentPending.venueId,
-      currentPending.date,
-      currentPending.employmentType,
-    )
-    addShift({
-      staff_id: currentPending.staffId,
-      staff_name: currentPending.staffName,
-      date: currentPending.date,
-      start_time: config.startTime,
-      end_time: config.endTime,
-      break_minutes: config.breakMinutes,
-      role: config.role,
-      total_hours: breakdown.base_hours,
-      base_cost: breakdown.base_cost_cents,
-      penalty_cost: breakdown.penalty_cost_cents,
-      total_cost: breakdown.total_cost_cents,
-      penalty_type: breakdown.penalty_type as RosterShift['penalty_type'] || 'none',
-      penalty_multiplier: breakdown.penalty_multiplier,
-    })
-    setPendingShift(null)
+    console.log('[doAddShift] called', { config, currentPending, storeState: { venueId: useRosterStore.getState().venueId, orgId: useRosterStore.getState().orgId } })
+    if (!currentPending) {
+      console.error('[doAddShift] EARLY RETURN — pendingShift is null in store')
+      return
+    }
+    try {
+      const breakdown = calculateShiftCostBreakdown(
+        config.startTime, config.endTime, config.breakMinutes,
+        currentPending.hourlyRateCents || 0,
+        currentPending.venueId,
+        currentPending.date,
+        currentPending.employmentType,
+      )
+      console.log('[doAddShift] breakdown calculated', breakdown)
+      addShift({
+        staff_id: currentPending.staffId,
+        staff_name: currentPending.staffName,
+        date: currentPending.date,
+        start_time: config.startTime,
+        end_time: config.endTime,
+        break_minutes: config.breakMinutes,
+        role: config.role,
+        total_hours: breakdown.base_hours,
+        base_cost: breakdown.base_cost_cents,
+        penalty_cost: breakdown.penalty_cost_cents,
+        total_cost: breakdown.total_cost_cents,
+        penalty_type: breakdown.penalty_type as RosterShift['penalty_type'] || 'none',
+        penalty_multiplier: breakdown.penalty_multiplier,
+      })
+      console.log('[doAddShift] addShift called, closing dialog')
+      setPendingShift(null)
+    } catch (err) {
+      console.error('[doAddShift] ERROR:', err)
+      setPendingShift(null)
+    }
   }, [addShift, setPendingShift])
 
   // ── handleShiftConfirm — checks quals before creating ────────────────────
 
   const handleShiftConfirm = useCallback(async (config: ShiftConfig) => {
+    console.log('[handleShiftConfirm] called with config:', config)
     const currentPending = useRosterStore.getState().pendingShift
-    if (!currentPending) return
+    console.log('[handleShiftConfirm] pendingShift from store:', currentPending)
+    if (!currentPending) {
+      console.error('[handleShiftConfirm] EARLY RETURN — pendingShift is null')
+      return
+    }
 
     try {
+      console.log('[handleShiftConfirm] checking quals...')
       const expiredQuals = await checkExpiredQualifications(currentPending.staffId, config.role)
+      console.log('[handleShiftConfirm] qual check done, expired:', expiredQuals.length)
       if (expiredQuals.length > 0) {
         setQualWarning({ expiredQuals, pendingConfig: config })
         return
       }
-    } catch {
-      // Don't block shift creation if qual check fails
+    } catch (err) {
+      console.error('[handleShiftConfirm] qual check error (ignored):', err)
     }
 
+    console.log('[handleShiftConfirm] calling doAddShift')
     doAddShift(config)
   }, [doAddShift])
 
