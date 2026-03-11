@@ -214,6 +214,28 @@
   .ss-sidebar-transition {
     transition: width 250ms ease-in-out, transform 250ms ease-in-out;
   }
+
+  /* Card icon domain colors */
+  .ss-icon-kitchen { color: #F97316; background: rgba(249,115,22,0.1); }
+  .ss-icon-workforce { color: #3B82F6; background: rgba(59,130,246,0.1); }
+  .ss-icon-financial { color: #14B8A6; background: rgba(20,184,166,0.1); }
+  .ss-icon-inventory { color: #8B5CF6; background: rgba(139,92,246,0.1); }
+  .ss-icon-compliance { color: #64748B; background: rgba(100,116,139,0.1); }
+
+  /* KPI number */
+  .ss-kpi-number {
+    font-size: 28px;
+    font-weight: 700;
+    color: #111111;
+    line-height: 1.2;
+  }
+
+  /* KPI label */
+  .ss-kpi-label {
+    font-size: 12px;
+    color: var(--dark-tertiary);
+    font-weight: 400;
+  }
 }
 
 /* ── Keyframes ───────────────────────────────────────────────── */
