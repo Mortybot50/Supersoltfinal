@@ -8,7 +8,8 @@
  * Parse, Postmark, or a dedicated @invoices.supersolt.app address).
  */
 
-import type { Supplier } from '@/types'
+// Minimal Supplier type for this stub (avoids @/ alias in Vercel API builds)
+interface Supplier { id: string; name: string; email?: string; invoice_email_domains?: string[] }
 
 // ── Inbound email shape (from webhook payload) ────────────────────────
 

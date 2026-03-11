@@ -214,7 +214,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (pos && pos.length > 0) {
         let pushed = 0
         for (const po of pos) {
-          const supplierName = (po.suppliers as { name: string } | null)?.name ?? 'Supplier'
+          const rawSupplier = po.suppliers as unknown
+          const supplierName = (Array.isArray(rawSupplier) ? (rawSupplier[0] as { name: string })?.name : (rawSupplier as { name: string } | null)?.name) ?? 'Supplier'
           const billPayload = {
             Invoices: [{
               Type: 'ACCPAY',

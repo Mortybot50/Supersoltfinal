@@ -56,7 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const db = supabaseAdmin()
 
   try {
-    const { org_id, venue_id } = req.body ?? {}
+    const { org_id, venue_id } = (req.body ?? {}) as Record<string, string>
     if (!org_id) {
       return res.status(400).json({ error: 'org_id is required' })
     }
@@ -311,13 +311,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (org_id) {
         await db
           .from('pos_connections')
-          .update({ last_sync_status: `error: ${err.message?.slice(0, 200)}` })
+          .update({ last_sync_status: `error: ${(err as Error).message?.slice(0, 200)}` })
           .eq('org_id', org_id)
           .eq('provider', 'square')
       }
     } catch { /* best effort */ }
 
-    return res.status(500).json({ error: err.message ?? 'Sync failed' })
+    return res.status(500).json({ error: (err as Error).message ?? 'Sync failed' })
   }
 }
 

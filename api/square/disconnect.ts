@@ -30,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const db = supabaseAdmin()
 
   try {
-    const { org_id } = req.body ?? {}
+    const { org_id } = (req.body ?? {}) as Record<string, string>
     if (!org_id) {
       return res.status(400).json({ error: 'org_id is required' })
     }
