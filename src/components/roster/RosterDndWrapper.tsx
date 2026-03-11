@@ -164,23 +164,20 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
   }, [staff, moveShift, setPendingShift])
 
   // ── doAddShift — the actual shift creation, called after qual check ──────
-  // Uses the current pendingShift from the store directly (not from closure)
-  // to avoid stale-closure issues with useCallback.
 
   const doAddShift = useCallback((config: ShiftConfig) => {
-    const currentPending = useRosterStore.getState().pendingShift
-    if (!currentPending) return
+    if (!pendingShift) return
     const breakdown = calculateShiftCostBreakdown(
       config.startTime, config.endTime, config.breakMinutes,
-      currentPending.hourlyRateCents || 0,
-      currentPending.venueId,
-      currentPending.date,
-      currentPending.employmentType,
+      pendingShift.hourlyRateCents,
+      pendingShift.venueId,
+      pendingShift.date,
+      pendingShift.employmentType,
     )
     addShift({
-      staff_id: currentPending.staffId,
-      staff_name: currentPending.staffName,
-      date: currentPending.date,
+      staff_id: pendingShift.staffId,
+      staff_name: pendingShift.staffName,
+      date: pendingShift.date,
       start_time: config.startTime,
       end_time: config.endTime,
       break_minutes: config.breakMinutes,
@@ -193,26 +190,21 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
       penalty_multiplier: breakdown.penalty_multiplier,
     })
     setPendingShift(null)
-  }, [addShift, setPendingShift])
+  }, [pendingShift, addShift, setPendingShift])
 
   // ── handleShiftConfirm — checks quals before creating ────────────────────
 
   const handleShiftConfirm = useCallback(async (config: ShiftConfig) => {
-    const currentPending = useRosterStore.getState().pendingShift
-    if (!currentPending) return
+    if (!pendingShift) return
 
-    try {
-      const expiredQuals = await checkExpiredQualifications(currentPending.staffId, config.role)
-      if (expiredQuals.length > 0) {
-        setQualWarning({ expiredQuals, pendingConfig: config })
-        return
-      }
-    } catch {
-      // Don't block shift creation if qual check fails
+    const expiredQuals = await checkExpiredQualifications(pendingShift.staffId, config.role)
+    if (expiredQuals.length > 0) {
+      setQualWarning({ expiredQuals, pendingConfig: config })
+      return
     }
 
     doAddShift(config)
-  }, [doAddShift])
+  }, [pendingShift, doAddShift])
 
   const handleShiftCancel = useCallback(() => {
     setPendingShift(null)
@@ -227,32 +219,26 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
     doAddShift(config)
   }, [qualWarning, doAddShift])
 
-
-
   const handleQualCancel = useCallback(() => {
     setQualWarning(null)
     // Keep the shift config dialog open by NOT calling setPendingShift(null)
   }, [])
 
   return (
-    <>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        {children}
-        <DragOverlay dropAnimation={null}>
-          {draggingShift && (
-            <div className="w-[120px] pointer-events-none rotate-2 shadow-xl opacity-90">
-              <ShiftBlock shift={draggingShift} />
-            </div>
-          )}
-        </DragOverlay>
-      </DndContext>
-
-      {/* Dialogs rendered OUTSIDE DndContext to prevent DragOverlay z-index from blocking clicks */}
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      {children}
+      <DragOverlay>
+        {draggingShift && (
+          <div className="w-[120px] pointer-events-none rotate-2 shadow-xl opacity-90">
+            <ShiftBlock shift={draggingShift} />
+          </div>
+        )}
+      </DragOverlay>
       <ShiftCreateDialog
         pendingShift={pendingShift}
         onConfirm={handleShiftConfirm}
@@ -317,6 +303,6 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </DndContext>
   )
 }
