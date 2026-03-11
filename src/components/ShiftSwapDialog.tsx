@@ -33,7 +33,7 @@ interface ShiftSwapDialogProps {
 }
 
 export function ShiftSwapDialog({ open, onOpenChange, shift }: ShiftSwapDialogProps) {
-  const { staff, createSwapRequest } = useDataStore()
+  const { staff, shiftSwapRequests, setShiftSwapRequests } = useDataStore()
   const { currentOrg } = useAuth()
   const [targetStaffId, setTargetStaffId] = useState<string>("")
   const [notes, setNotes] = useState("")
@@ -62,8 +62,22 @@ export function ShiftSwapDialog({ open, onOpenChange, shift }: ShiftSwapDialogPr
 
       if (error) throw error
 
-      // Update Zustand store with the DB-assigned ID
-      createSwapRequest(shift.id, targetStaffId && targetStaffId !== 'open' ? targetStaffId : undefined)
+      // Append to Zustand using the DB-assigned UUID (not a fake local ID)
+      const targetStaffMember = targetStaffId && targetStaffId !== 'open'
+        ? staff.find((s) => s.id === targetStaffId)
+        : undefined
+      setShiftSwapRequests([...shiftSwapRequests, {
+        id: data.id,
+        venue_id: data.venue_id,
+        original_shift_id: data.original_shift_id,
+        original_staff_id: data.original_staff_id,
+        original_staff_name: shift.staff_name,
+        target_staff_id: targetStaffMember?.id,
+        target_staff_name: targetStaffMember?.name,
+        status: 'pending',
+        requested_at: new Date(data.requested_at ?? Date.now()),
+        notes: data.notes,
+      }])
 
       toast.success(targetStaffId && targetStaffId !== 'open' ? "Swap request sent" : "Shift posted for swap")
       setTargetStaffId("")

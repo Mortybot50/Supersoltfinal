@@ -115,6 +115,17 @@ const alertTypeConfig: Record<
 function AlertsPanel({ alerts, isLoading }: { alerts: AlertItem[]; isLoading: boolean }) {
   const navigate = useNavigate()
 
+  const grouped = useMemo(() => {
+    const groups: Record<AlertItem["type"], AlertItem[]> = {
+      "below-par": [],
+      "overdue-po": [],
+      "high-variance": [],
+      "no-recent-purchase": [],
+    }
+    for (const a of alerts) groups[a.type].push(a)
+    return groups
+  }, [alerts])
+
   if (isLoading) {
     return (
       <Card>
@@ -127,18 +138,6 @@ function AlertsPanel({ alerts, isLoading }: { alerts: AlertItem[]; isLoading: bo
       </Card>
     )
   }
-
-  const grouped = useMemo(() => {
-    const groups: Record<AlertItem["type"], AlertItem[]> = {
-      "below-par": [],
-      "overdue-po": [],
-      "high-variance": [],
-      "no-recent-purchase": [],
-    }
-    for (const a of alerts) groups[a.type].push(a)
-    return groups
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alerts])
 
   if (alerts.length === 0) {
     return (
