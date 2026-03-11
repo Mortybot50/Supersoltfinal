@@ -171,11 +171,7 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
 
   const doAddShift = useCallback((config: ShiftConfig) => {
     const currentPending = useRosterStore.getState().pendingShift
-    console.log('[doAddShift] called', { config, currentPending, storeState: { venueId: useRosterStore.getState().venueId, orgId: useRosterStore.getState().orgId } })
-    if (!currentPending) {
-      console.error('[doAddShift] EARLY RETURN — pendingShift is null in store')
-      return
-    }
+    if (!currentPending) return
     try {
       const breakdown = calculateShiftCostBreakdown(
         config.startTime, config.endTime, config.breakMinutes,
@@ -184,7 +180,6 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
         currentPending.date,
         currentPending.employmentType,
       )
-      console.log('[doAddShift] breakdown calculated', breakdown)
       addShift({
         staff_id: currentPending.staffId,
         staff_name: currentPending.staffName,
@@ -200,38 +195,28 @@ export function RosterDndWrapper({ children }: { children: ReactNode }) {
         penalty_type: breakdown.penalty_type as RosterShift['penalty_type'] || 'none',
         penalty_multiplier: breakdown.penalty_multiplier,
       })
-      console.log('[doAddShift] addShift called, closing dialog')
-      setPendingShift(null)
     } catch (err) {
-      console.error('[doAddShift] ERROR:', err)
-      setPendingShift(null)
+      console.error('Failed to calculate shift cost:', err)
     }
+    setPendingShift(null)
   }, [addShift, setPendingShift])
 
   // ── handleShiftConfirm — checks quals before creating ────────────────────
 
   const handleShiftConfirm = useCallback(async (config: ShiftConfig) => {
-    console.log('[handleShiftConfirm] called with config:', config)
     const currentPending = useRosterStore.getState().pendingShift
-    console.log('[handleShiftConfirm] pendingShift from store:', currentPending)
-    if (!currentPending) {
-      console.error('[handleShiftConfirm] EARLY RETURN — pendingShift is null')
-      return
-    }
+    if (!currentPending) return
 
     try {
-      console.log('[handleShiftConfirm] checking quals...')
       const expiredQuals = await checkExpiredQualifications(currentPending.staffId, config.role)
-      console.log('[handleShiftConfirm] qual check done, expired:', expiredQuals.length)
       if (expiredQuals.length > 0) {
         setQualWarning({ expiredQuals, pendingConfig: config })
         return
       }
-    } catch (err) {
-      console.error('[handleShiftConfirm] qual check error (ignored):', err)
+    } catch {
+      // Don't block shift creation if qual check fails
     }
 
-    console.log('[handleShiftConfirm] calling doAddShift')
     doAddShift(config)
   }, [doAddShift])
 

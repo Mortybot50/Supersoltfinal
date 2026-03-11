@@ -83,7 +83,6 @@ export function ShiftCreateDialog({ pendingShift, onConfirm, onCancel }: ShiftCr
   }, [])
 
   const handleConfirm = useCallback(() => {
-    console.log('[ShiftCreateDialog] handleConfirm called', { startTime, endTime, role, breakMinutes })
     onConfirm({ startTime, endTime, role, breakMinutes })
   }, [startTime, endTime, role, breakMinutes, onConfirm])
 

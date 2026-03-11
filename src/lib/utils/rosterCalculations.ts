@@ -17,6 +17,29 @@ import { startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns'
 // ============================================
 
 /**
+ * Normalize a time value to HH:MM format.
+ * Handles timestamptz strings (e.g., "2026-03-10T09:00:00+11:00") by extracting the time portion.
+ */
+function parseTimeToHHMM(time: string): string {
+  if (!time) return '00:00'
+  // Already HH:MM
+  if (/^\d{2}:\d{2}$/.test(time)) return time
+  // HH:MM:SS
+  if (/^\d{2}:\d{2}:\d{2}$/.test(time)) return time.slice(0, 5)
+  // ISO timestamp — extract local time
+  const match = time.match(/T(\d{2}:\d{2})/)
+  if (match) return match[1]
+  // Try Date parse as last resort
+  try {
+    const d = new Date(time)
+    if (!isNaN(d.getTime())) {
+      return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+    }
+  } catch { /* ignore */ }
+  return time.slice(0, 5)
+}
+
+/**
  * Full shift cost calculation with Award-compliant penalty rates.
  *
  * Returns a detailed breakdown of base cost, penalty cost, warnings.
