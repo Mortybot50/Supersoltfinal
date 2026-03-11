@@ -509,22 +509,19 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
     if (!venueId || !orgId) return { created: 0, conflicts: 0 }
 
     const sourceEnd = addDays(sourceWeekStart, 6)
-    /* eslint-disable @typescript-eslint/no-explicit-any */
-    const { data } = await (supabase as any)
+    const { data } = await supabase
       .from('roster_shifts')
       .select('*')
       .eq('venue_id', venueId)
       .gte('shift_date', format(sourceWeekStart, 'yyyy-MM-dd'))
       .lte('shift_date', format(sourceEnd, 'yyyy-MM-dd'))
-    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     if (!data || data.length === 0) return { created: 0, conflicts: 0 }
 
     let created = 0
     let conflicts = 0
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const row of data as any[]) {
-      const sourceDate = new Date(row.shift_date as string)
+    for (const row of data) {
+      const sourceDate = new Date(row.shift_date)
       const dayOffset = sourceDate.getDay() === 0 ? 6 : sourceDate.getDay() - 1
       const targetDate = addDays(selectedDate, dayOffset)
 
@@ -556,21 +553,18 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
     const { venueId, orgId, shifts: currentShifts, addShift } = get()
     if (!venueId || !orgId || targetDates.length === 0) return { created: 0, conflicts: 0 }
 
-    /* eslint-disable @typescript-eslint/no-explicit-any */
-    const { data } = await (supabase as any)
+    const { data } = await supabase
       .from('roster_shifts')
       .select('*')
       .eq('venue_id', venueId)
       .eq('shift_date', format(sourceDate, 'yyyy-MM-dd'))
-    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     if (!data || data.length === 0) return { created: 0, conflicts: 0 }
 
     let created = 0
     let conflicts = 0
     for (const targetDate of targetDates) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const row of data as any[]) {
+      for (const row of data) {
         const conflict = currentShifts.some(s => {
           const d = s.date instanceof Date ? s.date : new Date(s.date)
           return s.staff_id === row.staff_id &&
@@ -893,8 +887,7 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
     const { venueId } = get()
     if (!venueId) return () => {}
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase realtime channel API
-    const channel = (supabase as any)
+    const channel = supabase
       .channel(`roster_${venueId}`)
       .on('postgres_changes', {
         event: '*',
@@ -907,8 +900,7 @@ export const useRosterStore = create<RosterStore>((set, get) => ({
       .subscribe()
 
     return () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase realtime cleanup
-      ;(supabase as any).removeChannel(channel)
+      supabase.removeChannel(channel)
     }
   },
 }))
