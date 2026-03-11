@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { ThemeProvider } from "next-themes"
 import { Toaster as Sonner } from "@/components/ui/sonner"
@@ -8,78 +8,85 @@ import { AuthProvider } from "@/contexts/AuthContext"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import { ErrorBoundary, PageErrorBoundary } from "@/components/ErrorBoundary"
 import Layout from "./components/Layout"
-import Dashboard from "./pages/Dashboard"
-import NotFound from "./pages/NotFound"
+import PageLoader from "./components/PageLoader"
 
-// Auth
+// Auth (small, load eagerly so login feels instant)
 import Login from "./pages/auth/Login"
 import Signup from "./pages/auth/Signup"
 import ConfirmEmail from "./pages/auth/ConfirmEmail"
 import ForgotPassword from "./pages/auth/ForgotPassword"
 import ResetPassword from "./pages/auth/ResetPassword"
 
+// Dashboard (loaded eagerly — first page after login)
+import Dashboard from "./pages/Dashboard"
+
+// NotFound (tiny, no benefit to lazy-loading)
+import NotFound from "./pages/NotFound"
+
+// ── Lazy page routes ────────────────────────────────────────────────────────
+
 // Inventory
-import InventoryOverview from "./pages/inventory/InventoryOverview"
-import OrderGuide from "./pages/inventory/OrderGuide"
-import Ingredients from "./pages/Ingredients"
-import Suppliers from "./pages/Suppliers"
-import SupplierDetail from "./pages/SupplierDetail"
-import PurchaseOrders from "./pages/inventory/PurchaseOrders"
-import PurchaseOrderDetail from "./pages/inventory/PurchaseOrderDetail"
-import StockCounts from "./pages/inventory/StockCounts"
-import NewStockCount from "./pages/inventory/NewStockCount"
-import Waste from "./pages/inventory/Waste"
-import InventoryReports from "./pages/inventory/InventoryReports"
-import Invoices from "./pages/inventory/Invoices"
-import InvoiceUpload from "./pages/inventory/InvoiceUpload"
-import InvoiceDetail from "./pages/inventory/InvoiceDetail"
-import Reconciliation from "./pages/inventory/Reconciliation"
-import PurchaseByInvoice from "./pages/inventory/PurchaseByInvoice"
-import PurchaseFromInvoice from "./pages/inventory/PurchaseFromInvoice"
-import POReceiving from "./pages/inventory/POReceiving"
-import FoodCostAnalysis from "./pages/inventory/FoodCostAnalysis"
-import PriceTracking from "./pages/inventory/PriceTracking"
+const InventoryOverview    = lazy(() => import("./pages/inventory/InventoryOverview"))
+const OrderGuide           = lazy(() => import("./pages/inventory/OrderGuide"))
+const Ingredients          = lazy(() => import("./pages/Ingredients"))
+const Suppliers            = lazy(() => import("./pages/Suppliers"))
+const SupplierDetail       = lazy(() => import("./pages/SupplierDetail"))
+const PurchaseOrders       = lazy(() => import("./pages/inventory/PurchaseOrders"))
+const PurchaseOrderDetail  = lazy(() => import("./pages/inventory/PurchaseOrderDetail"))
+const StockCounts          = lazy(() => import("./pages/inventory/StockCounts"))
+const NewStockCount        = lazy(() => import("./pages/inventory/NewStockCount"))
+const Waste                = lazy(() => import("./pages/inventory/Waste"))
+const InventoryReports     = lazy(() => import("./pages/inventory/InventoryReports"))
+const FoodCostAnalysis     = lazy(() => import("./pages/inventory/FoodCostAnalysis"))
+const PriceTracking        = lazy(() => import("./pages/inventory/PriceTracking"))
+const POReceiving          = lazy(() => import("./pages/inventory/POReceiving"))
+const PurchaseByInvoice    = lazy(() => import("./pages/inventory/PurchaseByInvoice"))
+const PurchaseFromInvoice  = lazy(() => import("./pages/inventory/PurchaseFromInvoice"))
+
+// Invoice Intelligence (heavy — Claude Vision, keep in its own chunk)
+const Invoices             = lazy(() => import("./pages/inventory/Invoices"))
+const InvoiceUpload        = lazy(() => import("./pages/inventory/InvoiceUpload"))
+const InvoiceDetail        = lazy(() => import("./pages/inventory/InvoiceDetail"))
+const Reconciliation       = lazy(() => import("./pages/inventory/Reconciliation"))
 
 // Menu & Costing
-import MenuItems from "./pages/MenuItems"
-import Recipes from "./pages/menu/Recipes"
-import RecipeEditor from "./pages/menu/RecipeEditor"
+const MenuItems            = lazy(() => import("./pages/MenuItems"))
+const Recipes              = lazy(() => import("./pages/menu/Recipes"))
+const RecipeEditor         = lazy(() => import("./pages/menu/RecipeEditor"))
 
 // Sales
-import Sales from "./pages/Sales"
+const Sales                = lazy(() => import("./pages/Sales"))
 
 // Workforce
-import Roster from "./pages/labour/Roster"
-import Timesheets from "./pages/labour/Timesheets"
-import LabourReports from "./pages/labour/Reports"
-import AvailabilityLeave from "./pages/labour/AvailabilityLeave"
-import People from "./pages/People"
-import StaffDetail from "./pages/labour/StaffDetail"
-import Qualifications from "./pages/labour/Qualifications"
-import PayrollExport from "./pages/labour/PayrollExport"
-import TimesheetsDaily from "./pages/labour/TimesheetsDaily"
-import TimesheetDetail from "./pages/labour/TimesheetDetail"
-
-// Onboarding
-import InvitePortal from "./pages/onboarding/InvitePortal"
-import InviteStep from "./pages/onboarding/InviteStep"
-
-// Setup Wizard
-import SetupWizard from "./pages/setup/SetupWizard"
+const Roster               = lazy(() => import("./pages/labour/Roster"))
+const Timesheets           = lazy(() => import("./pages/labour/Timesheets"))
+const TimesheetsDaily      = lazy(() => import("./pages/labour/TimesheetsDaily"))
+const TimesheetDetail      = lazy(() => import("./pages/labour/TimesheetDetail"))
+const LabourReports        = lazy(() => import("./pages/labour/Reports"))
+const AvailabilityLeave    = lazy(() => import("./pages/labour/AvailabilityLeave"))
+const People               = lazy(() => import("./pages/People"))
+const StaffDetail          = lazy(() => import("./pages/labour/StaffDetail"))
+const Qualifications       = lazy(() => import("./pages/labour/Qualifications"))
+const PayrollExport        = lazy(() => import("./pages/labour/PayrollExport"))
 
 // Operations
-import Daybook from "./pages/operations/Daybook"
-import Compliance from "./pages/operations/Compliance"
-
-// Integrations
-import AdminIntegrations from "./pages/admin/Integrations"
+const Daybook              = lazy(() => import("./pages/operations/Daybook"))
+const Compliance           = lazy(() => import("./pages/operations/Compliance"))
 
 // Admin
-import DataImports from "./pages/admin/DataImports"
-import OrgSettings from "./pages/admin/OrgSettings"
-import VenueSettings from "./pages/admin/VenueSettings"
-import Locations from "./pages/admin/Locations"
-import AccessRoles from "./pages/admin/AccessRoles"
+const AdminIntegrations    = lazy(() => import("./pages/admin/Integrations"))
+const DataImports          = lazy(() => import("./pages/admin/DataImports"))
+const OrgSettings          = lazy(() => import("./pages/admin/OrgSettings"))
+const VenueSettings        = lazy(() => import("./pages/admin/VenueSettings"))
+const Locations            = lazy(() => import("./pages/admin/Locations"))
+const AccessRoles          = lazy(() => import("./pages/admin/AccessRoles"))
+
+// Onboarding & Setup
+const InvitePortal         = lazy(() => import("./pages/onboarding/InvitePortal"))
+const InviteStep           = lazy(() => import("./pages/onboarding/InviteStep"))
+const SetupWizard          = lazy(() => import("./pages/setup/SetupWizard"))
+
+// ────────────────────────────────────────────────────────────────────────────
 
 const queryClient = new QueryClient()
 
@@ -90,6 +97,7 @@ const App = () => (
       <BrowserRouter>
         <PageErrorBoundary>
         <AuthProvider>
+          <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Public Auth Routes */}
             <Route path="/login" element={<Login />} />
@@ -181,6 +189,7 @@ const App = () => (
             <Route path="onboarding/portal/:token" element={<InvitePortal />} />
             <Route path="onboarding/portal/:token/step:stepNumber" element={<InviteStep />} />
           </Routes>
+          </Suspense>
         </AuthProvider>
       </PageErrorBoundary>
         </BrowserRouter>
