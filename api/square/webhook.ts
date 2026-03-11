@@ -7,7 +7,7 @@
  */
 import crypto from 'crypto'
 import type { VercelRequest, VercelResponse } from './_lib.js'
-import { env } from './_lib.js'
+import { env, supabaseAdmin } from './_lib.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -46,10 +46,61 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.info(`[square/webhook] Event received: ${eventType} for merchant ${merchantId}`)
 
-    // For now, just acknowledge. Future: trigger sync for specific
-    // event types like payment.completed or order.updated.
-    // The periodic sync cron handles bulk imports; webhooks are for
-    // near-real-time updates when needed.
+    // ── Enqueue order for depletion processing ──────────────────
+    if (eventType === 'order.created' || eventType === 'order.updated' || eventType === 'payment.completed') {
+      try {
+        const orderId: string | undefined = event?.data?.object?.order?.id
+          ?? event?.data?.object?.payment?.order_id
+
+        if (orderId) {
+          const db = supabaseAdmin()
+
+          // Look up the pos_connection to find org_id + venue_id
+          const { data: conn } = await db
+            .from('pos_connections')
+            .select('org_id, venue_id, location_ids')
+            .eq('provider', 'square')
+            .contains('location_ids', [event?.data?.object?.order?.location_id ?? ''])
+            .single() as { data: { org_id: string; venue_id: string; location_ids: string[] } | null }
+
+          if (conn) {
+            // Build line_items from Square order object
+            const lineItems = (event?.data?.object?.order?.line_items ?? []) as Array<{
+              catalog_object_id?: string
+              catalog_version?: number
+              quantity: string
+              modifiers?: Array<{ catalog_object_id?: string; name?: string }>
+            }>
+
+            const items = lineItems.map((li) => ({
+              catalog_item_id: li.catalog_object_id ?? '',
+              quantity: parseFloat(li.quantity ?? '1'),
+              modifiers: (li.modifiers ?? []).map((m) => ({
+                modifier_id: m.catalog_object_id ?? '',
+                modifier_name: m.name ?? '',
+              })),
+            })).filter((li) => li.catalog_item_id)
+
+            if (items.length > 0) {
+              await db
+                .from('stock_depletion_queue' as 'pos_connections')
+                .upsert({
+                  org_id: conn.org_id,
+                  venue_id: conn.venue_id,
+                  square_order_id: orderId,
+                  line_items: items,
+                  status: 'pending',
+                } as Record<string, unknown>, { onConflict: 'org_id,square_order_id' })
+
+              console.info(`[square/webhook] Enqueued order ${orderId} for depletion (${items.length} line items)`)
+            }
+          }
+        }
+      } catch (enqueueErr) {
+        // Don't fail the webhook response on depletion queue errors
+        console.error('[square/webhook] Failed to enqueue order for depletion:', enqueueErr)
+      }
+    }
 
     return res.status(200).json({ received: true })
   } catch (err: unknown) {

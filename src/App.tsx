@@ -42,6 +42,9 @@ const PriceTracking        = lazy(() => import("./pages/inventory/PriceTracking"
 const POReceiving          = lazy(() => import("./pages/inventory/POReceiving"))
 const PurchaseByInvoice    = lazy(() => import("./pages/inventory/PurchaseByInvoice"))
 const PurchaseFromInvoice  = lazy(() => import("./pages/inventory/PurchaseFromInvoice"))
+const POSMapping           = lazy(() => import("./pages/inventory/POSMapping"))
+const StockDashboard       = lazy(() => import("./pages/inventory/StockDashboard"))
+const SmartOrders          = lazy(() => import("./pages/inventory/SmartOrders"))
 
 // Invoice Intelligence (heavy — Claude Vision, keep in its own chunk)
 const Invoices             = lazy(() => import("./pages/inventory/Invoices"))
@@ -144,6 +147,9 @@ const App = () => (
               <Route path="inventory/purchases/from-invoice/:invoiceId" element={<PurchaseFromInvoice />} />
               <Route path="inventory/food-cost" element={<FoodCostAnalysis />} />
               <Route path="inventory/price-tracking" element={<PriceTracking />} />
+              <Route path="inventory/pos-mapping" element={<POSMapping />} />
+              <Route path="inventory/stock-dashboard" element={<StockDashboard />} />
+              <Route path="inventory/smart-orders" element={<SmartOrders />} />
 
               {/* Menu & Costing */}
               <Route path="menu/items" element={<MenuItems />} />
