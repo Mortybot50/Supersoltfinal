@@ -236,6 +236,32 @@
     color: var(--dark-tertiary);
     font-weight: 400;
   }
+
+  /* Data table container */
+  .ss-table-container {
+    background: var(--surface-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  /* Action icon button */
+  .ss-action-btn {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    color: var(--dark-tertiary);
+    transition: background-color 150ms cubic-bezier(0.4,0,0.2,1), color 150ms;
+  }
+
+  .ss-action-btn:hover {
+    background: var(--surface-subtle);
+    color: var(--dark);
+  }
 }
 
 /* ── Keyframes ───────────────────────────────────────────────── */
