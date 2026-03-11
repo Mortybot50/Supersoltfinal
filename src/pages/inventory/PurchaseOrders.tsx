@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   FileText,
   Search,
@@ -12,24 +12,42 @@ import {
   Package,
   AlertTriangle,
   Loader2,
-  Receipt,
+  Pencil,
+  Trash2,
+  ClipboardCheck,
+  ArrowRight,
+  Info,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Separator } from '@/components/ui/separator'
 import { useDataStore } from '@/lib/store/dataStore'
-import { PurchaseOrder } from '@/types'
-import { format, differenceInDays, subDays, startOfMonth, isAfter, isBefore, isValid } from 'date-fns'
+import { useAuth } from '@/contexts/AuthContext'
+import { PurchaseOrder, PurchaseOrderItem, Supplier } from '@/types'
+import { format, differenceInDays, isAfter, isBefore, isValid } from 'date-fns'
 import { PageShell, PageToolbar } from '@/components/shared'
-import { StatCards } from '@/components/ui/StatCards'
-import { SecondaryStats } from '@/components/ui/SecondaryStats'
 import { formatCurrency } from '@/lib/utils/formatters'
+import {
+  calculateOrderSuggestions,
+  calculateExpectedDelivery,
+  isPastCutoff,
+  formatDeliverySchedule,
+  generatePONumber,
+  type OrderSuggestion,
+} from '@/lib/utils/purchasingCalculations'
+import { toast } from 'sonner'
+import { z } from 'zod'
 
-/** Safe date formatter — returns fallback instead of throwing on invalid dates */
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
 function safeFormat(date: unknown, fmt: string, fallback = '—'): string {
   try {
     const d = date instanceof Date ? date : new Date(date as string | number)
@@ -39,56 +57,15 @@ function safeFormat(date: unknown, fmt: string, fallback = '—'): string {
   }
 }
 
-/** Check if a PO is an invoice entry (INV- prefix convention) */
-function isInvoiceEntry(po: PurchaseOrder): boolean {
-  return (po.po_number ?? '').startsWith('INV-')
-}
-
-/** Invoice status derived from PO status */
-function getInvoiceStatus(po: PurchaseOrder): 'Entered' | 'Reconciled' | 'Closed' {
-  if (po.status === 'cancelled') return 'Closed'
-  if (po.status === 'confirmed') return 'Reconciled'
-  return 'Entered'
-}
-
-const INVOICE_STATUS_CONFIG = {
-  Entered: { variant: 'secondary' as const, color: 'text-blue-600' },
-  Reconciled: { variant: 'default' as const, color: 'text-green-600' },
-  Closed: { variant: 'outline' as const, color: 'text-muted-foreground' },
-}
-
 const STATUS_CONFIG = {
-  draft: {
-    label: 'Draft',
-    variant: 'secondary' as const,
-    icon: Clock,
-    color: 'text-muted-foreground',
-  },
-  submitted: {
-    label: 'Submitted',
-    variant: 'default' as const,
-    icon: Send,
-    color: 'text-blue-600',
-  },
-  confirmed: {
-    label: 'Confirmed',
-    variant: 'default' as const,
-    icon: CheckCircle,
-    color: 'text-purple-600',
-  },
-  delivered: {
-    label: 'Delivered',
-    variant: 'default' as const,
-    icon: Package,
-    color: 'text-green-600',
-  },
-  cancelled: {
-    label: 'Cancelled',
-    variant: 'destructive' as const,
-    icon: XCircle,
-    color: 'text-destructive',
-  },
+  draft: { label: 'Draft', variant: 'secondary' as const, icon: Clock, color: 'text-muted-foreground' },
+  submitted: { label: 'Submitted', variant: 'default' as const, icon: Send, color: 'text-blue-600' },
+  confirmed: { label: 'Confirmed', variant: 'default' as const, icon: CheckCircle, color: 'text-purple-600' },
+  delivered: { label: 'Delivered', variant: 'default' as const, icon: Package, color: 'text-green-600' },
+  cancelled: { label: 'Cancelled', variant: 'destructive' as const, icon: XCircle, color: 'text-destructive' },
 }
+
+type TabKey = 'all' | 'draft' | 'submitted' | 'overdue' | 'delivered' | 'closed'
 
 function isOverdue(po: PurchaseOrder): boolean {
   if (po.status === 'delivered' || po.status === 'cancelled' || po.status === 'draft') return false
@@ -100,324 +77,698 @@ function isOverdue(po: PurchaseOrder): boolean {
   }
 }
 
+function isClosed(po: PurchaseOrder): boolean {
+  return po.status === 'delivered' || po.status === 'cancelled'
+}
+
+// ─── Create PO Step 2 — Line item type ────────────────────────────────────
+
+interface POLineItem {
+  ingredientId: string
+  ingredientName: string
+  currentStock: number
+  parLevel: number
+  pendingQty: number
+  suggestedQty: number
+  orderQty: number
+  unit: string
+  unitPrice: number // cents
+  lineTotal: number // cents
+  productCode?: string
+}
+
+// ─── Zod schema for Step 1 ────────────────────────────────────────────────
+
+const step1Schema = z.object({
+  supplierId: z.string().min(1, 'Supplier is required'),
+  reference: z.string().optional(),
+  notes: z.string().optional(),
+})
+
+// ─── Main Component ───────────────────────────────────────────────────────
+
 export default function PurchaseOrders() {
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const { purchaseOrders, suppliers, isLoading, loadPurchaseOrdersFromDB, loadSuppliersFromDB } = useDataStore()
-
-  // Tab: 'orders' (default) or 'invoices'
-  const activeView = searchParams.get('view') === 'invoices' ? 'invoices' : 'orders'
-  const setActiveView = (view: string) => {
-    if (view === 'orders') {
-      searchParams.delete('view')
-      setSearchParams(searchParams)
-    } else {
-      setSearchParams({ view })
-    }
-    // Reset filters on tab switch
-    setSearchQuery('')
-    setStatusFilter('all')
-    setSupplierFilter('all')
-    setDateFilter('all')
-  }
+  const { user, currentOrg, currentVenue } = useAuth()
+  const {
+    purchaseOrders,
+    suppliers,
+    ingredients,
+    isLoading,
+    loadPurchaseOrdersFromDB,
+    loadSuppliersFromDB,
+    loadIngredientsFromDB,
+    addPurchaseOrder,
+    updatePurchaseOrder,
+    deletePurchaseOrder,
+  } = useDataStore()
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [supplierFilter, setSupplierFilter] = useState<string>('all')
-  const [dateFilter, setDateFilter] = useState<string>('all')
+  const [activeTab, setActiveTab] = useState<TabKey>('all')
+
+  // Create PO state
+  const [createStep, setCreateStep] = useState<0 | 1 | 2>(0) // 0 = closed, 1 = modal, 2 = full page
+  const [selectedSupplierId, setSelectedSupplierId] = useState('')
+  const [poReference, setPOReference] = useState('')
+  const [poNotes, setPONotes] = useState('')
+  const [lineItems, setLineItems] = useState<POLineItem[]>([])
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     loadPurchaseOrdersFromDB()
     loadSuppliersFromDB()
-  }, [loadPurchaseOrdersFromDB, loadSuppliersFromDB])
+    loadIngredientsFromDB()
+  }, [loadPurchaseOrdersFromDB, loadSuppliersFromDB, loadIngredientsFromDB])
 
-  // Split POs and invoices
-  const regularPOs = useMemo(() => purchaseOrders.filter((po) => !isInvoiceEntry(po)), [purchaseOrders])
-  const invoiceEntries = useMemo(() => purchaseOrders.filter((po) => isInvoiceEntry(po)), [purchaseOrders])
+  // ─── Tab counts ─────────────────────────────────────────────────────────
 
-  // ── PO Filtering ──────────────────────────────────────────
+  const tabCounts = useMemo(() => {
+    const counts = { all: 0, draft: 0, submitted: 0, overdue: 0, delivered: 0, closed: 0 }
+    for (const po of purchaseOrders) {
+      counts.all++
+      if (po.status === 'draft') counts.draft++
+      if (po.status === 'submitted' || po.status === 'confirmed') counts.submitted++
+      if (isOverdue(po)) counts.overdue++
+      if (po.status === 'delivered') counts.delivered++
+      if (isClosed(po)) counts.closed++
+    }
+    return counts
+  }, [purchaseOrders])
+
+  // ─── Filtered POs ──────────────────────────────────────────────────────
 
   const filteredPOs = useMemo(() => {
-    let filtered = regularPOs
+    let filtered = purchaseOrders
 
+    // Tab filter
+    switch (activeTab) {
+      case 'draft':
+        filtered = filtered.filter((po) => po.status === 'draft')
+        break
+      case 'submitted':
+        filtered = filtered.filter((po) => po.status === 'submitted' || po.status === 'confirmed')
+        break
+      case 'overdue':
+        filtered = filtered.filter((po) => isOverdue(po))
+        break
+      case 'delivered':
+        filtered = filtered.filter((po) => po.status === 'delivered')
+        break
+      case 'closed':
+        filtered = filtered.filter((po) => isClosed(po))
+        break
+    }
+
+    // Search
     if (searchQuery) {
-      const query = searchQuery.toLowerCase()
+      const q = searchQuery.toLowerCase()
       filtered = filtered.filter(
         (po) =>
-          (po.po_number ?? '').toLowerCase().includes(query) ||
-          (po.supplier_name ?? '').toLowerCase().includes(query) ||
-          po.notes?.toLowerCase().includes(query)
+          (po.po_number ?? '').toLowerCase().includes(q) ||
+          (po.supplier_name ?? '').toLowerCase().includes(q) ||
+          po.notes?.toLowerCase().includes(q)
       )
-    }
-
-    if (statusFilter === 'overdue') {
-      filtered = filtered.filter((po) => isOverdue(po))
-    } else if (statusFilter !== 'all') {
-      filtered = filtered.filter((po) => po.status === statusFilter)
-    }
-
-    if (supplierFilter !== 'all') {
-      filtered = filtered.filter((po) => po.supplier_id === supplierFilter)
-    }
-
-    if (dateFilter !== 'all') {
-      const now = new Date()
-      let startDate: Date
-      switch (dateFilter) {
-        case 'week':
-          startDate = subDays(now, 7)
-          break
-        case 'month':
-          startDate = startOfMonth(now)
-          break
-        case '3months':
-          startDate = subDays(now, 90)
-          break
-        default:
-          startDate = new Date(0)
-      }
-      filtered = filtered.filter((po) => {
-        try {
-          const d = new Date(po.order_date)
-          return isValid(d) && isAfter(d, startDate)
-        } catch { return true }
-      })
     }
 
     return filtered.sort(
       (a, b) => (new Date(b.order_date).getTime() || 0) - (new Date(a.order_date).getTime() || 0)
     )
-  }, [regularPOs, searchQuery, statusFilter, supplierFilter, dateFilter])
+  }, [purchaseOrders, activeTab, searchQuery])
 
-  // ── Invoice Filtering ─────────────────────────────────────
+  // ─── Create PO Helpers ─────────────────────────────────────────────────
 
-  const filteredInvoices = useMemo(() => {
-    let filtered = invoiceEntries
+  const selectedSupplier = useMemo(
+    () => suppliers.find((s) => s.id === selectedSupplierId) || null,
+    [suppliers, selectedSupplierId]
+  )
 
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(
-        (po) =>
-          (po.po_number ?? '').toLowerCase().includes(query) ||
-          (po.supplier_name ?? '').toLowerCase().includes(query) ||
-          po.notes?.toLowerCase().includes(query)
-      )
+  const expectedDelivery = useMemo(() => {
+    if (!selectedSupplier) return null
+    return calculateExpectedDelivery(selectedSupplier)
+  }, [selectedSupplier])
+
+  const pastCutoff = useMemo(() => {
+    if (!selectedSupplier) return false
+    return isPastCutoff(selectedSupplier)
+  }, [selectedSupplier])
+
+  const activeSuppliers = useMemo(
+    () => suppliers.filter((s) => s.active !== false),
+    [suppliers]
+  )
+
+  const openCreateModal = useCallback(() => {
+    setSelectedSupplierId('')
+    setPOReference('')
+    setPONotes('')
+    setLineItems([])
+    setCreateStep(1)
+  }, [])
+
+  const proceedToStep2 = useCallback(() => {
+    const result = step1Schema.safeParse({
+      supplierId: selectedSupplierId,
+      reference: poReference,
+      notes: poNotes,
+    })
+    if (!result.success) {
+      toast.error('Please select a supplier')
+      return
+    }
+    if (!currentVenue) {
+      toast.error('No venue selected')
+      return
     }
 
-    if (supplierFilter !== 'all') {
-      filtered = filtered.filter((po) => po.supplier_id === supplierFilter)
-    }
-
-    if (dateFilter !== 'all') {
-      const now = new Date()
-      let startDate: Date
-      switch (dateFilter) {
-        case 'week':
-          startDate = subDays(now, 7)
-          break
-        case 'month':
-          startDate = startOfMonth(now)
-          break
-        case '3months':
-          startDate = subDays(now, 90)
-          break
-        default:
-          startDate = new Date(0)
-      }
-      filtered = filtered.filter((po) => {
-        try {
-          const d = new Date(po.order_date)
-          return isValid(d) && isAfter(d, startDate)
-        } catch { return true }
-      })
-    }
-
-    return filtered.sort(
-      (a, b) => (new Date(b.order_date).getTime() || 0) - (new Date(a.order_date).getTime() || 0)
+    // Generate suggestions
+    const suggestions = calculateOrderSuggestions(
+      selectedSupplierId,
+      currentVenue.id,
+      ingredients,
+      purchaseOrders,
+      suppliers
     )
-  }, [invoiceEntries, searchQuery, supplierFilter, dateFilter])
 
-  // ── Stats ─────────────────────────────────────────────────
+    const items: POLineItem[] = suggestions.map((s) => ({
+      ingredientId: s.ingredientId,
+      ingredientName: s.ingredientName,
+      currentStock: s.currentStock,
+      parLevel: s.parLevel,
+      pendingQty: s.pendingQty,
+      suggestedQty: s.suggestedQty,
+      orderQty: s.suggestedQty,
+      unit: s.unit,
+      unitPrice: s.lastPrice,
+      lineTotal: s.suggestedQty * s.lastPrice,
+      productCode: s.productCode,
+    }))
 
-  const stats = useMemo(() => {
-    const total = regularPOs.length
-    const draft = regularPOs.filter((po) => po.status === 'draft').length
-    const pending = regularPOs.filter((po) =>
-      po.status === 'submitted' || po.status === 'confirmed'
-    ).length
-    const overdue = regularPOs.filter((po) => isOverdue(po)).length
-    const delivered = regularPOs.filter((po) => po.status === 'delivered').length
-    const totalValue = regularPOs
-      .filter((po) => po.status !== 'cancelled')
-      .reduce((sum, po) => sum + po.total, 0)
-    const pendingValue = regularPOs
-      .filter((po) => po.status === 'submitted' || po.status === 'confirmed')
-      .reduce((sum, po) => sum + po.total, 0)
+    setLineItems(items)
+    setCreateStep(2)
+  }, [selectedSupplierId, poReference, poNotes, currentVenue, ingredients, purchaseOrders, suppliers])
 
-    return { total, draft, pending, overdue, delivered, totalValue, pendingValue }
-  }, [regularPOs])
+  const updateLineItem = useCallback((index: number, field: 'orderQty' | 'unitPrice', value: number) => {
+    setLineItems((prev) => {
+      const updated = [...prev]
+      const item = { ...updated[index] }
+      item[field] = value
+      item.lineTotal = item.orderQty * item.unitPrice
+      updated[index] = item
+      return updated
+    })
+  }, [])
 
-  const invoiceStats = useMemo(() => {
-    const total = invoiceEntries.length
-    const entered = invoiceEntries.filter((po) => getInvoiceStatus(po) === 'Entered').length
-    const reconciled = invoiceEntries.filter((po) => getInvoiceStatus(po) === 'Reconciled').length
-    const totalValue = invoiceEntries.reduce((sum, po) => sum + po.total, 0)
-    return { total, entered, reconciled, totalValue }
-  }, [invoiceEntries])
+  const addBlankLine = useCallback(() => {
+    setLineItems((prev) => [
+      ...prev,
+      {
+        ingredientId: '',
+        ingredientName: '',
+        currentStock: 0,
+        parLevel: 0,
+        pendingQty: 0,
+        suggestedQty: 0,
+        orderQty: 0,
+        unit: 'ea',
+        unitPrice: 0,
+        lineTotal: 0,
+      },
+    ])
+  }, [])
 
-  const getStatusConfig = (status: string) => {
-    return STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.draft
+  const removeLineItem = useCallback((index: number) => {
+    setLineItems((prev) => prev.filter((_, i) => i !== index))
+  }, [])
+
+  const orderTotals = useMemo(() => {
+    const subtotal = lineItems.reduce((sum, item) => sum + item.lineTotal, 0)
+    const gst = Math.round(subtotal * 0.1)
+    return { subtotal, gst, total: subtotal + gst }
+  }, [lineItems])
+
+  const handleSaveDraft = useCallback(async () => {
+    if (!selectedSupplier || !currentVenue || !currentOrg) return
+    setIsSaving(true)
+    try {
+      await savePO('draft')
+      toast.success('Purchase order saved as draft')
+      setCreateStep(0)
+    } catch {
+      toast.error('Failed to save draft')
+    } finally {
+      setIsSaving(false)
+    }
+  }, [selectedSupplier, currentVenue, currentOrg, lineItems, orderTotals]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSubmitPO = useCallback(async () => {
+    if (!selectedSupplier || !currentVenue || !currentOrg) return
+    const validItems = lineItems.filter((li) => li.orderQty > 0 && li.ingredientId)
+    if (validItems.length === 0) {
+      toast.error('Add at least one item with quantity > 0')
+      return
+    }
+    setIsSaving(true)
+    try {
+      await savePO('submitted')
+      toast.success('Purchase order submitted')
+      setCreateStep(0)
+    } catch {
+      toast.error('Failed to submit order')
+    } finally {
+      setIsSaving(false)
+    }
+  }, [selectedSupplier, currentVenue, currentOrg, lineItems, orderTotals]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const savePO = async (status: 'draft' | 'submitted') => {
+    if (!selectedSupplier || !currentVenue || !currentOrg) throw new Error('Missing context')
+
+    const validItems = lineItems.filter((li) => li.orderQty > 0 && li.ingredientId)
+    const poNumber = generatePONumber(purchaseOrders)
+    const delivery = expectedDelivery || new Date()
+
+    const poId = crypto.randomUUID()
+    const po: PurchaseOrder = {
+      id: poId,
+      po_number: poNumber,
+      org_id: currentOrg.id,
+      venue_id: currentVenue.id,
+      supplier_id: selectedSupplier.id,
+      supplier_name: selectedSupplier.name,
+      order_date: new Date(),
+      expected_delivery_date: delivery,
+      status,
+      subtotal: orderTotals.subtotal,
+      tax_amount: orderTotals.gst,
+      total: orderTotals.total,
+      notes: [poReference, poNotes].filter(Boolean).join(' — ') || undefined,
+      created_by: user?.id,
+      created_by_name: user?.email || undefined,
+      ...(status === 'submitted' ? { submitted_at: new Date(), submitted_by: user?.id } : {}),
+    }
+
+    const items: PurchaseOrderItem[] = validItems.map((li) => ({
+      id: crypto.randomUUID(),
+      purchase_order_id: poId,
+      ingredient_id: li.ingredientId,
+      ingredient_name: li.ingredientName,
+      quantity_ordered: li.orderQty,
+      quantity_received: 0,
+      unit: li.unit,
+      unit_cost: li.unitPrice,
+      line_total: li.lineTotal,
+    }))
+
+    await addPurchaseOrder(po, items)
   }
 
-  // ── Toolbar ───────────────────────────────────────────────
+  // ─── Action handlers for list ──────────────────────────────────────────
+
+  const handleSubmitExisting = useCallback(
+    async (po: PurchaseOrder, e: React.MouseEvent) => {
+      e.stopPropagation()
+      try {
+        await updatePurchaseOrder(po.id, {
+          status: 'submitted',
+          submitted_at: new Date(),
+          submitted_by: user?.id,
+        })
+        toast.success(`${po.po_number} submitted`)
+      } catch {
+        toast.error('Failed to submit')
+      }
+    },
+    [updatePurchaseOrder, user]
+  )
+
+  const handleDeletePO = useCallback(
+    async (po: PurchaseOrder, e: React.MouseEvent) => {
+      e.stopPropagation()
+      if (!confirm(`Delete ${po.po_number}? This cannot be undone.`)) return
+      try {
+        await deletePurchaseOrder(po.id)
+        toast.success(`${po.po_number} deleted`)
+      } catch {
+        toast.error('Failed to delete')
+      }
+    },
+    [deletePurchaseOrder]
+  )
+
+  // ─── Render: Step 2 (Full Page) ────────────────────────────────────────
+
+  if (createStep === 2) {
+    const minOrder = selectedSupplier?.minimum_order || 0
+    const belowMinOrder = minOrder > 0 && orderTotals.subtotal < minOrder
+
+    return (
+      <PageShell
+        toolbar={
+          <PageToolbar
+            title={`New PO — ${selectedSupplier?.name || 'Unknown'}`}
+            actions={
+              <>
+                <Button variant="ghost" size="sm" onClick={() => setCreateStep(1)}>
+                  Back
+                </Button>
+                <Separator orientation="vertical" className="h-5" />
+                {expectedDelivery && (
+                  <Badge variant="outline">
+                    Expected: {safeFormat(expectedDelivery, 'EEE dd MMM')}
+                  </Badge>
+                )}
+              </>
+            }
+          />
+        }
+      >
+        <div className="p-4 space-y-4">
+          {/* Min order warning */}
+          {belowMinOrder && (
+            <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-3 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+              <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                Subtotal ({formatCurrency(orderTotals.subtotal)}) is below minimum order of{' '}
+                {formatCurrency(minOrder)}
+              </span>
+            </div>
+          )}
+
+          {/* Line items table */}
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[200px]">Product</TableHead>
+                  <TableHead className="text-right w-20">Stock</TableHead>
+                  <TableHead className="text-right w-20">Par</TableHead>
+                  <TableHead className="text-right w-20">Pending</TableHead>
+                  <TableHead className="text-right w-20">Suggested</TableHead>
+                  <TableHead className="text-right w-24">Order Qty</TableHead>
+                  <TableHead className="w-16">Unit</TableHead>
+                  <TableHead className="text-right w-28">Unit Price</TableHead>
+                  <TableHead className="text-right w-24">Line Total</TableHead>
+                  <TableHead className="w-10"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {lineItems.map((item, idx) => (
+                  <TableRow
+                    key={item.ingredientId || `blank-${idx}`}
+                    className={
+                      item.currentStock <= (item.parLevel * 0.25)
+                        ? 'bg-red-50/50 dark:bg-red-950/20'
+                        : item.suggestedQty > 0
+                        ? 'bg-amber-50/30 dark:bg-amber-950/10'
+                        : ''
+                    }
+                  >
+                    <TableCell>
+                      <div>
+                        <span className="font-medium">{item.ingredientName || '—'}</span>
+                        {item.productCode && (
+                          <span className="text-xs text-muted-foreground ml-2">
+                            ({item.productCode})
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span
+                        className={
+                          item.currentStock <= item.parLevel * 0.25
+                            ? 'text-red-600 font-semibold'
+                            : item.currentStock <= item.parLevel * 0.5
+                            ? 'text-amber-600 font-semibold'
+                            : ''
+                        }
+                      >
+                        {item.currentStock}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">{item.parLevel}</TableCell>
+                    <TableCell className="text-right">
+                      {item.pendingQty > 0 ? (
+                        <Badge variant="outline" className="text-xs">
+                          {item.pendingQty}
+                        </Badge>
+                      ) : (
+                        '—'
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {item.suggestedQty}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Input
+                        type="number"
+                        min="0"
+                        value={item.orderQty}
+                        onChange={(e) => updateLineItem(idx, 'orderQty', parseInt(e.target.value) || 0)}
+                        className="w-20 text-right h-8"
+                      />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {item.unit}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={item.unitPrice}
+                        onChange={(e) => updateLineItem(idx, 'unitPrice', parseInt(e.target.value) || 0)}
+                        className="w-24 text-right h-8"
+                      />
+                    </TableCell>
+                    <TableCell className="text-right font-semibold">
+                      {formatCurrency(item.lineTotal)}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => removeLineItem(idx)}
+                      >
+                        <XCircle className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+
+          <Button variant="outline" size="sm" onClick={addBlankLine}>
+            <Plus className="h-4 w-4 mr-1" /> Add Item
+          </Button>
+
+          {/* Totals footer */}
+          <Card className="p-4">
+            <div className="flex justify-end">
+              <div className="w-64 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal:</span>
+                  <span className="font-medium">{formatCurrency(orderTotals.subtotal)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">GST (10%):</span>
+                  <span className="font-medium">{formatCurrency(orderTotals.gst)}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Total:</span>
+                  <span>{formatCurrency(orderTotals.total)}</span>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Action buttons */}
+          <div className="flex items-center justify-end gap-3">
+            <Button variant="outline" onClick={() => setCreateStep(0)} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button variant="secondary" onClick={handleSaveDraft} disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+              Save Draft
+            </Button>
+            <Button onClick={handleSubmitPO} disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+              Submit Order
+            </Button>
+          </div>
+        </div>
+      </PageShell>
+    )
+  }
+
+  // ─── Render: PO List ────────────────────────────────────────────────────
 
   const toolbar = (
     <PageToolbar
-      title="Purchasing"
+      title="Purchase Orders"
       filters={
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Tab toggle */}
-          <Tabs value={activeView} onValueChange={setActiveView}>
-            <TabsList className="h-8">
-              <TabsTrigger value="orders" className="text-xs px-3 h-7">
-                Purchase Orders
-                {regularPOs.length > 0 && (
-                  <Badge variant="secondary" className="ml-1.5 text-[10px] px-1 py-0 h-4">
-                    {regularPOs.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="invoices" className="text-xs px-3 h-7">
-                Invoices
-                {invoiceEntries.length > 0 && (
-                  <Badge variant="secondary" className="ml-1.5 text-[10px] px-1 py-0 h-4">
-                    {invoiceEntries.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder={activeView === 'orders' ? 'Search PO...' : 'Search invoices...'}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-8 w-[180px] pl-8 text-sm"
-            />
-          </div>
-
-          {/* Status filter — only for POs */}
-          {activeView === 'orders' && (
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-8 w-[140px]">
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="submitted">Submitted</SelectItem>
-                <SelectItem value="confirmed">Confirmed</SelectItem>
-                <SelectItem value="delivered">Delivered</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-                <SelectItem value="overdue">
-                  Overdue {stats.overdue > 0 && `(${stats.overdue})`}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-
-          <Select value={supplierFilter} onValueChange={setSupplierFilter}>
-            <SelectTrigger className="h-8 w-[130px]">
-              <SelectValue placeholder="All Suppliers" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Suppliers</SelectItem>
-              {suppliers.map((supplier) => (
-                <SelectItem key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="h-8 w-[130px]">
-              <SelectValue placeholder="All Time" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Time</SelectItem>
-              <SelectItem value="week">Last 7 Days</SelectItem>
-              <SelectItem value="month">This Month</SelectItem>
-              <SelectItem value="3months">Last 3 Months</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search PO..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-8 w-[200px] pl-8 text-sm"
+          />
         </div>
       }
-      actions={
-        activeView === 'orders' ? undefined : (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8"
-            onClick={() => navigate('/inventory/purchase-by-invoice')}
-          >
-            <Receipt className="h-4 w-4 mr-2" />
-            Log Invoice
-          </Button>
-        )
-      }
-      primaryAction={
-        activeView === 'orders'
-          ? { label: 'Create Order', icon: Plus, onClick: () => navigate('/inventory/order-guide'), variant: 'primary' }
-          : { label: 'Log Invoice', icon: Receipt, onClick: () => navigate('/inventory/purchase-by-invoice'), variant: 'primary' }
-      }
+      primaryAction={{
+        label: 'Create Order',
+        icon: Plus,
+        onClick: openCreateModal,
+        variant: 'primary',
+      }}
     />
   )
 
-  // ── Render ────────────────────────────────────────────────
+  const renderStatusActions = (po: PurchaseOrder) => {
+    switch (po.status) {
+      case 'draft':
+        return (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2"
+              onClick={(e) => {
+                e.stopPropagation()
+                navigate(`/inventory/purchase-orders/${po.id}`)
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-destructive hover:text-destructive"
+              onClick={(e) => handleDeletePO(po, e)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-blue-600 hover:text-blue-700"
+              onClick={(e) => handleSubmitExisting(po, e)}
+            >
+              <Send className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )
+      case 'submitted':
+      case 'confirmed':
+        return (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-green-600 hover:text-green-700"
+              onClick={(e) => {
+                e.stopPropagation()
+                navigate(`/inventory/purchase-orders/${po.id}`)
+              }}
+            >
+              <Package className="h-3.5 w-3.5 mr-1" />
+              <span className="text-xs">Receive</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-destructive hover:text-destructive"
+              onClick={(e) => {
+                e.stopPropagation()
+                navigate(`/inventory/purchase-orders/${po.id}`)
+              }}
+            >
+              <XCircle className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )
+      case 'delivered':
+        return (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2"
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate(`/inventory/purchase-orders/${po.id}`)
+            }}
+          >
+            <ClipboardCheck className="h-3.5 w-3.5 mr-1" />
+            <span className="text-xs">Reconcile</span>
+          </Button>
+        )
+      default:
+        return (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2"
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate(`/inventory/purchase-orders/${po.id}`)
+            }}
+          >
+            <Eye className="h-3.5 w-3.5" />
+          </Button>
+        )
+    }
+  }
+
+  const renderTabBadge = (count: number) =>
+    count > 0 ? (
+      <Badge variant="secondary" className="ml-1.5 h-5 min-w-[20px] px-1.5 text-[10px]">
+        {count}
+      </Badge>
+    ) : null
 
   return (
     <PageShell toolbar={toolbar}>
-      {/* ── Purchase Orders Tab ─────────────────────────────── */}
-      {activeView === 'orders' && (
-        <>
-          <div className="px-4 pt-4 space-y-3">
-            <StatCards stats={[
-              { label: 'Total', value: stats.total },
-              { label: 'Draft', value: stats.draft },
-              { label: 'Pending', value: stats.pending },
-              { label: 'Delivered', value: stats.delivered },
-            ]} columns={4} />
-            <SecondaryStats stats={[
-              ...(stats.overdue > 0 ? [{ label: 'Overdue', value: stats.overdue }] : []),
-              { label: 'Pending Value', value: formatCurrency(stats.pendingValue) },
-              { label: 'Total Value', value: formatCurrency(stats.totalValue) },
-            ]} />
+      <div className="p-4 space-y-4">
+        {/* Overdue alert */}
+        {tabCounts.overdue > 0 && activeTab !== 'overdue' && (
+          <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <span className="text-sm font-medium text-red-800 dark:text-red-200">
+                {tabCounts.overdue} purchase order{tabCounts.overdue !== 1 ? 's' : ''} overdue
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-red-600 hover:text-red-700"
+              onClick={() => setActiveTab('overdue')}
+            >
+              View Overdue
+            </Button>
           </div>
-          <div className="p-4">
-            {/* Overdue alert banner */}
-            {stats.overdue > 0 && statusFilter !== 'overdue' && (
-              <div className="mb-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-red-600" />
-                  <span className="text-sm font-medium text-red-800 dark:text-red-200">
-                    {stats.overdue} purchase order{stats.overdue !== 1 ? 's' : ''} overdue
-                  </span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-red-600 hover:text-red-700"
-                  onClick={() => setStatusFilter('overdue')}
-                >
-                  View Overdue
-                </Button>
-              </div>
-            )}
+        )}
 
-            {isLoading && regularPOs.length === 0 ? (
+        {/* Tab filters */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>
+          <TabsList>
+            <TabsTrigger value="all">All{renderTabBadge(tabCounts.all)}</TabsTrigger>
+            <TabsTrigger value="draft">Draft{renderTabBadge(tabCounts.draft)}</TabsTrigger>
+            <TabsTrigger value="submitted">Submitted{renderTabBadge(tabCounts.submitted)}</TabsTrigger>
+            <TabsTrigger value="overdue">
+              Overdue{renderTabBadge(tabCounts.overdue)}
+            </TabsTrigger>
+            <TabsTrigger value="delivered">Delivered{renderTabBadge(tabCounts.delivered)}</TabsTrigger>
+            <TabsTrigger value="closed">Closed{renderTabBadge(tabCounts.closed)}</TabsTrigger>
+          </TabsList>
+
+          {/* Single content for all tabs — filtering handled in useMemo */}
+          <TabsContent value={activeTab} className="mt-4">
+            {isLoading && purchaseOrders.length === 0 ? (
               <Card className="p-12 text-center">
                 <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin opacity-50" />
                 <p className="text-muted-foreground">Loading purchase orders...</p>
@@ -426,15 +777,15 @@ export default function PurchaseOrders() {
               <Card className="p-12 text-center">
                 <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">
-                  {regularPOs.length === 0 ? 'No Purchase Orders Yet' : 'No Orders Found'}
+                  {purchaseOrders.length === 0 ? 'No Purchase Orders Yet' : 'No Orders Found'}
                 </h3>
                 <p className="text-sm text-muted-foreground mb-6">
-                  {regularPOs.length === 0
-                    ? 'Create your first order from the Order Guide'
-                    : 'Try adjusting your filters'}
+                  {purchaseOrders.length === 0
+                    ? 'Create your first purchase order to get started'
+                    : 'Try adjusting your filters or search'}
                 </p>
-                {regularPOs.length === 0 && (
-                  <Button onClick={() => navigate('/inventory/order-guide')}>
+                {purchaseOrders.length === 0 && (
+                  <Button onClick={openCreateModal}>
                     <Plus className="h-4 w-4 mr-2" />
                     Create First Order
                   </Button>
@@ -445,19 +796,20 @@ export default function PurchaseOrders() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>PO Number</TableHead>
+                      <TableHead>PO #</TableHead>
                       <TableHead>Supplier</TableHead>
                       <TableHead>Order Date</TableHead>
                       <TableHead>Expected Delivery</TableHead>
-                      <TableHead>Items</TableHead>
-                      <TableHead>Total</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead className="w-24"></TableHead>
+                      <TableHead className="text-right">Items</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead className="w-32">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredPOs.map((po: PurchaseOrder) => {
-                      const statusConfig = getStatusConfig(po.status)
+                    {filteredPOs.map((po) => {
+                      const statusConfig =
+                        STATUS_CONFIG[po.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.draft
                       const StatusIcon = statusConfig.icon
                       const overdue = isOverdue(po)
                       const daysOverdue = overdue
@@ -477,9 +829,7 @@ export default function PurchaseOrders() {
                             </div>
                           </TableCell>
                           <TableCell>{po.supplier_name}</TableCell>
-                          <TableCell>
-                            {safeFormat(po.order_date, 'dd MMM yyyy')}
-                          </TableCell>
+                          <TableCell>{safeFormat(po.order_date, 'dd MMM yyyy')}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1.5">
                               <span className={overdue ? 'text-red-600 font-semibold' : ''}>
@@ -493,143 +843,18 @@ export default function PurchaseOrders() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline">{po.items?.length || 0} items</Badge>
-                          </TableCell>
-                          <TableCell className="font-semibold">
-                            {formatCurrency(po.total)}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <Badge variant={statusConfig.variant}>
-                                <StatusIcon className="h-3 w-3 mr-1" />
-                                {statusConfig.label}
-                              </Badge>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                navigate(`/inventory/purchase-orders/${po.id}`)
-                              }}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </Card>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* ── Invoices Tab ────────────────────────────────────── */}
-      {activeView === 'invoices' && (
-        <>
-          <div className="px-4 pt-4 space-y-3">
-            <StatCards stats={[
-              { label: 'Total Invoices', value: invoiceStats.total },
-              { label: 'Entered', value: invoiceStats.entered },
-              { label: 'Reconciled', value: invoiceStats.reconciled },
-            ]} columns={3} />
-            <SecondaryStats stats={[
-              { label: 'Total Value', value: formatCurrency(invoiceStats.totalValue) },
-            ]} />
-          </div>
-          <div className="p-4">
-            {isLoading && invoiceEntries.length === 0 ? (
-              <Card className="p-12 text-center">
-                <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin opacity-50" />
-                <p className="text-muted-foreground">Loading invoices...</p>
-              </Card>
-            ) : filteredInvoices.length === 0 ? (
-              <Card className="p-12 text-center">
-                <Receipt className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">
-                  {invoiceEntries.length === 0 ? 'No Invoices Logged' : 'No Invoices Found'}
-                </h3>
-                <p className="text-sm text-muted-foreground mb-6">
-                  {invoiceEntries.length === 0
-                    ? 'Record deliveries that arrived without a purchase order'
-                    : 'Try adjusting your filters'}
-                </p>
-                {invoiceEntries.length === 0 && (
-                  <Button onClick={() => navigate('/inventory/purchase-by-invoice')}>
-                    <Receipt className="h-4 w-4 mr-2" />
-                    Log First Invoice
-                  </Button>
-                )}
-              </Card>
-            ) : (
-              <Card>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Invoice #</TableHead>
-                      <TableHead>Supplier</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Items</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead>Entry User</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="w-24"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredInvoices.map((po: PurchaseOrder) => {
-                      const invStatus = getInvoiceStatus(po)
-                      const statusCfg = INVOICE_STATUS_CONFIG[invStatus]
-                      // Strip "INV-" prefix for display
-                      const invoiceNum = (po.po_number ?? '').replace(/^INV-/, '')
-
-                      return (
-                        <TableRow
-                          key={po.id}
-                          className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => navigate(`/inventory/purchase-orders/${po.id}`)}
-                        >
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Receipt className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium font-mono text-sm">{invoiceNum}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>{po.supplier_name}</TableCell>
-                          <TableCell>
-                            {safeFormat(po.order_date, 'dd MMM yyyy')}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{po.items?.length || 0} items</Badge>
-                          </TableCell>
-                          <TableCell className="font-semibold">
-                            {formatCurrency(po.total)}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {po.created_by_name || '—'}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={statusCfg.variant}>
-                              {invStatus}
+                            <Badge variant={statusConfig.variant}>
+                              <StatusIcon className="h-3 w-3 mr-1" />
+                              {statusConfig.label}
                             </Badge>
                           </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                navigate(`/inventory/purchase-orders/${po.id}`)
-                              }}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                          <TableCell className="text-right">
+                            <Badge variant="outline">{po.items?.length || 0}</Badge>
                           </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {formatCurrency(po.total)}
+                          </TableCell>
+                          <TableCell>{renderStatusActions(po)}</TableCell>
                         </TableRow>
                       )
                     })}
@@ -637,9 +862,106 @@ export default function PurchaseOrders() {
                 </Table>
               </Card>
             )}
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* ─── Create PO Step 1 Modal ──────────────────────────────────────── */}
+      <Dialog open={createStep === 1} onOpenChange={(open) => !open && setCreateStep(0)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create Purchase Order</DialogTitle>
+            <DialogDescription>Select a supplier and set order details</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="supplier">Supplier</Label>
+              <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId}>
+                <SelectTrigger id="supplier">
+                  <SelectValue placeholder="Select supplier..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeSuppliers.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      <div className="flex flex-col">
+                        <span>{s.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatDeliverySchedule(s)}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Delivery info */}
+            {selectedSupplier && (
+              <div className="rounded-lg border p-3 space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">{formatDeliverySchedule(selectedSupplier)}</span>
+                </div>
+                {expectedDelivery && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                    <span>
+                      Expected delivery:{' '}
+                      <strong>{safeFormat(expectedDelivery, 'EEEE dd MMM yyyy')}</strong>
+                    </span>
+                  </div>
+                )}
+                {pastCutoff && (
+                  <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span className="font-medium">
+                      Past today&apos;s cutoff ({selectedSupplier.cutoff_time}). Order will be
+                      processed next business day.
+                    </span>
+                  </div>
+                )}
+                {selectedSupplier.minimum_order && selectedSupplier.minimum_order > 0 && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Info className="h-4 w-4" />
+                    <span>Minimum order: {formatCurrency(selectedSupplier.minimum_order)}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="reference">Reference (optional)</Label>
+              <Input
+                id="reference"
+                value={poReference}
+                onChange={(e) => setPOReference(e.target.value)}
+                placeholder="e.g., Weekly restock, Event catering"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes (optional)</Label>
+              <Textarea
+                id="notes"
+                value={poNotes}
+                onChange={(e) => setPONotes(e.target.value)}
+                placeholder="Any special instructions..."
+                rows={3}
+              />
+            </div>
           </div>
-        </>
-      )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateStep(0)}>
+              Cancel
+            </Button>
+            <Button onClick={proceedToStep2} disabled={!selectedSupplierId}>
+              Next: Build Order <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageShell>
   )
 }
