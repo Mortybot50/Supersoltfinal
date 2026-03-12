@@ -146,7 +146,7 @@ function SidebarContent({
   // Determine which section contains the current route
   const getActiveSection = useCallback(() => {
     const found = navSections.find((s) => s.items.some((i) => isActive(i.url)))
-    return found?.label ?? navSections[0].label
+    return found?.label ?? ""
   }, [isActive])
 
   const [openSection, setOpenSection] = useState<string>(getActiveSection)
@@ -199,20 +199,21 @@ function SidebarContent({
 
       {/* Nav sections (scrollable) */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-3 space-y-1">
-        {/* Dashboard — top-level, always visible */}
+        {/* Dashboard — top-level, always visible, visually distinct */}
         <NavLink
           to="/dashboard"
           onClick={handleClick}
           className={cn(
-            "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors relative mb-2",
+            "flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-semibold transition-colors relative",
             isActive("/dashboard")
-              ? "border-l-2 border-brand-400 bg-brand-50 text-brand-800 font-medium dark:bg-brand-900/20 dark:text-brand-400 pl-[10px]"
-              : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground font-medium"
+              ? "bg-brand-400/15 text-brand-800 dark:bg-brand-400/20 dark:text-brand-400 shadow-sm"
+              : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"
           )}
         >
-          <LayoutDashboard className={cn("h-4 w-4 shrink-0", isActive("/dashboard") ? "text-brand-600 dark:text-brand-400" : "text-sidebar-foreground/70")} />
-          <span className="truncate">Dashboard</span>
+          <LayoutDashboard className={cn("h-[18px] w-[18px] shrink-0", isActive("/dashboard") ? "text-brand-600 dark:text-brand-400" : "text-sidebar-foreground/60")} />
+          <span>Dashboard</span>
         </NavLink>
+        <div className="my-2 border-b border-sidebar-border" />
 
         {navSections.map((section) => {
           const isOpen = openSection === section.label
