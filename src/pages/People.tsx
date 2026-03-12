@@ -332,17 +332,18 @@ export default function People() {
   }
 
   const StaffTable = ({ staff: tableStaff }: { staff: Staff[] }) => (
+    <div className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden">
     <div className="overflow-x-auto">
     <Table>
       <TableHeader>
-        <TableRow>
-          <TableHead>Staff Member</TableHead>
-          <TableHead>Role</TableHead>
-          <TableHead>Employment</TableHead>
-          <TableHead>Contact</TableHead>
-          <TableHead>Next Shift</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
+        <TableRow className="bg-slate-50/80 dark:bg-slate-800/80">
+          <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Staff Member</TableHead>
+          <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Role</TableHead>
+          <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Employment</TableHead>
+          <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Contact</TableHead>
+          <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Next Shift</TableHead>
+          <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Status</TableHead>
+          <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -360,7 +361,11 @@ export default function People() {
               <TableRow key={person.id}>
                 <TableCell>
                   <div className="flex items-center gap-3 cursor-pointer hover:opacity-70 transition-opacity" onClick={() => navigate(`/workforce/people/${person.id}`)}>
-                    <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-medium">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                      person.role === "manager" ? "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300" :
+                      person.role === "supervisor" ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" :
+                      "bg-brand-50 text-brand-800 dark:bg-brand-900/20 dark:text-brand-400"
+                    }`}>
                       {getInitials(person.name)}
                     </div>
                     <div>
@@ -438,6 +443,7 @@ export default function People() {
       </TableBody>
     </Table>
     </div>
+    </div>
   )
 
   const pendingReviewCount = invitedStaff.filter(s => s.staff.onboarding_status === "pending_review").length
@@ -453,11 +459,11 @@ export default function People() {
               placeholder="Search staff..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-8 w-[180px] pl-8 text-sm"
+              className="h-9 w-[180px] pl-8 text-sm border-border/60"
             />
           </div>
           <Select value={filterRole} onValueChange={setFilterRole}>
-            <SelectTrigger className="h-8 w-[120px] text-sm"><SelectValue placeholder="Role" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[120px] text-sm border-border/60"><SelectValue placeholder="Role" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Roles</SelectItem>
               <SelectItem value="manager">Manager</SelectItem>
@@ -466,7 +472,7 @@ export default function People() {
             </SelectContent>
           </Select>
           <Select value={filterEmpType} onValueChange={setFilterEmpType}>
-            <SelectTrigger className="h-8 w-[130px] text-sm"><SelectValue placeholder="Type" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[130px] text-sm border-border/60"><SelectValue placeholder="Type" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
               <SelectItem value="full-time">Full-time</SelectItem>
@@ -475,7 +481,7 @@ export default function People() {
             </SelectContent>
           </Select>
           <Select value={sortBy} onValueChange={v => setSortBy(v as "name" | "start_date")}>
-            <SelectTrigger className="h-8 w-[130px] text-sm"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[130px] text-sm border-border/60"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="name">Sort: Name</SelectItem>
               <SelectItem value="start_date">Sort: Start Date</SelectItem>
@@ -501,7 +507,7 @@ export default function People() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="px-4 pt-4 space-y-3">
+      <div className="px-6 pt-6 pb-2 space-y-4">
         <StatCards stats={[
           { label: "Active Staff", value: activeStaff.length },
           { label: "Onboarding", value: invitedStaff.length },
@@ -511,7 +517,7 @@ export default function People() {
           { label: "Pending Review", value: pendingReviewCount },
         ]} />
       </div>
-      <div className="p-4">
+      <div className="px-6 pb-6">
         <Tabs defaultValue="active">
           <TabsList className="mb-4">
             <TabsTrigger value="active">Active ({activeStaff.length})</TabsTrigger>
@@ -528,16 +534,17 @@ export default function People() {
                 action={{ label: "Invite Staff", onClick: () => { setCopiedUrl(""); setInviteDialogOpen(true) }, icon: UserPlus }}
               />
             ) : (
+              <div className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Progress</TableHead>
-                    <TableHead>Invited</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-800/80">
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Name</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Email</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Role</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Status</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Progress</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Invited</TableHead>
+                    <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -548,7 +555,7 @@ export default function People() {
                       <TableRow key={person.id}>
                         <TableCell>
                           <div className="flex items-center gap-3 cursor-pointer hover:opacity-70" onClick={() => navigate(`/workforce/people/${person.id}`)}>
-                            <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-medium">
+                            <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 flex items-center justify-center text-xs font-bold shrink-0">
                               {getInitials(person.name)}
                             </div>
                             <span className="font-medium">{person.name}</span>
@@ -613,6 +620,7 @@ export default function People() {
                   })}
                 </TableBody>
               </Table>
+              </div>
             )}
           </TabsContent>
           <TabsContent value="inactive"><StaffTable staff={inactiveStaff} /></TabsContent>

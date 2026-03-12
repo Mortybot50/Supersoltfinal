@@ -416,7 +416,7 @@ export default function Qualifications() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="p-4">
+      <div className="px-6 py-6">
         <Tabs defaultValue="types">
           <TabsList className="mb-4">
             <TabsTrigger value="types">Qualification Types ({qualTypes.length})</TabsTrigger>
@@ -441,14 +441,15 @@ export default function Qualifications() {
                 </Button>
               </Card>
             ) : (
+              <div className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Validity</TableHead>
-                    <TableHead>Required For</TableHead>
-                    <TableHead>Staff Holding</TableHead>
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-800/80">
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Name</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Description</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Validity</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Required For</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Staff Holding</TableHead>
                     <TableHead />
                   </TableRow>
                 </TableHeader>
@@ -490,6 +491,7 @@ export default function Qualifications() {
                   })}
                 </TableBody>
               </Table>
+              </div>
             )}
           </TabsContent>
 
