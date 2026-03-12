@@ -30,8 +30,13 @@ export interface DateRange {
 function calcHours(startTime: string | null | undefined, endTime: string | null | undefined, breakMins: number): number {
   if (!startTime || !endTime) return 0
   const toMins = (t: string) => {
+    // Handle both "HH:MM" and full timestamptz "2026-03-12T09:00:00+11:00" formats
+    if (t.includes('T')) {
+      const d = new Date(t)
+      return d.getHours() * 60 + d.getMinutes()
+    }
     const [h, m] = t.split(':').map(Number)
-    return h * 60 + m
+    return (h || 0) * 60 + (m || 0)
   }
   let mins = toMins(endTime) - toMins(startTime) - breakMins
   if (mins < 0) mins += 24 * 60
