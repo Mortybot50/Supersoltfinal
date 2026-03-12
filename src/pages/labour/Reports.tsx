@@ -233,7 +233,7 @@ function LabourCostReport({
         <Card>
           <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground">Total Hours</p>
-            <p className="text-2xl font-bold">{data.totalHours.toFixed(1)}h</p>
+            <p className="text-2xl font-bold">{(data.totalHours || 0).toFixed(1)}h</p>
             <p className="text-xs text-muted-foreground">{data.shiftCount} shifts</p>
           </CardContent>
         </Card>

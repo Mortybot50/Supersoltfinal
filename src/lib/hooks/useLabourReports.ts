@@ -27,7 +27,8 @@ export interface DateRange {
 }
 
 /** Calculate hours from shift time strings (HH:MM or HH:MM:SS) */
-function calcHours(startTime: string, endTime: string, breakMins: number): number {
+function calcHours(startTime: string | null | undefined, endTime: string | null | undefined, breakMins: number): number {
+  if (!startTime || !endTime) return 0
   const toMins = (t: string) => {
     const [h, m] = t.split(':').map(Number)
     return h * 60 + m
