@@ -349,7 +349,7 @@ export default function Layout() {
     <div className="min-h-screen flex w-full bg-background">
       {/* ── Desktop Sidebar ── */}
       {!isMobile && (
-        <aside className="fixed inset-y-0 left-0 z-30 w-[220px] bg-sidebar border-r border-sidebar-border flex flex-col dark:bg-slate-900 dark:border-slate-800 overflow-hidden">
+        <aside className="fixed inset-y-0 left-0 z-30 w-[200px] bg-sidebar border-r border-sidebar-border flex flex-col dark:bg-slate-900 dark:border-slate-800 overflow-hidden">
           <SidebarContent />
         </aside>
       )}
@@ -382,7 +382,7 @@ export default function Layout() {
       <div
         className={cn(
           "flex-1 flex flex-col min-w-0",
-          !isMobile && "ml-[220px]"
+          !isMobile && "ml-[200px]"
         )}
       >
         {/* Top header */}
