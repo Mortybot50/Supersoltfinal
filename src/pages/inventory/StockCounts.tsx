@@ -368,7 +368,7 @@ function OverviewTab({ stockCounts }: { stockCounts: StockCount[] }) {
   )
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Alert banner */}
       {stockSummary && stockSummary.alertItems.length > 0 && (
         <div className="flex items-start gap-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3">
@@ -400,7 +400,7 @@ function OverviewTab({ stockCounts }: { stockCounts: StockCount[] }) {
             No stock level data. Set up POS mapping and run a depletion sync to see stock levels here.
           </Card>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
             {(
               [
                 { label: 'Total', value: stockSummary.total, icon: Package, color: 'text-foreground' },
@@ -410,8 +410,8 @@ function OverviewTab({ stockCounts }: { stockCounts: StockCount[] }) {
                 { label: 'Out of Stock', value: stockSummary.out, icon: Package, color: 'text-red-800' },
               ] as const
             ).map(({ label, value, icon: Icon, color }) => (
-              <Card key={label}>
-                <CardContent className="p-4 flex items-center gap-3">
+              <Card key={label} className="rounded-xl border border-border/60 bg-card shadow-sm">
+                <CardContent className="p-5 flex items-center gap-3">
                   <Icon className={`h-5 w-5 ${color} shrink-0`} />
                   <div>
                     <p className="text-xs text-muted-foreground">{label}</p>
@@ -561,7 +561,7 @@ export default function StockCounts() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="px-6 py-6 space-y-6 max-w-4xl mx-auto">
+      <div className="px-6 py-6 space-y-6">
         <Tabs value={pageTab} onValueChange={setPageTab}>
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -579,31 +579,31 @@ export default function StockCounts() {
           </TabsContent>
 
           {/* ── Counts tab ── */}
-          <TabsContent value="counts" className="mt-4 space-y-4">
+          <TabsContent value="counts" className="mt-6 space-y-6">
             {/* Summary Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Card className="p-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card className="p-5">
                 <div className="flex items-center gap-2">
                   <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">Total</span>
                 </div>
                 <p className="text-2xl font-bold mt-1">{stats.total}</p>
               </Card>
-              <Card className="p-4">
+              <Card className="p-5">
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-amber-500" />
                   <span className="text-sm text-muted-foreground">In Progress</span>
                 </div>
                 <p className="text-2xl font-bold mt-1">{stats.inProgress}</p>
               </Card>
-              <Card className="p-4">
+              <Card className="p-5">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
                   <span className="text-sm text-muted-foreground">Completed</span>
                 </div>
                 <p className="text-2xl font-bold mt-1">{stats.completed}</p>
               </Card>
-              <Card className="p-4">
+              <Card className="p-5">
                 <div className="flex items-center gap-2">
                   {stats.totalVariance < 0 ? (
                     <TrendingDown className="h-4 w-4 text-red-500" />
@@ -665,7 +665,7 @@ export default function StockCounts() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="grid gap-3 md:grid-cols-2">
+                  <div className="grid gap-4 md:grid-cols-2">
                     {filteredCounts.map((sc) => {
                       const itemCount = sc.items?.length ?? 0
                       const largeVarCount =
@@ -686,23 +686,23 @@ export default function StockCounts() {
                       return (
                         <Card
                           key={sc.id}
-                          className="hover:shadow-md transition-shadow cursor-pointer"
+                          className="rounded-xl border border-border/60 bg-card shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                           onClick={() => openVarianceSummary(sc)}
                         >
-                          <CardHeader className="pb-2">
+                          <CardHeader className="pb-3">
                             <div className="flex items-start justify-between">
                               <div>
                                 <CardTitle className="text-base">
                                   {sc.count_number}
                                 </CardTitle>
-                                <p className="text-xs text-muted-foreground mt-0.5">
+                                <p className="text-xs text-muted-foreground mt-1">
                                   {sc.counted_by_name ?? 'Unknown'}
                                 </p>
                               </div>
                               <StatusBadge status={sc.status} />
                             </div>
                           </CardHeader>
-                          <CardContent className="pt-0 space-y-3">
+                          <CardContent className="pt-0 space-y-4">
                             <div className="flex items-center gap-3 text-sm text-muted-foreground">
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-3.5 w-3.5" />
@@ -745,7 +745,7 @@ export default function StockCounts() {
                               </div>
                             )}
 
-                            <div className="flex gap-2 pt-1">
+                            <div className="flex gap-2 pt-2">
                               <Button
                                 variant="outline"
                                 size="sm"
