@@ -23,7 +23,7 @@ function PLSection({
   icon: React.ElementType
 }) {
   return (
-    <Card>
+    <Card className="border-border/60">
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           <Icon className="h-4 w-4 text-muted-foreground" />
@@ -125,7 +125,7 @@ export default function ProfitAndLoss() {
           ]}
         />
 
-        <Card>
+        <Card className="border-border/60">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-800">
               <div className="flex items-center gap-2">
@@ -151,7 +151,7 @@ export default function ProfitAndLoss() {
           ]}
         />
 
-        <Card>
+        <Card className="border-border/60">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-800">
               <div className="flex items-center gap-2">

@@ -885,10 +885,10 @@ export default function LabourReports() {
     <PageToolbar
       title="Labour"
       filters={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {venues.length > 1 && (
             <Select value={selectedVenueId} onValueChange={setSelectedVenueId}>
-              <SelectTrigger className="h-8 w-[140px]">
+              <SelectTrigger className="h-9 w-[150px] border-border/60">
                 <SelectValue placeholder="Venue" />
               </SelectTrigger>
               <SelectContent>
@@ -899,7 +899,7 @@ export default function LabourReports() {
             </Select>
           )}
           <Select value={preset} onValueChange={v => setPreset(v as DatePreset)}>
-            <SelectTrigger className="h-8 w-[130px]">
+            <SelectTrigger className="h-9 w-[150px] border-border/60">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -908,13 +908,11 @@ export default function LabourReports() {
               ))}
             </SelectContent>
           </Select>
+          <span className="text-xs text-muted-foreground hidden sm:inline">
+            {formatDateLabel(dateRange.from, dateRange.to)}
+          </span>
         </div>
       }
-      dateNavigation={{
-        label: formatDateLabel(dateRange.from, dateRange.to),
-        onBack: () => {},
-        onForward: () => {},
-      }}
     />
   )
 

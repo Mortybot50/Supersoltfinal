@@ -1007,9 +1007,9 @@ export default function AvailabilityLeave() {
         />
       }
     >
-    <div className="p-4 md:p-6 max-w-[1400px] mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-[1400px] mx-auto space-y-6 min-w-0 w-full">
       {/* ── Section 1: Recurring Availability ─────────────────── */}
-      <section className="rounded-xl border bg-card shadow-sm">
+      <section className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b flex items-center gap-2">
           <Clock className="h-4 w-4 text-muted-foreground" />
           <h2 className="font-semibold text-sm">Recurring Availability</h2>
@@ -1027,7 +1027,7 @@ export default function AvailabilityLeave() {
       </section>
 
       {/* ── Section 2: Leave Requests ──────────────────────────── */}
-      <section className="rounded-xl border bg-card shadow-sm">
+      <section className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b flex items-center gap-2">
           <CalendarDays className="h-4 w-4 text-muted-foreground" />
           <h2 className="font-semibold text-sm">Leave Requests</h2>
@@ -1076,7 +1076,7 @@ export default function AvailabilityLeave() {
       </section>
 
       {/* ── Section 3: Calendar View (hidden on mobile) ────────── */}
-      <section className="hidden md:block rounded-xl border bg-card shadow-sm">
+      <section className="hidden md:block rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
