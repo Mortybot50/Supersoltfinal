@@ -14,9 +14,17 @@ import type { VercelRequest, VercelResponse } from '../square/_lib.js'
 import type { InboundEmail } from '../../src/lib/services/emailIngestion.js'
 import { processInboundEmail } from '../../src/lib/services/emailIngestion.js'
 
+const MAX_BODY_BYTES = 10 * 1024 * 1024 // 10 MB
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  // Reject oversized requests before any processing
+  const contentLength = parseInt(req.headers['content-length'] ?? '0', 10)
+  if (contentLength > MAX_BODY_BYTES) {
+    return res.status(413).json({ error: 'Request body too large. Maximum size is 10MB.' })
   }
 
   // TODO: Verify webhook signature from your email provider
