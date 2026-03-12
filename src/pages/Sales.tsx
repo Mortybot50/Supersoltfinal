@@ -344,7 +344,7 @@ export default function Sales() {
             onValueChange={(v) => {
               const val = v as DatePreset
               setDatePreset(val)
-              if (val === "custom") setPickerOpen(true)
+              if (val === "custom") setTimeout(() => setPickerOpen(true), 50)
             }}
           >
             <SelectTrigger className="h-8 w-[130px]">

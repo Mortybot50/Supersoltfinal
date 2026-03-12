@@ -2,8 +2,13 @@ import { useState, useEffect } from "react"
 import { format } from "date-fns"
 import type { DateRange } from "react-day-picker"
 import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface DateRangePickerProps {
   from: Date
@@ -21,19 +26,20 @@ export function DateRangePicker({ from, to, onApply, open, onOpenChange }: DateR
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
-        <span className="h-0 w-0 overflow-hidden inline-block" aria-hidden />
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode="range"
-          selected={range}
-          onSelect={setRange}
-          numberOfMonths={2}
-          initialFocus
-        />
-        <div className="flex items-center justify-between p-3 border-t gap-3">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-fit p-0 gap-0">
+        <DialogHeader className="px-4 pt-4 pb-2">
+          <DialogTitle className="text-base">Select Date Range</DialogTitle>
+        </DialogHeader>
+        <div className="px-2 pb-1">
+          <Calendar
+            mode="range"
+            selected={range}
+            onSelect={setRange}
+            numberOfMonths={2}
+          />
+        </div>
+        <div className="flex items-center justify-between p-4 border-t gap-3">
           <span className="text-sm text-muted-foreground">
             {range?.from && range?.to
               ? `${format(range.from, "d MMM")} – ${format(range.to, "d MMM yyyy")}`
@@ -59,7 +65,7 @@ export function DateRangePicker({ from, to, onApply, open, onOpenChange }: DateR
             </Button>
           </div>
         </div>
-      </PopoverContent>
-    </Popover>
+      </DialogContent>
+    </Dialog>
   )
 }

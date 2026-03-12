@@ -498,7 +498,7 @@ export default function Dashboard() {
             onValueChange={(v) => {
               const val = v as DatePreset
               setPreset(val)
-              if (val === "custom") setPickerOpen(true)
+              if (val === "custom") setTimeout(() => setPickerOpen(true), 50)
             }}
           >
             <SelectTrigger className="h-9 w-[150px] border-border/60">

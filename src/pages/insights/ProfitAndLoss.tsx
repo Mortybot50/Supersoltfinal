@@ -112,7 +112,7 @@ export default function ProfitAndLoss() {
             onValueChange={(v) => {
               const val = v as PLPreset
               setPreset(val)
-              if (val === "custom") setPickerOpen(true)
+              if (val === "custom") setTimeout(() => setPickerOpen(true), 50)
             }}
           >
             <SelectTrigger className="h-9 w-[160px] border-border/60">
