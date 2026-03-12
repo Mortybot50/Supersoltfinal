@@ -59,7 +59,7 @@ type NavSection = { label: string; items: NavItem[] }
 
 const navSections: NavSection[] = [
   {
-    label: "INSIGHTS",
+    label: "📊 INSIGHTS",
     items: [
       { title: "Dashboard",  url: "/dashboard",           icon: LayoutDashboard },
       { title: "Sales",      url: "/sales",               icon: TrendingUp },
@@ -69,7 +69,7 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    label: "MENU",
+    label: "🍽️ MENU",
     items: [
       { title: "Recipes",      url: "/menu/recipes",          icon: BookOpen },
       { title: "Menu Items",   url: "/menu/items",            icon: UtensilsCrossed },
@@ -77,7 +77,7 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    label: "INVENTORY",
+    label: "📦 INVENTORY",
     items: [
       { title: "Overview",         url: "/inventory/overview",         icon: Package },
       { title: "Order Guide",      url: "/inventory/order-guide",      icon: ClipboardList },
@@ -89,7 +89,7 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    label: "WORKFORCE",
+    label: "👥 WORKFORCE",
     items: [
       { title: "People",            url: "/workforce/people",         icon: Users },
       { title: "Roster",            url: "/workforce/roster",         icon: CalendarRange },
@@ -99,7 +99,7 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    label: "OPERATIONS",
+    label: "⚙️ OPERATIONS",
     items: [
       { title: "Daybook", url: "/operations/daybook", icon: NotebookPen },
     ],
