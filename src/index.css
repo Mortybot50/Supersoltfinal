@@ -244,4 +244,59 @@
   .btn-press:active {
     @apply scale-[0.98];
   }
+
+  /* Table row transitions */
+  tr {
+    transition: background-color 120ms ease;
+  }
+
+  /* Focus ring — teal accent for accessibility */
+  button:focus-visible,
+  a:focus-visible,
+  [role="button"]:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid hsl(var(--teal-400) / 0.5);
+    outline-offset: 2px;
+  }
+
+  /* Dialog/modal fade+scale open */
+  [data-radix-dialog-content],
+  [data-radix-alert-dialog-content] {
+    animation: dialog-in 0.15s ease-out;
+  }
+
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -48%) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
+  /* Slide in from left (sidebar drawer on mobile) */
+  .animate-slide-in-left {
+    animation: slide-in-left 0.2s ease-out both;
+  }
+
+  @keyframes slide-in-left {
+    from {
+      transform: translateX(-100%);
+      opacity: 0.8;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  /* Smooth number transitions for metric cards */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
 }
