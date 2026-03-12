@@ -10,6 +10,7 @@ export default defineConfig(({ mode }) => ({
     environment: "node",
     include: ["src/**/*.test.{ts,tsx}"],
     exclude: ["SuperSoltMVP-main/**", "supersolt/**", "node_modules/**"],
+    setupFiles: ["src/__tests__/setup.ts"],
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
