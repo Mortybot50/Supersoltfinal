@@ -206,14 +206,14 @@ function SidebarContent({
             <div key={section.label}>
               <button
                 onClick={() => setOpenSection(isOpen ? "" : section.label)}
-                className="w-full flex items-center justify-between px-1 py-1 mb-0.5 group rounded-md hover:bg-sidebar-accent/50 transition-colors"
+                className="w-full flex items-center justify-between px-2 py-1.5 mb-0.5 group rounded-md hover:bg-sidebar-accent/50 transition-colors"
               >
-                <p className="text-[10px] font-semibold text-sidebar-foreground/50 tracking-widest uppercase">
+                <p className="text-xs font-semibold text-sidebar-foreground/70 tracking-wide uppercase">
                   {section.label}
                 </p>
                 <ChevronDown
                   className={cn(
-                    "h-3 w-3 text-sidebar-foreground/30 transition-transform duration-200",
+                    "h-3.5 w-3.5 text-sidebar-foreground/40 transition-transform duration-200",
                     isOpen ? "rotate-0" : "-rotate-90"
                   )}
                 />
