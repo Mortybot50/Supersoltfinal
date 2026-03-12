@@ -615,7 +615,7 @@ export default function PurchaseOrders() {
             placeholder="Search PO..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8 w-[200px] pl-8 text-sm"
+            className="h-9 w-[220px] pl-8 pr-3 text-sm border-border/60"
           />
         </div>
       }
@@ -732,7 +732,7 @@ export default function PurchaseOrders() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="p-4 space-y-4">
+      <div className="px-6 py-6 space-y-4">
         {/* Overdue alert */}
         {tabCounts.overdue > 0 && activeTab !== 'overdue' && (
           <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3 flex items-center justify-between">
@@ -792,18 +792,18 @@ export default function PurchaseOrders() {
                 )}
               </Card>
             ) : (
-              <Card>
+              <div className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>PO #</TableHead>
-                      <TableHead>Supplier</TableHead>
-                      <TableHead>Order Date</TableHead>
-                      <TableHead>Expected Delivery</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Items</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                      <TableHead className="w-32">Actions</TableHead>
+                    <TableRow className="bg-slate-50/80 dark:bg-slate-800/80">
+                      <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">PO #</TableHead>
+                      <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Supplier</TableHead>
+                      <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Order Date</TableHead>
+                      <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Expected Delivery</TableHead>
+                      <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Status</TableHead>
+                      <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Items</TableHead>
+                      <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Total</TableHead>
+                      <TableHead className="w-32 text-xs uppercase tracking-wider font-medium text-muted-foreground">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -860,7 +860,7 @@ export default function PurchaseOrders() {
                     })}
                   </TableBody>
                 </Table>
-              </Card>
+              </div>
             )}
           </TabsContent>
         </Tabs>

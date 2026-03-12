@@ -41,12 +41,12 @@ import {
 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { toast } from "sonner"
-import { PageShell, PageToolbar, StatusBadge, EmptyState } from "@/components/shared"
+import { PageShell, PageToolbar, StatusBadge, EmptyState, DateRangePicker } from "@/components/shared"
 import { StatCards } from "@/components/ui/StatCards"
 import { SecondaryStats } from "@/components/ui/SecondaryStats"
 
 // ─── Types ──────────────────────────────────────────
-type DatePreset = "today" | "yesterday" | "this-week" | "last-week" | "this-month" | "last-30"
+type DatePreset = "today" | "yesterday" | "this-week" | "last-week" | "this-month" | "last-30" | "custom"
 type SortField = "order_datetime" | "order_number" | "channel" | "gross_amount" | "tax_amount" | "net_amount" | "payment_method"
 type SortDir = "asc" | "desc"
 
@@ -161,13 +161,25 @@ export default function Sales() {
   const isAllVenues = venueId === 'all'
 
   const [datePreset, setDatePreset] = useState<DatePreset>("last-week")
+  const [customFrom, setCustomFrom] = useState<Date | undefined>()
+  const [customTo, setCustomTo] = useState<Date | undefined>()
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [channelFilter, setChannelFilter] = useState<string>("all")
   const [paymentFilter, setPaymentFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [sortField, setSortField] = useState<SortField>("order_datetime")
   const [sortDir, setSortDir] = useState<SortDir>("desc")
 
-  const dateRange = useMemo(() => getDateRange(datePreset), [datePreset])
+  const dateRange = useMemo(() => {
+    if (datePreset === "custom") {
+      const now = new Date()
+      return {
+        start: customFrom ?? startOfDay(now),
+        end: customTo ?? endOfDay(now),
+      }
+    }
+    return getDateRange(datePreset)
+  }, [datePreset, customFrom, customTo])
 
   // ─── Query ──────────────────────────────────────
   const { data: orders = [], isLoading, refetch } = useQuery({
@@ -327,7 +339,14 @@ export default function Sales() {
       title="Sales"
       filters={
         <div className="flex items-center gap-2">
-          <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
+          <Select
+            value={datePreset}
+            onValueChange={(v) => {
+              const val = v as DatePreset
+              setDatePreset(val)
+              if (val === "custom") setTimeout(() => setPickerOpen(true), 50)
+            }}
+          >
             <SelectTrigger className="h-8 w-[130px]">
               <SelectValue />
             </SelectTrigger>
@@ -338,8 +357,19 @@ export default function Sales() {
               <SelectItem value="last-week">Last Week</SelectItem>
               <SelectItem value="this-month">This Month</SelectItem>
               <SelectItem value="last-30">Last 30 Days</SelectItem>
+              <SelectItem value="custom">Custom...</SelectItem>
             </SelectContent>
           </Select>
+          <DateRangePicker
+            from={dateRange.start}
+            to={dateRange.end}
+            open={pickerOpen}
+            onOpenChange={setPickerOpen}
+            onApply={(from, to) => {
+              setCustomFrom(from)
+              setCustomTo(to)
+            }}
+          />
           <span className="text-xs text-muted-foreground whitespace-nowrap">
             {format(dateRange.start, "d MMM")} – {format(dateRange.end, "d MMM yyyy")}
           </span>
@@ -357,7 +387,7 @@ export default function Sales() {
   return (
     <PageShell toolbar={toolbar}>
       {/* Stat cards */}
-      <div className="px-4 pt-4 space-y-3">
+      <div className="px-6 pt-6 pb-2 space-y-3">
         <StatCards stats={[
           { label: "Orders", value: stats.totalOrders },
           { label: "Revenue", value: fmtDollars(stats.totalRevenue) },
@@ -371,19 +401,19 @@ export default function Sales() {
       </div>
 
       {/* Filter bar */}
-      <div className="border-b bg-white dark:bg-gray-800 px-4 py-2 flex items-center gap-3 flex-wrap">
+      <div className="border-b bg-card px-6 py-2 flex items-center gap-3 flex-wrap">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             placeholder="Search order #..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8 w-[180px] pl-8 text-sm"
+            className="h-9 w-[180px] pl-8 text-sm border-border/60"
           />
         </div>
 
         <Select value={channelFilter} onValueChange={setChannelFilter}>
-          <SelectTrigger className="h-8 w-[120px]">
+          <SelectTrigger className="h-9 w-[120px] border-border/60">
             <SelectValue placeholder="Channel" />
           </SelectTrigger>
           <SelectContent>
@@ -395,7 +425,7 @@ export default function Sales() {
         </Select>
 
         <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-          <SelectTrigger className="h-8 w-[130px]">
+          <SelectTrigger className="h-9 w-[130px] border-border/60">
             <SelectValue placeholder="Payment" />
           </SelectTrigger>
           <SelectContent>
@@ -441,8 +471,8 @@ export default function Sales() {
         ) : (
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>
+              <TableRow className="bg-slate-50/80 dark:bg-slate-800/80">
+                <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">
                   <button className="flex items-center text-xs font-medium" onClick={() => handleSort("order_datetime")}>
                     Date/Time <SortIcon field="order_datetime" />
                   </button>

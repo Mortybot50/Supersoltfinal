@@ -322,7 +322,7 @@ export default function Daybook() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="px-4 pt-4 space-y-3">
+      <div className="px-6 pt-6 pb-2 space-y-3">
         <StatCards stats={[
           { label: 'Entries Today', value: daySummary.total },
           ...(daySummary.totalAmount > 0
@@ -335,27 +335,27 @@ export default function Daybook() {
             .map(cat => ({ label: cat.label, value: cat.count }))} />
         )}
       </div>
-      <div className="p-4 md:p-6 space-y-6">
+      <div className="px-6 pb-6 space-y-6">
 
       {/* Entries List */}
       {filteredEntries.length === 0 ? (
-        <Card className="p-12">
-          <div className="text-center">
-            <ClipboardList className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-            <h3 className="text-lg font-semibold mb-2">No entries for this day</h3>
-            <p className="text-muted-foreground mb-4">
-              {searchQuery || filterCategory !== 'all'
-                ? 'Try adjusting your filters'
-                : 'Add your first entry to start the daybook'}
-            </p>
-            {!searchQuery && filterCategory === 'all' && (
-              <Button onClick={openNewEntry}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Entry
-              </Button>
-            )}
+        <div className="rounded-xl border border-dashed border-border/60 p-12 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+            <ClipboardList className="h-7 w-7 text-muted-foreground/50" />
           </div>
-        </Card>
+          <h3 className="text-base font-semibold tracking-tight mb-2">No entries for this day</h3>
+          <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
+            {searchQuery || filterCategory !== 'all'
+              ? 'Try adjusting your filters'
+              : 'Add your first entry to start the daybook'}
+          </p>
+          {!searchQuery && filterCategory === 'all' && (
+            <Button onClick={openNewEntry} className="btn-press">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Entry
+            </Button>
+          )}
+        </div>
       ) : (
         <div className="space-y-3">
           {filteredEntries.map((entry) => {

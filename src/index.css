@@ -2,89 +2,145 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* ─── Geist Font ─────────────────────────────────────────────── */
+@import "@fontsource/geist-sans/400.css";
+@import "@fontsource/geist-sans/500.css";
+@import "@fontsource/geist-sans/600.css";
+@import "@fontsource/geist-sans/700.css";
+@import "@fontsource/geist-mono/400.css";
+@import "@fontsource/geist-mono/500.css";
+
+/* ─── Design System ──────────────────────────────────────────── */
+/* All colors MUST be HSL.                                        */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    /* Base */
+    --background: 210 20% 98%;
+    --foreground: 215 25% 10%;
 
+    /* Card — slightly off-white to contrast with bg */
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 215 25% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
+    --popover-foreground: 215 25% 10%;
 
+    /* Primary = brand lime */
     --primary: 76 78% 56%;
     --primary-foreground: 220 17% 8%;
 
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
+    /* Secondary = light slate */
+    --secondary: 210 16% 93%;
+    --secondary-foreground: 215 20% 20%;
 
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
+    /* Muted = very light slate */
+    --muted: 210 16% 95%;
+    --muted-foreground: 215 16% 45%;
 
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    /* Accent = same as muted */
+    --accent: 210 16% 93%;
+    --accent-foreground: 215 20% 20%;
 
-    --destructive: 0 84.2% 60.2%;
+    /* Destructive */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 76 78% 56%;
+    /* Borders & inputs */
+    --border: 215 20% 88%;
+    --input: 215 20% 88%;
+    --ring: 174 72% 40%;
 
-    --radius: 0.5rem;
+    /* Radius — rounded-xl base */
+    --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215 16% 35%;
     --sidebar-primary: 76 78% 56%;
     --sidebar-primary-foreground: 220 17% 8%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
+    --sidebar-accent: 210 16% 95%;
+    --sidebar-accent-foreground: 215 20% 20%;
+    --sidebar-border: 215 20% 90%;
     --sidebar-ring: 76 78% 56%;
+
+    /* Brand semantic tokens */
+    --brand-50: 80 84% 95%;
+    --brand-100: 78 80% 88%;
+    --brand-200: 77 78% 75%;
+    --brand-400: 76 78% 56%;
+    --brand-500: 74 74% 47%;
+    --brand-800: 72 60% 24%;
+
+    /* Teal semantic tokens */
+    --teal-50: 174 72% 94%;
+    --teal-100: 174 70% 85%;
+    --teal-400: 174 72% 40%;
+    --teal-500: 174 72% 35%;
+    --teal-600: 174 72% 30%;
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
+    /* Base — deep slate, not pure black */
+    --background: 222 28% 8%;
+    --foreground: 210 20% 95%;
 
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
+    /* Card — slightly lighter than bg */
+    --card: 222 24% 11%;
+    --card-foreground: 210 20% 95%;
 
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 222 24% 11%;
+    --popover-foreground: 210 20% 95%;
 
+    /* Primary = brand lime (same in dark) */
     --primary: 76 78% 56%;
     --primary-foreground: 220 17% 8%;
 
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
+    /* Secondary = medium dark slate */
+    --secondary: 222 20% 16%;
+    --secondary-foreground: 210 16% 80%;
 
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
+    /* Muted */
+    --muted: 222 20% 14%;
+    --muted-foreground: 215 14% 55%;
 
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    /* Accent */
+    --accent: 222 20% 16%;
+    --accent-foreground: 210 16% 80%;
 
-    --destructive: 0 62.8% 30.6%;
+    /* Destructive */
+    --destructive: 0 62% 40%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 76 78% 56%;
+    /* Borders & inputs */
+    --border: 222 18% 20%;
+    --input: 222 18% 20%;
+    --ring: 174 72% 40%;
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
+    /* Sidebar — polished dark: slate-900 */
+    --sidebar-background: 222 28% 6%;
+    --sidebar-foreground: 215 14% 55%;
     --sidebar-primary: 76 78% 56%;
     --sidebar-primary-foreground: 220 17% 8%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-accent: 222 20% 14%;
+    --sidebar-accent-foreground: 210 16% 80%;
+    --sidebar-border: 222 18% 18%;
     --sidebar-ring: 76 78% 56%;
+
+    /* Brand tokens (dark) */
+    --brand-50: 74 40% 14%;
+    --brand-100: 75 45% 20%;
+    --brand-200: 76 55% 32%;
+    --brand-400: 76 78% 56%;
+    --brand-500: 74 74% 47%;
+    --brand-800: 78 80% 80%;
+
+    /* Teal tokens (dark) */
+    --teal-50: 174 40% 14%;
+    --teal-100: 174 50% 22%;
+    --teal-400: 174 72% 50%;
+    --teal-500: 174 72% 45%;
+    --teal-600: 174 72% 60%;
   }
 }
 
@@ -95,5 +151,162 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-family: "Geist Sans", ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: "cv01", "cv02", "cv03", "cv04";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Tabular numerals globally for metric consistency */
+  body,
+  input,
+  td,
+  th {
+    font-variant-numeric: tabular-nums;
+  }
+
+  code,
+  pre,
+  .font-mono {
+    font-family: "Geist Mono", ui-monospace, monospace;
+  }
+}
+
+/* ─── Micro-interaction Keyframes ────────────────────────────── */
+@layer utilities {
+  /* Page enter */
+  @keyframes page-enter {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-page-enter {
+    animation: page-enter 0.2s ease-out both;
+  }
+
+  /* Card hover lift */
+  @keyframes card-hover {
+    from {
+      transform: translateY(0);
+      box-shadow: var(--tw-shadow);
+    }
+    to {
+      transform: translateY(-2px);
+      box-shadow: var(--tw-shadow-colored);
+    }
+  }
+
+  /* Fade in */
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.15s ease-out both;
+  }
+
+  /* Skeleton shimmer */
+  @keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
+  }
+
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 25%,
+      hsl(var(--muted-foreground) / 0.08) 50%,
+      hsl(var(--muted)) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Card hover utility */
+  .card-hover {
+    @apply transition-all duration-200 ease-out;
+  }
+  .card-hover:hover {
+    @apply -translate-y-0.5 shadow-md;
+  }
+
+  /* Active press */
+  .btn-press {
+    @apply transition-transform duration-75;
+  }
+  .btn-press:active {
+    @apply scale-[0.98];
+  }
+
+  /* Table row transitions */
+  tr {
+    transition: background-color 120ms ease;
+  }
+
+  /* Focus ring — teal accent for accessibility */
+  button:focus-visible,
+  a:focus-visible,
+  [role="button"]:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid hsl(var(--teal-400) / 0.5);
+    outline-offset: 2px;
+  }
+
+  /* Dialog/modal fade+scale open */
+  [data-radix-dialog-content],
+  [data-radix-alert-dialog-content] {
+    animation: dialog-in 0.15s ease-out;
+  }
+
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -48%) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
+  /* Slide in from left (sidebar drawer on mobile) */
+  .animate-slide-in-left {
+    animation: slide-in-left 0.2s ease-out both;
+  }
+
+  @keyframes slide-in-left {
+    from {
+      transform: translateX(-100%);
+      opacity: 0.8;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  /* Smooth number transitions for metric cards */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /* Dark mode: table row dividers */
+  .dark tr {
+    border-color: hsl(var(--border) / 0.6);
+  }
+
+  /* Consistent scroll behavior */
+  html {
+    scroll-behavior: smooth;
   }
 }

@@ -240,7 +240,7 @@ export default function Timesheets() {
       }}
       filters={
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-          <SelectTrigger className="h-8 w-[140px]">
+          <SelectTrigger className="h-9 w-[140px] border-border/60">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -266,7 +266,7 @@ export default function Timesheets() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="px-4 pt-4 space-y-3">
+      <div className="px-6 pt-6 pb-2 space-y-4">
         <StatCards stats={[
           { label: "Total Hours", value: `${metrics.totalHours.toFixed(1)}h` },
           { label: "Total Pay", value: formatCurrency(metrics.totalPay) },
@@ -292,21 +292,22 @@ export default function Timesheets() {
         </div>
       )}
 
-      <div className="p-4 overflow-x-auto">
+      <div className="px-6 pb-6 overflow-x-auto">
+        <div className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Staff Member</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Clock In</TableHead>
-              <TableHead>Clock Out</TableHead>
-              <TableHead>Break</TableHead>
-              <TableHead className="text-right">Hours</TableHead>
-              <TableHead>Scheduled</TableHead>
-              <TableHead>Variance</TableHead>
-              <TableHead className="text-right">Pay</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[80px]">Actions</TableHead>
+            <TableRow className="bg-slate-50/80 dark:bg-slate-800/80">
+              <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Staff Member</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Date</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Clock In</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Clock Out</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Break</TableHead>
+              <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Hours</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Scheduled</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Variance</TableHead>
+              <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Pay</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Status</TableHead>
+              <TableHead className="w-[80px] text-xs uppercase tracking-wider font-medium text-muted-foreground">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -343,7 +344,7 @@ export default function Timesheets() {
                     <TableCell>{formatTime(ts.clock_in)}</TableCell>
                     <TableCell>{formatTime(ts.clock_out)}</TableCell>
                     <TableCell>{ts.break_minutes}m</TableCell>
-                    <TableCell className="text-right">{ts.total_hours.toFixed(2)}h</TableCell>
+                    <TableCell className="text-right tabular-nums font-medium">{ts.total_hours.toFixed(2)}h</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {rosteredShift
                         ? `${rosteredShift.start_time}-${rosteredShift.end_time}`
@@ -367,7 +368,7 @@ export default function Timesheets() {
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">{formatCurrency(ts.gross_pay)}</TableCell>
+                    <TableCell className="text-right tabular-nums font-semibold">{formatCurrency(ts.gross_pay)}</TableCell>
                     <TableCell>
                       <StatusBadge status={ts.status} size="sm" />
                     </TableCell>
@@ -417,6 +418,7 @@ export default function Timesheets() {
             )}
           </TableBody>
         </Table>
+        </div>
       </div>
       {/* Adjustment Dialog */}
       <Dialog open={adjustDialogOpen} onOpenChange={setAdjustDialogOpen}>

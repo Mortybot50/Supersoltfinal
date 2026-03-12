@@ -2,10 +2,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useDebounce } from '@/lib/hooks/useDebounce'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Building2, Edit, Trash2, ChevronRight, DollarSign, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Plus, Search, Building2, Edit, Trash2, ChevronRight, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -362,11 +360,11 @@ export default function Suppliers() {
               placeholder="Search name, ABN..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-8 w-[180px] pl-8 text-sm"
+              className="h-9 w-[180px] pl-8 text-sm border-border/60"
             />
           </div>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="h-8 w-[140px] text-sm">
+            <SelectTrigger className="h-9 w-[140px] text-sm border-border/60">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -376,7 +374,7 @@ export default function Suppliers() {
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as 'all' | 'active' | 'inactive')}>
-            <SelectTrigger className="h-8 w-[110px] text-sm">
+            <SelectTrigger className="h-9 w-[110px] text-sm border-border/60">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -393,7 +391,7 @@ export default function Suppliers() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="px-4 pt-4 space-y-3">
+      <div className="px-6 pt-6 pb-2 space-y-3">
         <StatCards stats={[
           { label: "Active", value: activeCount },
           { label: "Inactive", value: inactiveCount },
@@ -406,48 +404,50 @@ export default function Suppliers() {
           }))} />
         )}
       </div>
-      <div className="p-4">
+      <div className="px-6 pb-6">
       {isLoading && suppliers.length === 0 ? (
-        <Card className="p-12 text-center">
-          <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin opacity-50" />
-          <p className="text-muted-foreground">Loading suppliers...</p>
-        </Card>
+        <div className="rounded-xl border border-border/60 bg-card shadow-sm p-12 text-center">
+          <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Loading suppliers...</p>
+        </div>
       ) : filteredSuppliers.length === 0 && !debouncedSearch ? (
-        <Card className="p-12 text-center">
-          <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No Suppliers Yet</h3>
-          <p className="text-sm text-muted-foreground mb-6">
+        <div className="rounded-xl border border-dashed border-border/60 p-12 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+            <Building2 className="h-7 w-7 text-muted-foreground/50" />
+          </div>
+          <h3 className="text-base font-semibold tracking-tight mb-2">No Suppliers Yet</h3>
+          <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
             Add your first supplier to start managing products and ordering
           </p>
-          <Button onClick={() => handleOpenDialog()}>
+          <Button onClick={() => handleOpenDialog()} className="btn-press">
             <Plus className="h-4 w-4 mr-2" />
             Add Supplier
           </Button>
-        </Card>
+        </div>
       ) : (
-        <Card>
+        <div className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('name')}>
+              <TableRow className="bg-slate-50/80 dark:bg-slate-800/80">
+                <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground cursor-pointer select-none" onClick={() => handleSort('name')}>
                   <span className="flex items-center">Name <SortIcon field="name" /></span>
                 </TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('category')}>
+                <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground cursor-pointer select-none" onClick={() => handleSort('category')}>
                   <span className="flex items-center">Category <SortIcon field="category" /></span>
                 </TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('contact')}>
+                <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground cursor-pointer select-none" onClick={() => handleSort('contact')}>
                   <span className="flex items-center">Contact <SortIcon field="contact" /></span>
                 </TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('phone')}>
+                <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground cursor-pointer select-none" onClick={() => handleSort('phone')}>
                   <span className="flex items-center">Phone <SortIcon field="phone" /></span>
                 </TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('abn')}>
+                <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground cursor-pointer select-none" onClick={() => handleSort('abn')}>
                   <span className="flex items-center">ABN <SortIcon field="abn" /></span>
                 </TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => handleSort('status')}>
+                <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground cursor-pointer select-none" onClick={() => handleSort('status')}>
                   <span className="flex items-center">Status <SortIcon field="status" /></span>
                 </TableHead>
-                <TableHead className="text-right cursor-pointer select-none" onClick={() => handleSort('spend')}>
+                <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground cursor-pointer select-none" onClick={() => handleSort('spend')}>
                   <span className="flex items-center justify-end">Monthly Spend <SortIcon field="spend" /></span>
                 </TableHead>
                 <TableHead className="w-24"></TableHead>
@@ -463,15 +463,17 @@ export default function Suppliers() {
                     onClick={() => navigate(`/suppliers/${supplier.id}`)}
                   >
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center shrink-0">
+                          <Building2 className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                        </div>
                         <span className="font-medium">{supplier.name}</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-xs">
+                      <span className="text-xs px-2 py-0.5 rounded-md bg-muted text-muted-foreground capitalize font-medium">
                         {CATEGORY_LABELS[supplier.category] || supplier.category}
-                      </Badge>
+                      </span>
                     </TableCell>
                     <TableCell>{supplier.contact_person || '—'}</TableCell>
                     <TableCell>{supplier.phone || '—'}</TableCell>
@@ -479,17 +481,18 @@ export default function Suppliers() {
                       {supplier.abn ? supplier.abn.replace(/(\d{2})(\d{3})(\d{3})(\d{3})/, '$1 $2 $3 $4') : '—'}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={supplier.active ? 'default' : 'secondary'}>
-                        {supplier.active ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {spend > 0 ? (
-                        <span className="flex items-center justify-end gap-1 text-sm font-medium">
-                          <DollarSign className="h-3 w-3 text-muted-foreground" />
-                          {(spend / 100).toLocaleString('en-AU', { minimumFractionDigits: 2 })}
+                      {supplier.active ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Active
                         </span>
                       ) : (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" /> Inactive
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums font-medium">
+                      {spend > 0 ? formatCurrency(spend) : (
                         <span className="text-muted-foreground text-xs">—</span>
                       )}
                     </TableCell>
@@ -523,15 +526,15 @@ export default function Suppliers() {
               })}
             </TableBody>
           </Table>
-          
+
           {filteredSuppliers.length === 0 && searchQuery && (
             <div className="p-12 text-center">
-              <p className="text-muted-foreground">
-                No suppliers found matching {debouncedSearch}
+              <p className="text-sm text-muted-foreground">
+                No suppliers found matching "{debouncedSearch}"
               </p>
             </div>
           )}
-        </Card>
+        </div>
       )}
       
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

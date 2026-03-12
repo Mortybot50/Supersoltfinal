@@ -61,14 +61,14 @@ import {
   subWeeks,
   subMonths,
 } from "date-fns"
-import { PageShell, PageToolbar } from "@/components/shared"
+import { PageShell, PageToolbar, DateRangePicker } from "@/components/shared"
 
 // ============================================================
 // CONSTANTS & TYPES
 // ============================================================
 
 type ReportType = "labour-cost" | "labour-percent" | "rostered-vs-actual" | "overtime"
-type DatePreset = "today" | "yesterday" | "this-week" | "last-week" | "this-month" | "last-month"
+type DatePreset = "today" | "yesterday" | "this-week" | "last-week" | "this-month" | "last-month" | "custom"
 
 const BRAND_TEAL = "#14b8a6"
 const CHART_ORANGE = "#f97316"
@@ -176,8 +176,8 @@ function downloadCSV(headers: string[], rows: (string | number)[][], filename: s
 
 function ReportSkeleton() {
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="space-y-6 w-full">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 rounded-lg" />)}
       </div>
       <Skeleton className="h-64 rounded-lg" />
@@ -227,13 +227,13 @@ function LabourCostReport({
   if (isLoading) return <ReportSkeleton />
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
         <Card>
           <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground">Total Hours</p>
-            <p className="text-2xl font-bold">{data.totalHours.toFixed(1)}h</p>
+            <p className="text-2xl font-bold">{(data.totalHours || 0).toFixed(1)}h</p>
             <p className="text-xs text-muted-foreground">{data.shiftCount} shifts</p>
           </CardContent>
         </Card>
@@ -391,9 +391,9 @@ function LabourPercentReport({
   if (isLoading) return <ReportSkeleton />
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 w-full">
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground">Revenue</p>
@@ -572,7 +572,7 @@ function RosteredVsActualReport({
   if (isLoading) return <ReportSkeleton />
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 w-full">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <Card>
@@ -735,7 +735,7 @@ function OvertimeReport({
   if (isLoading) return <ReportSkeleton />
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 w-full">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <Card>
@@ -860,9 +860,18 @@ export default function LabourReports() {
 
   const [selectedReport, setSelectedReport] = useState<ReportType>("labour-cost")
   const [preset, setPreset] = useState<DatePreset>("last-week")
+  const [customFrom, setCustomFrom] = useState<Date | undefined>()
+  const [customTo, setCustomTo] = useState<Date | undefined>()
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [selectedVenueId, setSelectedVenueId] = useState<string>(currentVenue?.id ?? "")
 
-  const dateRange = useMemo(() => getDateRange(preset), [preset])
+  const dateRange = useMemo(() => {
+    if (preset === "custom") {
+      const now = new Date()
+      return { from: customFrom ?? startOfDay(now), to: customTo ?? endOfDay(now) }
+    }
+    return getDateRange(preset)
+  }, [preset, customFrom, customTo])
   const rangeLabel = useMemo(
     () => `${format(dateRange.from, "yyyy-MM-dd")}_${format(dateRange.to, "yyyy-MM-dd")}`,
     [dateRange]
@@ -879,16 +888,17 @@ export default function LabourReports() {
     { value: "last-week", label: "Last week" },
     { value: "this-month", label: "This month" },
     { value: "last-month", label: "Last month" },
+    { value: "custom", label: "Custom..." },
   ]
 
   const toolbar = (
     <PageToolbar
       title="Labour"
       filters={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {venues.length > 1 && (
             <Select value={selectedVenueId} onValueChange={setSelectedVenueId}>
-              <SelectTrigger className="h-8 w-[140px]">
+              <SelectTrigger className="h-9 w-[150px] border-border/60">
                 <SelectValue placeholder="Venue" />
               </SelectTrigger>
               <SelectContent>
@@ -898,8 +908,15 @@ export default function LabourReports() {
               </SelectContent>
             </Select>
           )}
-          <Select value={preset} onValueChange={v => setPreset(v as DatePreset)}>
-            <SelectTrigger className="h-8 w-[130px]">
+          <Select
+            value={preset}
+            onValueChange={v => {
+              const val = v as DatePreset
+              setPreset(val)
+              if (val === "custom") setTimeout(() => setPickerOpen(true), 50)
+            }}
+          >
+            <SelectTrigger className="h-9 w-[150px] border-border/60">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -908,13 +925,21 @@ export default function LabourReports() {
               ))}
             </SelectContent>
           </Select>
+          <DateRangePicker
+            from={dateRange.from}
+            to={dateRange.to}
+            open={pickerOpen}
+            onOpenChange={setPickerOpen}
+            onApply={(from, to) => {
+              setCustomFrom(from)
+              setCustomTo(to)
+            }}
+          />
+          <span className="text-xs text-muted-foreground hidden sm:inline">
+            {formatDateLabel(dateRange.from, dateRange.to)}
+          </span>
         </div>
       }
-      dateNavigation={{
-        label: formatDateLabel(dateRange.from, dateRange.to),
-        onBack: () => {},
-        onForward: () => {},
-      }}
     />
   )
 
@@ -927,10 +952,10 @@ export default function LabourReports() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="p-4 md:p-6 space-y-6">
+      <div className="px-6 py-6 space-y-6">
 
         {/* Report selector tiles */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {REPORTS.map(report => {
             const Icon = report.icon
             const isActive = selectedReport === report.id
@@ -966,12 +991,12 @@ export default function LabourReports() {
             </CardContent>
           </Card>
         ) : (
-          <>
+          <div className="w-full space-y-6">
             {selectedReport === "labour-cost" && <LabourCostReport {...reportProps} />}
             {selectedReport === "labour-percent" && <LabourPercentReport {...reportProps} />}
             {selectedReport === "rostered-vs-actual" && <RosteredVsActualReport {...reportProps} />}
             {selectedReport === "overtime" && <OvertimeReport {...reportProps} />}
-          </>
+          </div>
         )}
 
       </div>

@@ -20,15 +20,18 @@ export default function VenueSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="gap-2">
-          <MapPin className="h-4 w-4 text-muted-foreground" />
-          <span className="font-semibold">
+        <Button variant="ghost" className="gap-1.5 w-full justify-start max-w-full px-2 h-9">
+          <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span
+            className="font-semibold truncate flex-1 min-w-0 text-left text-sm"
+            title={currentVenue?.name || 'Select Venue'}
+          >
             {currentVenue?.name || 'Select Venue'}
           </span>
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="bg-popover min-w-[200px]">
+      <DropdownMenuContent align="start" className="bg-popover min-w-[200px] max-w-[280px]">
         <DropdownMenuLabel>Switch Venue</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {venues.map((venue) => (
@@ -37,8 +40,8 @@ export default function VenueSwitcher() {
             onClick={() => setCurrentVenue(venue)}
             className={currentVenue?.id === venue.id ? 'bg-accent' : ''}
           >
-            <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
-            {venue.name}
+            <MapPin className="h-4 w-4 mr-2 text-muted-foreground shrink-0" />
+            <span className="truncate" title={venue.name}>{venue.name}</span>
           </DropdownMenuItem>
         ))}
         {venues.length === 0 && (
