@@ -3,9 +3,7 @@
  *
  * This module defines the interfaces and stubs for the email-based invoice
  * ingestion pipeline. The actual webhook endpoint is at /api/inbound-email.
- *
- * TODO: Connect this to a real inbound email provider (e.g. SendGrid Inbound
- * Parse, Postmark, or a dedicated @invoices.supersolt.app address).
+ * See docs/TODO.md for the full pipeline implementation plan.
  */
 
 // Minimal Supplier type for this stub (avoids @/ alias in Vercel API builds)
@@ -68,7 +66,7 @@ export function matchSenderToSupplier(
 /**
  * Processes an inbound email for invoice extraction.
  *
- * TODO: Implement full pipeline:
+ * Pipeline (stub — not yet implemented, see docs/TODO.md):
  *  1. matchSenderToSupplier → get supplier_id
  *  2. For each PDF/image attachment: call parseInvoice()
  *  3. Run matchLineItems() on extracted line items
@@ -76,7 +74,6 @@ export function matchSenderToSupplier(
  *  5. Notify venue staff via real-time channel
  */
 export async function processInboundEmail(email: InboundEmail): Promise<void> {
-  // TODO: implement full pipeline
   void email // suppress unused param warning until implemented
   // const supplier = matchSenderToSupplier(email.from, suppliers)
   // if (!supplier) { ... }

@@ -408,7 +408,7 @@ export default function Daybook() {
         </div>
       )}
 
-      {/* TODO: AI-generated prep lists based on forecasted sales — key differentiator */}
+      {/* AI prep list suggestions — planned, see docs/TODO.md */}
       <Card className="border-dashed border-2 border-muted bg-muted/20">
         <CardContent className="flex flex-col items-center justify-center py-10 text-center">
           <div className="text-muted-foreground/50 mb-3">

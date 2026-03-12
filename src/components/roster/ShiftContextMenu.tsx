@@ -150,7 +150,7 @@ export function ShiftContextMenu({ shift, onSeeCosts }: ShiftContextMenuProps) {
             Repeat Weekly
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => {/* TODO: open leave dialog pre-filled */}}>
+          <DropdownMenuItem onClick={() => {/* open leave dialog pre-filled — see docs/TODO.md */}}>
             <Calendar className="h-3.5 w-3.5 mr-2" />
             Create Leave
           </DropdownMenuItem>
