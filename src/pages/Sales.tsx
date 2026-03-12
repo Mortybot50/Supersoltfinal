@@ -383,7 +383,7 @@ export default function Sales() {
         </div>
 
         <Select value={channelFilter} onValueChange={setChannelFilter}>
-          <SelectTrigger className="h-8 w-[120px]">
+          <SelectTrigger className="h-9 w-[120px] border-border/60">
             <SelectValue placeholder="Channel" />
           </SelectTrigger>
           <SelectContent>
@@ -395,7 +395,7 @@ export default function Sales() {
         </Select>
 
         <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-          <SelectTrigger className="h-8 w-[130px]">
+          <SelectTrigger className="h-9 w-[130px] border-border/60">
             <SelectValue placeholder="Payment" />
           </SelectTrigger>
           <SelectContent>

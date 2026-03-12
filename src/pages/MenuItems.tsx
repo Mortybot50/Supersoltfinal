@@ -410,7 +410,7 @@ export default function MenuItems() {
             placeholder="Search menu..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8 w-[200px] pl-8 text-sm"
+            className="h-9 w-[200px] pl-8 text-sm border-border/60"
           />
         </div>
       }
