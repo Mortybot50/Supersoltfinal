@@ -1,6 +1,7 @@
-import React from 'react'
-import { useAuth } from "@/contexts/AuthContext"
 import { useState, useMemo } from "react"
+import { useNavigate } from "react-router-dom"
+import { Search, Plus, MoreVertical, Mail, Phone, FileText, Calendar, Send, Copy, Check, Clock, UserPlus, Users, Upload } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
 import { useDebounce } from '@/lib/hooks/useDebounce'
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -16,8 +17,6 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
-import { Search, Plus, MoreVertical, Mail, Phone, FileText, Calendar, Send, Copy, Check, Clock, UserPlus, Users, Upload } from "lucide-react"
-import { useNavigate } from "react-router-dom"
 import { Staff, OnboardingInvite, OnboardingStep } from "@/types"
 import { StaffDialog } from "@/components/StaffDialog"
 import { BulkStaffImport } from "@/components/BulkStaffImport"

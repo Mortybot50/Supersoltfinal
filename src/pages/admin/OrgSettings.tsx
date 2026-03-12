@@ -356,7 +356,7 @@ export default function OrgSettings() {
                 </div>
               </div>
 
-              {/* TODO: add `address` column to organizations table — currently stored in settings JSON */}
+              {/* address stored in settings JSON until organizations.address column is added — see docs/TODO.md */}
               <div className="space-y-2">
                 <Label htmlFor="org-address">Street Address</Label>
                 <Input

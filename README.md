@@ -1,73 +1,89 @@
-# Welcome to your Lovable project
+# SuperSolt
 
-## Project info
+Multi-venue restaurant operations & financial management platform for Australian hospitality businesses.
 
-**URL**: https://lovable.dev/projects/b8911622-a1f3-42b4-90a6-261c3ba8159f
+## Tech Stack
 
-## How can I edit this code?
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18 + TypeScript 5, Vite |
+| Styling | Tailwind CSS + shadcn/ui (Radix) |
+| State | Zustand (client) + React Query (server) |
+| Backend | Supabase (PostgreSQL + Auth + RLS) |
+| Deployment | Vercel |
+| POS | Square (OAuth2, encrypted tokens) |
 
-There are several ways of editing your application.
+## Getting Started
 
-**Use Lovable**
+### Prerequisites
+- Node.js >= 18
+- npm
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/b8911622-a1f3-42b4-90a6-261c3ba8159f) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### Setup
+```bash
+git clone https://github.com/Mortybot50/Supersoltfinal.git
+cd Supersoltfinal
+npm install
+cp .env.example .env.local
+# Fill in your Supabase and Square credentials in .env.local
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Available Scripts
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start dev server |
+| `npm run build` | Production build |
+| `npm run lint` | ESLint check |
+| `npx tsc --noEmit` | Type check |
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Project Structure
+```
+src/
+├── components/          # UI components (shadcn/ui based)
+│   ├── shared/          # Reusable: PageShell, PageToolbar, MetricCard, DataTable
+│   ├── roster/          # Roster-specific components
+│   └── ui/              # shadcn/ui primitives
+├── pages/               # Route pages grouped by module
+│   ├── workforce/       # People, Roster, Timesheets, Availability
+│   ├── inventory/       # Ingredients, Stock Counts, POs, Waste
+│   ├── menu/            # Recipes, Menu Items
+│   ├── insights/        # P&L, Inventory Insights
+│   ├── operations/      # Daybook
+│   ├── admin/           # Settings, Access Roles, Integrations
+│   └── onboarding/      # Employee onboarding wizard
+├── lib/
+│   ├── store/           # Zustand central store
+│   ├── services/        # DB operations + business logic
+│   ├── hooks/           # React Query hooks
+│   └── utils/           # Formatters, validators, calculations
+├── contexts/            # React contexts (Auth)
+├── stores/              # Feature-specific Zustand stores
+└── integrations/        # Supabase client + auto-generated types
+```
 
-**Use GitHub Codespaces**
+## Architecture
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Key Patterns
+- **DB-first writes**: All mutations go to Supabase first, then update Zustand (ADR-002)
+- **Multi-tenancy**: Row Level Security on all tables, scoped by `org_id` + `venue_id`
+- **State separation**: Zustand for UI state, React Query for server state
+- **POS security**: Square OAuth2 tokens encrypted with AES-256-GCM at rest
 
-## What technologies are used for this project?
+### Database
+- 59+ PostgreSQL tables with full RLS policies
+- Migrations in `supabase/migrations/`
+- Auto-generated types: `src/integrations/supabase/types.ts` (do not edit manually)
 
-This project is built with:
+## Modules
+- **Dashboard** — KPIs, sales trends, labour costs, forecasts
+- **Sales** — Revenue analytics by channel, payment method, time period
+- **Labour** — Hours & cost reports, labour %, rostered vs actual, overtime tracking
+- **Inventory** — Stock counts, purchase orders, order guide, waste tracking, invoice parsing
+- **Menu** — Recipe builder, food cost %, GP% targeting
+- **Workforce** — Staff management, rostering, timesheets, availability, payroll export
+- **Operations** — Daily daybook, checklists
+- **Onboarding** — Employee self-service onboarding with document collection
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/b8911622-a1f3-42b4-90a6-261c3ba8159f) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## License
+Private — all rights reserved.
