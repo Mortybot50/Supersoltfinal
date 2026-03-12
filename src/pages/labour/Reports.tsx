@@ -176,7 +176,7 @@ function downloadCSV(headers: string[], rows: (string | number)[][], filename: s
 
 function ReportSkeleton() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 w-full">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 rounded-lg" />)}
       </div>
@@ -391,7 +391,7 @@ function LabourPercentReport({
   if (isLoading) return <ReportSkeleton />
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 w-full">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
@@ -572,7 +572,7 @@ function RosteredVsActualReport({
   if (isLoading) return <ReportSkeleton />
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 w-full">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <Card>
@@ -735,7 +735,7 @@ function OvertimeReport({
   if (isLoading) return <ReportSkeleton />
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 w-full">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <Card>
@@ -964,12 +964,12 @@ export default function LabourReports() {
             </CardContent>
           </Card>
         ) : (
-          <>
+          <div className="w-full space-y-6">
             {selectedReport === "labour-cost" && <LabourCostReport {...reportProps} />}
             {selectedReport === "labour-percent" && <LabourPercentReport {...reportProps} />}
             {selectedReport === "rostered-vs-actual" && <RosteredVsActualReport {...reportProps} />}
             {selectedReport === "overtime" && <OvertimeReport {...reportProps} />}
-          </>
+          </div>
         )}
 
       </div>
