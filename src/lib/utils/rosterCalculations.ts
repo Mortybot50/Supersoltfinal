@@ -211,7 +211,12 @@ export function calculatePenaltyRate(
     return { penaltyType: 'none', penaltyMultiplier: 1 }
   }
 
-  const dateStr = safeDate.toISOString().split('T')[0]
+  // Use local date components (not UTC) — holidays are defined in YYYY-MM-DD local time.
+  // toISOString() shifts to UTC and can return the wrong calendar date in AEST/AEDT.
+  const y = safeDate.getFullYear()
+  const m = String(safeDate.getMonth() + 1).padStart(2, '0')
+  const d = String(safeDate.getDate()).padStart(2, '0')
+  const dateStr = `${y}-${m}-${d}`
   const dayOfWeek = safeDate.getDay()
 
   // Check public holidays first (highest rate)
@@ -700,7 +705,9 @@ export function getWeekDates(weekStart: Date): Date[] {
 }
 
 export function isPublicHoliday(date: Date, state: string = 'VIC'): boolean {
-  const dateStr = date.toISOString().split('T')[0]
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const dateStr = `${y}-${m}-${String(date.getDate()).padStart(2, '0')}`
   const allHolidays = [
     ...(AU_PUBLIC_HOLIDAYS_ALL.national || []),
     ...(AU_PUBLIC_HOLIDAYS_ALL[state] || []),
@@ -709,7 +716,9 @@ export function isPublicHoliday(date: Date, state: string = 'VIC'): boolean {
 }
 
 export function getPublicHolidayName(date: Date, _state: string = 'VIC'): string | null {
-  const dateStr = date.toISOString().split('T')[0]
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const dateStr = `${y}-${m}-${String(date.getDate()).padStart(2, '0')}`
   return AU_HOLIDAY_NAMES[dateStr] || null
 }
 

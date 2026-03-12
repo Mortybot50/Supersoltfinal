@@ -11,6 +11,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '../square/_lib.js'
+import { extractToken, verifyUser } from '../square/_lib.js'
 import Anthropic from '@anthropic-ai/sdk'
 
 const RATE_LIMIT_WINDOW_MS = 60_000
@@ -80,11 +81,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  // Auth — require a bearer token
-  const authHeader = req.headers.authorization as string | undefined
-  if (!authHeader?.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Missing authorization header' })
-  }
+  // Auth — verify caller is a valid Supabase user
+  const token = extractToken(req)
+  if (!token) return res.status(401).json({ error: 'Authentication required' })
+
+  const { user, error: authError, status: authStatus } = await verifyUser(token)
+  if (!user) return res.status(authStatus!).json({ error: authError })
 
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
@@ -103,9 +105,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Unsupported file type. Use PDF, JPEG, PNG, or WebP.' })
   }
 
-  // Rate limit by auth token (as a crude org proxy)
-  const tokenPrefix = (req.headers.authorization as string).slice(7, 30)
-  if (!checkRateLimit(tokenPrefix)) {
+  // Rate limit by user ID
+  if (!checkRateLimit(user.id)) {
     return res.status(429).json({ error: 'Too many requests. Please wait a moment.' })
   }
 
