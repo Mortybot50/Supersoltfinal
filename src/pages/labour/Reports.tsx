@@ -177,7 +177,7 @@ function downloadCSV(headers: string[], rows: (string | number)[][], filename: s
 function ReportSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 rounded-lg" />)}
       </div>
       <Skeleton className="h-64 rounded-lg" />
@@ -227,9 +227,9 @@ function LabourCostReport({
   if (isLoading) return <ReportSkeleton />
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
         <Card>
           <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground">Total Hours</p>
@@ -393,7 +393,7 @@ function LabourPercentReport({
   return (
     <div className="space-y-4">
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground">Revenue</p>
@@ -928,7 +928,7 @@ export default function LabourReports() {
       <div className="px-6 py-6 space-y-6">
 
         {/* Report selector tiles */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {REPORTS.map(report => {
             const Icon = report.icon
             const isActive = selectedReport === report.id
