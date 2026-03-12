@@ -232,10 +232,10 @@ export default function Ingredients() {
         <div className="flex items-center gap-2">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 w-[200px] pl-8 text-sm" />
+            <Input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 w-[200px] pl-8 text-sm border-border/60" />
           </div>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="h-8 w-[140px]">
+            <SelectTrigger className="h-9 w-[140px] border-border/60">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -253,7 +253,7 @@ export default function Ingredients() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="px-4 pt-4 space-y-3">
+      <div className="px-6 pt-6 pb-2 space-y-4">
         <StatCards stats={[
           { label: "Total Items", value: ingredients.filter((i) => i.active).length },
           { label: "Low Stock", value: lowStockCount, trend: lowStockCount > 0 ? 'down' as const : undefined },
@@ -263,18 +263,19 @@ export default function Ingredients() {
           { label: "Categories", value: new Set(ingredients.map((i) => i.category)).size },
         ]} />
       </div>
-      <div className="flex-1 overflow-auto">
+      <div className="px-6 pb-6 overflow-auto">
+        <div className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Unit</TableHead>
-              <TableHead className="text-right">Stock</TableHead>
-              <TableHead className="text-right">Par</TableHead>
-              <TableHead className="text-right">Cost / Unit</TableHead>
-              <TableHead className="text-right">Eff. Cost</TableHead>
-              <TableHead className="text-right">Waste %</TableHead>
+            <TableRow className="bg-slate-50/80 dark:bg-slate-800/80">
+              <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Name</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Category</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Unit</TableHead>
+              <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Stock</TableHead>
+              <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Par</TableHead>
+              <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Cost / Unit</TableHead>
+              <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Eff. Cost</TableHead>
+              <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Waste %</TableHead>
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
@@ -349,6 +350,7 @@ export default function Ingredients() {
             )}
           </TableBody>
         </Table>
+        </div>
       </div>
 
       {/* Add / Edit Dialog */}

@@ -69,11 +69,11 @@ export default function Recipes() {
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-8 w-48"
+              className="pl-9 h-9 w-48 border-border/60"
             />
           </div>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="h-8 w-40">
+            <SelectTrigger className="h-9 w-40 border-border/60">
               <SelectValue placeholder="All Categories" />
             </SelectTrigger>
             <SelectContent>
@@ -84,7 +84,7 @@ export default function Recipes() {
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="h-8 w-36">
+            <SelectTrigger className="h-9 w-36 border-border/60">
               <SelectValue placeholder="All Status" />
             </SelectTrigger>
             <SelectContent>
@@ -107,95 +107,111 @@ export default function Recipes() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="px-4 pt-4 space-y-3">
+      <div className="px-6 pt-6 pb-2 space-y-4">
         <StatCards stats={[
           { label: 'Total Recipes', value: recipes.length },
           { label: 'Published', value: recipes.filter(r => r.status === 'published').length },
           { label: 'Draft', value: recipes.filter(r => r.status === 'draft').length },
         ]} columns={3} />
       </div>
-      <div className="p-4 md:p-6 space-y-6">
+      <div className="px-6 pb-6 space-y-4">
 
       {/* Recipes Table */}
       {loading ? (
-        <Card className="p-12 text-center">
+        <div className="rounded-xl border border-border/60 bg-card shadow-sm p-12 text-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-4" />
           <p className="text-sm text-muted-foreground">Loading recipes...</p>
-        </Card>
+        </div>
       ) : filteredRecipes.length === 0 ? (
-        <Card className="p-12 text-center">
-          <ChefHat className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">
+        <div className="rounded-xl border border-dashed border-border/60 p-12 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+            <ChefHat className="h-7 w-7 text-muted-foreground/50" />
+          </div>
+          <h3 className="text-base font-semibold tracking-tight mb-2">
             {recipes.length === 0 ? 'No recipes yet' : 'No recipes found'}
           </h3>
-          <p className="text-sm text-muted-foreground mb-6">
+          <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
             {recipes.length === 0
               ? "Create your first recipe to start tracking food costs."
               : 'Try adjusting your filters'}
           </p>
           {recipes.length === 0 && (
-            <Button onClick={() => navigate('/menu/recipes/new')}>
+            <Button onClick={() => navigate('/menu/recipes/new')} className="btn-press">
               <Plus className="h-4 w-4 mr-2" />
               Add Recipe
             </Button>
           )}
-        </Card>
+        </div>
       ) : (
-        <Card>
+        <div className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Servings</TableHead>
-                <TableHead>Cost/Serve</TableHead>
-                <TableHead>Suggested Price</TableHead>
-                <TableHead>GP %</TableHead>
-                <TableHead>Status</TableHead>
+              <TableRow className="bg-slate-50/80 dark:bg-slate-800/80">
+                <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Name</TableHead>
+                <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Category</TableHead>
+                <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Servings</TableHead>
+                <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Cost/Serve</TableHead>
+                <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Sell Price</TableHead>
+                <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">GP %</TableHead>
+                <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredRecipes.map((recipe) => (
-                <TableRow
-                  key={recipe.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => navigate(`/menu/recipes/${recipe.id}`)}
-                >
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <ChefHat className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{recipe.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {CATEGORIES.find((c) => c.value === recipe.category)?.label}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{recipe.serves}</TableCell>
-                  <TableCell className="font-semibold">
-                    {formatCurrency(recipe.cost_per_serve)}
-                  </TableCell>
-                  <TableCell className="font-semibold text-green-600">
-                    {formatCurrency(recipe.suggested_price)}
-                  </TableCell>
-                  <TableCell>{recipe.gp_target_percent}%</TableCell>
-                  <TableCell>
-                    {recipe.status === 'draft' && (
-                      <Badge variant="secondary">Draft</Badge>
-                    )}
-                    {recipe.status === 'published' && (
-                      <Badge className="bg-green-600">Published</Badge>
-                    )}
-                    {recipe.status === 'archived' && (
-                      <Badge variant="outline">Archived</Badge>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filteredRecipes.map((recipe) => {
+                const gpPct = recipe.gp_target_percent ?? 0
+                const gpColor = gpPct >= 65 ? "text-emerald-600 dark:text-emerald-400" : gpPct >= 55 ? "text-amber-600 dark:text-amber-400" : "text-red-500 dark:text-red-400"
+                return (
+                  <TableRow
+                    key={recipe.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => navigate(`/menu/recipes/${recipe.id}`)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center shrink-0">
+                          <ChefHat className="h-3.5 w-3.5 text-brand-600 dark:text-brand-400" />
+                        </div>
+                        <span className="font-medium">{recipe.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs px-2 py-0.5 rounded-md bg-muted text-muted-foreground capitalize font-medium">
+                        {CATEGORIES.find((c) => c.value === recipe.category)?.label ?? recipe.category}
+                      </span>
+                    </TableCell>
+                    <TableCell className="tabular-nums">{recipe.serves}</TableCell>
+                    <TableCell className="text-right tabular-nums font-medium">
+                      {formatCurrency(recipe.cost_per_serve)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums font-semibold text-emerald-600 dark:text-emerald-400">
+                      {formatCurrency(recipe.suggested_price)}
+                    </TableCell>
+                    <TableCell className={`text-right tabular-nums font-semibold ${gpColor}`}>
+                      {gpPct}%
+                    </TableCell>
+                    <TableCell>
+                      {recipe.status === 'draft' && (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> Draft
+                        </span>
+                      )}
+                      {recipe.status === 'published' && (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Published
+                        </span>
+                      )}
+                      {recipe.status === 'archived' && (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" /> Archived
+                        </span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
-        </Card>
+        </div>
       )}
       </div>
     </PageShell>

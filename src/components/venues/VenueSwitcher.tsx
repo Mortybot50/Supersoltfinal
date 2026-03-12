@@ -20,7 +20,7 @@ export default function VenueSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="gap-1.5 w-full justify-start max-w-full px-2">
+        <Button variant="ghost" className="gap-1.5 w-full justify-start max-w-full px-2 h-9">
           <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <span
             className="font-semibold truncate flex-1 min-w-0 text-left text-sm"
