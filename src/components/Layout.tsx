@@ -61,7 +61,6 @@ const navSections: NavSection[] = [
   {
     label: "📊 INSIGHTS",
     items: [
-      { title: "Dashboard",  url: "/dashboard",           icon: LayoutDashboard },
       { title: "Sales",      url: "/sales",               icon: TrendingUp },
       { title: "Labour",     url: "/workforce/reports",   icon: BarChart3 },
       { title: "Inventory",  url: "/insights/inventory",  icon: PackageSearch },
@@ -200,6 +199,21 @@ function SidebarContent({
 
       {/* Nav sections (scrollable) */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-3 space-y-1">
+        {/* Dashboard — top-level, always visible */}
+        <NavLink
+          to="/dashboard"
+          onClick={handleClick}
+          className={cn(
+            "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors relative mb-2",
+            isActive("/dashboard")
+              ? "border-l-2 border-brand-400 bg-brand-50 text-brand-800 font-medium dark:bg-brand-900/20 dark:text-brand-400 pl-[10px]"
+              : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground font-medium"
+          )}
+        >
+          <LayoutDashboard className={cn("h-4 w-4 shrink-0", isActive("/dashboard") ? "text-brand-600 dark:text-brand-400" : "text-sidebar-foreground/70")} />
+          <span className="truncate">Dashboard</span>
+        </NavLink>
+
         {navSections.map((section) => {
           const isOpen = openSection === section.label
           return (
