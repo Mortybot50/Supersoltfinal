@@ -580,7 +580,7 @@ export default function Waste() {
   return (
     <PageShell toolbar={toolbar}>
       {/* Summary cards */}
-      <div className="px-4 pt-4 space-y-3">
+      <div className="px-6 pt-6 pb-2 space-y-3">
         <StatCards
           stats={[
             {
@@ -614,7 +614,7 @@ export default function Waste() {
         />
       </div>
 
-      <div className="p-4 md:p-6 space-y-6">
+      <div className="px-6 pb-6 space-y-6">
         {/* Dashboard Section */}
         {showDashboard && (
           <div className="space-y-4">
@@ -767,45 +767,45 @@ export default function Waste() {
 
         {/* Waste Log History Table */}
         {isLoading && wasteLogs.length === 0 ? (
-          <Card className="p-12 text-center">
-            <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin opacity-50" />
-            <p className="text-muted-foreground">Loading waste logs...</p>
-          </Card>
+          <div className="rounded-xl border border-border/60 bg-card shadow-sm p-12 text-center">
+            <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Loading waste logs...</p>
+          </div>
         ) : filteredWaste.length === 0 ? (
-          <Card className="p-12 text-center">
-            <Trash2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">
-              {wasteLogs.length === 0
-                ? 'No Waste Logged Yet'
-                : 'No Waste Found'}
+          <div className="rounded-xl border border-dashed border-border/60 p-12 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="h-7 w-7 text-muted-foreground/50" />
+            </div>
+            <h3 className="text-base font-semibold tracking-tight mb-2">
+              {wasteLogs.length === 0 ? 'No Waste Logged Yet' : 'No Waste Found'}
             </h3>
-            <p className="text-sm text-muted-foreground mb-6">
+            <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
               {wasteLogs.length === 0
                 ? 'Start tracking waste to identify patterns and reduce costs'
                 : 'Try adjusting your filters'}
             </p>
             {wasteLogs.length === 0 && (
-              <Button onClick={() => handleOpenDialog()}>
+              <Button onClick={() => handleOpenDialog()} className="btn-press">
                 <Plus className="h-4 w-4 mr-2" />
                 Log First Waste
               </Button>
             )}
-          </Card>
+          </div>
         ) : (
-          <Card>
+          <div className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Ingredient</TableHead>
-                    <TableHead>Qty</TableHead>
-                    <TableHead>Reason</TableHead>
-                    <TableHead>Cost</TableHead>
-                    <TableHead className="hidden md:table-cell">
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-800/80">
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Date</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Ingredient</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Qty</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Reason</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Cost</TableHead>
+                    <TableHead className="hidden md:table-cell text-xs uppercase tracking-wider font-medium text-muted-foreground">
                       Logged By
                     </TableHead>
-                    <TableHead className="hidden lg:table-cell">
+                    <TableHead className="hidden lg:table-cell text-xs uppercase tracking-wider font-medium text-muted-foreground">
                       Photo
                     </TableHead>
                     <TableHead className="w-12" />
@@ -905,7 +905,7 @@ export default function Waste() {
                 </div>
               </div>
             )}
-          </Card>
+          </div>
         )}
 
         {/* Log Waste Dialog */}

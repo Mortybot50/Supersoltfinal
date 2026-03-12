@@ -546,7 +546,7 @@ export default function StockCounts() {
             placeholder="Search counts..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-8"
+            className="pl-9 h-9 border-border/60"
           />
         </div>
       }
@@ -561,7 +561,7 @@ export default function StockCounts() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
+      <div className="px-6 py-6 space-y-6 max-w-4xl mx-auto">
         <Tabs value={pageTab} onValueChange={setPageTab}>
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -651,17 +651,19 @@ export default function StockCounts() {
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : filteredCounts.length === 0 ? (
-                  <Card className="p-12 text-center">
-                    <ClipboardCheck className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                    <p className="text-muted-foreground">No stock counts found</p>
+                  <div className="rounded-xl border border-dashed border-border/60 p-12 text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+                      <ClipboardCheck className="h-7 w-7 text-muted-foreground/50" />
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">No stock counts found</p>
                     <Button
-                      className="mt-4"
+                      className="btn-press"
                       onClick={() => navigate('/inventory/stock-counts/new')}
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Start a Count
                     </Button>
-                  </Card>
+                  </div>
                 ) : (
                   <div className="grid gap-3 md:grid-cols-2">
                     {filteredCounts.map((sc) => {

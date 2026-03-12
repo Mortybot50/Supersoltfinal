@@ -191,7 +191,7 @@ export default function Invoices() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="px-4 pt-4 space-y-3">
+      <div className="px-6 pt-6 pb-2 space-y-3">
         <StatCards
           stats={[
             { label: 'Total Invoices', value: stats.total },
@@ -209,14 +209,16 @@ export default function Invoices() {
         />
       </div>
 
-      <div className="p-4 md:p-6">
+      <div className="px-6 pb-6">
         {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-            <FileText className="h-12 w-12 mb-3 opacity-30" />
-            <p className="text-sm font-medium">No invoices found</p>
-            <p className="text-xs mt-1">Upload a supplier invoice to get started</p>
+          <div className="rounded-xl border border-dashed border-border/60 p-12 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+              <FileText className="h-7 w-7 text-muted-foreground/50" />
+            </div>
+            <p className="text-base font-semibold tracking-tight mb-1">No invoices found</p>
+            <p className="text-sm text-muted-foreground mb-6">Upload a supplier invoice to get started</p>
             <Button
-              className="mt-4"
+              className="btn-press"
               onClick={() => navigate('/inventory/invoices/upload')}
             >
               <Upload className="h-4 w-4 mr-2" />
@@ -224,17 +226,17 @@ export default function Invoices() {
             </Button>
           </div>
         ) : (
-          <div className="border rounded-lg overflow-hidden">
+          <div className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead>Invoice #</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Source</TableHead>
+                <TableRow className="bg-slate-50/80 dark:bg-slate-800/80">
+                  <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Date</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Supplier</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Invoice #</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Type</TableHead>
+                  <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Total</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Status</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Source</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>

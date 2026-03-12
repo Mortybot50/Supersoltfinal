@@ -524,13 +524,13 @@ export default function OrderGuide() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="px-4 pt-4 space-y-3">
+      <div className="px-6 pt-6 pb-2 space-y-3">
         <StatCards stats={sidebarMetrics} columns={3} />
         {sidebarExtended && sidebarExtended.length > 0 && (
           <SecondaryStats stats={sidebarExtended} />
         )}
       </div>
-      <div className="p-4 md:p-6 space-y-6">
+      <div className="px-6 pb-6 space-y-6">
 
       {/* Products Table */}
       {selectedSupplier && orderRecommendations.length > 0 && (
@@ -553,20 +553,20 @@ export default function OrderGuide() {
               </div>
             </div>
 
-            <div className="border rounded-lg overflow-hidden">
+            <div className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-800/80">
                     <TableHead className="w-12"></TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Current Stock</TableHead>
-                    <TableHead>Par Level</TableHead>
-                    <TableHead>Days of Stock</TableHead>
-                    <TableHead>Usage/week (30d avg)</TableHead>
-                    <TableHead>Recommended</TableHead>
-                    <TableHead>Order Qty</TableHead>
-                    <TableHead>Cost</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Product</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Current Stock</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Par Level</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Days of Stock</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Usage/week (30d avg)</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Recommended</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Order Qty</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Cost</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

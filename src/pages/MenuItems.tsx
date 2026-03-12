@@ -631,18 +631,18 @@ export default function MenuItems() {
                 </div>
               ) : (
                 <Table>
-                  <TableHeader className="sticky top-0 bg-background">
+                  <TableHeader className="sticky top-0 bg-slate-50/95 dark:bg-slate-800/95 backdrop-blur-sm">
                     <TableRow>
                       <TableHead className="w-12"></TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Recipe</TableHead>
-                      <TableHead>Tags</TableHead>
-                      <TableHead>Price Mode</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>GST</TableHead>
-                      <TableHead>Cost/Serve</TableHead>
-                      <TableHead>GP %</TableHead>
-                      <TableHead>PLU</TableHead>
+                      <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Name</TableHead>
+                      <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Recipe</TableHead>
+                      <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Tags</TableHead>
+                      <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Price Mode</TableHead>
+                      <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Price</TableHead>
+                      <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">GST</TableHead>
+                      <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Cost/Serve</TableHead>
+                      <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">GP %</TableHead>
+                      <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">PLU</TableHead>
                       <TableHead className="w-24"></TableHead>
                     </TableRow>
                   </TableHeader>
