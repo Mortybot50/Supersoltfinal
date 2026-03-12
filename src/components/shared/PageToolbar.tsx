@@ -36,13 +36,13 @@ export function PageToolbar({
   return (
     <div
       className={cn(
-        "bg-white dark:bg-gray-800 border-b px-4 py-3 flex items-center gap-3 flex-wrap print:hidden shrink-0",
+        "bg-card border-b border-border/60 px-6 py-3 flex items-center gap-3 flex-wrap print:hidden shrink-0",
         className
       )}
     >
       {/* Title */}
       {title && (
-        <h1 className="text-lg font-semibold whitespace-nowrap">{title}</h1>
+        <h1 className="text-base font-semibold tracking-tight whitespace-nowrap">{title}</h1>
       )}
 
       {/* Date Navigation */}
@@ -51,19 +51,19 @@ export function PageToolbar({
           <Button
             variant="outline"
             size="icon"
-            className="h-8 w-8"
+            className="h-9 w-9 border-border/60"
             onClick={dateNavigation.onBack}
             aria-label="Previous period"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" className="h-8 px-3 font-medium text-sm">
+          <Button variant="outline" className="h-9 px-3 font-medium text-sm border-border/60 min-w-[120px] justify-center">
             {dateNavigation.label}
           </Button>
           <Button
             variant="outline"
             size="icon"
-            className="h-8 w-8"
+            className="h-9 w-9 border-border/60"
             onClick={dateNavigation.onForward}
             aria-label="Next period"
           >
@@ -85,12 +85,10 @@ export function PageToolbar({
         {primaryAction && (
           <Button
             className={cn(
-              "h-8",
-              primaryAction.variant === "primary"
-                ? ""
-                : primaryAction.variant === "export"
-                  ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                  : ""
+              "h-9 btn-press",
+              primaryAction.variant === "export"
+                ? "bg-teal-600 hover:bg-teal-700 text-white dark:bg-teal-500 dark:hover:bg-teal-600"
+                : ""
             )}
             onClick={primaryAction.onClick}
             disabled={primaryAction.disabled}
