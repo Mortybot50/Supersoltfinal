@@ -76,9 +76,17 @@ Rules:
 - ABN format: digits only, no spaces (e.g. "12345678901")
 - Do not guess fields you cannot see clearly — use null and lower the confidence_score`
 
+const MAX_BODY_BYTES = 10 * 1024 * 1024 // 10 MB
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  // Reject oversized requests before any processing
+  const contentLength = parseInt(req.headers['content-length'] ?? '0', 10)
+  if (contentLength > MAX_BODY_BYTES) {
+    return res.status(413).json({ error: 'Request body too large. Maximum size is 10MB.' })
   }
 
   // Auth — verify caller is a valid Supabase user
@@ -97,6 +105,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const body = req.body as ParseInvoiceBody
   if (!body?.file_base64 || !body?.mime_type) {
     return res.status(400).json({ error: 'file_base64 and mime_type are required' })
+  }
+
+  // Guard on base64 payload size (base64 overhead ≈ 33%; 10MB binary → ~13.3MB encoded)
+  if (body.file_base64.length > Math.ceil(MAX_BODY_BYTES * 1.4)) {
+    return res.status(413).json({ error: 'File too large. Maximum size is 10MB.' })
   }
 
   // Basic MIME type validation
