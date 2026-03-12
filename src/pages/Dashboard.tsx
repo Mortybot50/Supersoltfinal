@@ -73,7 +73,7 @@ import { supabase } from "@/integrations/supabase/client"
 import { useState, useMemo, useEffect } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { formatDistanceToNow } from "date-fns"
-import { PageShell, PageToolbar } from "@/components/shared"
+import { PageShell, PageToolbar, DateRangePicker } from "@/components/shared"
 import { Skeleton } from "@/components/ui/skeleton"
 
 // ============================================
@@ -86,6 +86,7 @@ type DatePreset =
   | "last-week"
   | "this-month"
   | "last-month"
+  | "custom"
 
 function getDateRange(preset: DatePreset): { from: Date; to: Date } {
   const now = new Date()
@@ -221,7 +222,17 @@ export default function Dashboard() {
   }, [currentVenue])
 
   const [preset, setPreset] = useState<DatePreset>("this-week")
-  const dateRange = useMemo(() => getDateRange(preset), [preset])
+  const [customFrom, setCustomFrom] = useState<Date | undefined>()
+  const [customTo, setCustomTo] = useState<Date | undefined>()
+  const [pickerOpen, setPickerOpen] = useState(false)
+
+  const dateRange = useMemo(() => {
+    if (preset === "custom") {
+      const now = new Date()
+      return { from: customFrom ?? startOfDay(now), to: customTo ?? endOfDay(now) }
+    }
+    return getDateRange(preset)
+  }, [preset, customFrom, customTo])
   const prevRange = useMemo(
     () => getPreviousPeriod(dateRange.from, dateRange.to),
     [dateRange]
@@ -459,7 +470,12 @@ export default function Dashboard() {
 
   // ============ PERIOD LABEL ============
   const periodLabel = useMemo(() => {
-    const presetLabels: Record<DatePreset, string> = {
+    if (preset === "custom") {
+      return customFrom && customTo
+        ? `${format(customFrom, "d MMM")} – ${format(customTo, "d MMM yyyy")}`
+        : "Custom"
+    }
+    const presetLabels: Record<Exclude<DatePreset, "custom">, string> = {
       today: "Today",
       yesterday: "Yesterday",
       "this-week": "This Week",
@@ -468,7 +484,7 @@ export default function Dashboard() {
       "last-month": "Last Month",
     }
     return presetLabels[preset]
-  }, [preset])
+  }, [preset, customFrom, customTo])
 
   // ============ RENDER ============
 
@@ -477,7 +493,14 @@ export default function Dashboard() {
       title="Dashboard"
       filters={
         <div className="flex items-center gap-2 flex-wrap">
-          <Select value={preset} onValueChange={(v) => setPreset(v as DatePreset)}>
+          <Select
+            value={preset}
+            onValueChange={(v) => {
+              const val = v as DatePreset
+              setPreset(val)
+              if (val === "custom") setPickerOpen(true)
+            }}
+          >
             <SelectTrigger className="h-9 w-[150px] border-border/60">
               <SelectValue />
             </SelectTrigger>
@@ -488,8 +511,19 @@ export default function Dashboard() {
               <SelectItem value="last-week">Last Week</SelectItem>
               <SelectItem value="this-month">This Month</SelectItem>
               <SelectItem value="last-month">Last Month</SelectItem>
+              <SelectItem value="custom">Custom...</SelectItem>
             </SelectContent>
           </Select>
+          <DateRangePicker
+            from={dateRange.from}
+            to={dateRange.to}
+            open={pickerOpen}
+            onOpenChange={setPickerOpen}
+            onApply={(from, to) => {
+              setCustomFrom(from)
+              setCustomTo(to)
+            }}
+          />
           <span className="text-xs text-muted-foreground hidden sm:inline">
             {format(dateRange.from, "d MMM")} – {format(dateRange.to, "d MMM yyyy")}
           </span>

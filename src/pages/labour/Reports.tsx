@@ -61,14 +61,14 @@ import {
   subWeeks,
   subMonths,
 } from "date-fns"
-import { PageShell, PageToolbar } from "@/components/shared"
+import { PageShell, PageToolbar, DateRangePicker } from "@/components/shared"
 
 // ============================================================
 // CONSTANTS & TYPES
 // ============================================================
 
 type ReportType = "labour-cost" | "labour-percent" | "rostered-vs-actual" | "overtime"
-type DatePreset = "today" | "yesterday" | "this-week" | "last-week" | "this-month" | "last-month"
+type DatePreset = "today" | "yesterday" | "this-week" | "last-week" | "this-month" | "last-month" | "custom"
 
 const BRAND_TEAL = "#14b8a6"
 const CHART_ORANGE = "#f97316"
@@ -860,9 +860,18 @@ export default function LabourReports() {
 
   const [selectedReport, setSelectedReport] = useState<ReportType>("labour-cost")
   const [preset, setPreset] = useState<DatePreset>("last-week")
+  const [customFrom, setCustomFrom] = useState<Date | undefined>()
+  const [customTo, setCustomTo] = useState<Date | undefined>()
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [selectedVenueId, setSelectedVenueId] = useState<string>(currentVenue?.id ?? "")
 
-  const dateRange = useMemo(() => getDateRange(preset), [preset])
+  const dateRange = useMemo(() => {
+    if (preset === "custom") {
+      const now = new Date()
+      return { from: customFrom ?? startOfDay(now), to: customTo ?? endOfDay(now) }
+    }
+    return getDateRange(preset)
+  }, [preset, customFrom, customTo])
   const rangeLabel = useMemo(
     () => `${format(dateRange.from, "yyyy-MM-dd")}_${format(dateRange.to, "yyyy-MM-dd")}`,
     [dateRange]
@@ -879,6 +888,7 @@ export default function LabourReports() {
     { value: "last-week", label: "Last week" },
     { value: "this-month", label: "This month" },
     { value: "last-month", label: "Last month" },
+    { value: "custom", label: "Custom..." },
   ]
 
   const toolbar = (
@@ -898,7 +908,14 @@ export default function LabourReports() {
               </SelectContent>
             </Select>
           )}
-          <Select value={preset} onValueChange={v => setPreset(v as DatePreset)}>
+          <Select
+            value={preset}
+            onValueChange={v => {
+              const val = v as DatePreset
+              setPreset(val)
+              if (val === "custom") setPickerOpen(true)
+            }}
+          >
             <SelectTrigger className="h-9 w-[150px] border-border/60">
               <SelectValue />
             </SelectTrigger>
@@ -908,6 +925,16 @@ export default function LabourReports() {
               ))}
             </SelectContent>
           </Select>
+          <DateRangePicker
+            from={dateRange.from}
+            to={dateRange.to}
+            open={pickerOpen}
+            onOpenChange={setPickerOpen}
+            onApply={(from, to) => {
+              setCustomFrom(from)
+              setCustomTo(to)
+            }}
+          />
           <span className="text-xs text-muted-foreground hidden sm:inline">
             {formatDateLabel(dateRange.from, dateRange.to)}
           </span>

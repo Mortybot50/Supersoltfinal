@@ -5,9 +5,9 @@ import { DollarSign, TrendingUp, ShoppingCart, Users, Receipt, BarChart3, Extern
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { PageShell, PageToolbar } from "@/components/shared"
+import { PageShell, PageToolbar, DateRangePicker } from "@/components/shared"
 
-type PLPreset = "this-month" | "last-month" | "this-quarter" | "last-quarter" | "this-year" | "last-year"
+type PLPreset = "this-month" | "last-month" | "this-quarter" | "last-quarter" | "this-year" | "last-year" | "custom"
 
 function getPLDateRange(preset: PLPreset): { from: Date; to: Date; label: string } {
   const now = new Date()
@@ -88,14 +88,33 @@ function PLSection({
 
 export default function ProfitAndLoss() {
   const [preset, setPreset] = useState<PLPreset>("this-month")
-  const { label } = getPLDateRange(preset)
+  const [customFrom, setCustomFrom] = useState<Date | undefined>()
+  const [customTo, setCustomTo] = useState<Date | undefined>()
+  const [pickerOpen, setPickerOpen] = useState(false)
+
+  const { from: plFrom, to: plTo, label: plLabel } = preset === "custom"
+    ? {
+        from: customFrom ?? startOfMonth(new Date()),
+        to: customTo ?? endOfMonth(new Date()),
+        label: customFrom && customTo
+          ? `${format(customFrom, "d MMM")} – ${format(customTo, "d MMM yyyy")}`
+          : "Custom",
+      }
+    : getPLDateRange(preset)
 
   const toolbar = (
     <PageToolbar
       title="P&L"
       filters={
         <div className="flex items-center gap-2 flex-wrap">
-          <Select value={preset} onValueChange={(v) => setPreset(v as PLPreset)}>
+          <Select
+            value={preset}
+            onValueChange={(v) => {
+              const val = v as PLPreset
+              setPreset(val)
+              if (val === "custom") setPickerOpen(true)
+            }}
+          >
             <SelectTrigger className="h-9 w-[160px] border-border/60">
               <SelectValue />
             </SelectTrigger>
@@ -106,9 +125,20 @@ export default function ProfitAndLoss() {
               <SelectItem value="last-quarter">Last Quarter</SelectItem>
               <SelectItem value="this-year">This Year</SelectItem>
               <SelectItem value="last-year">Last Year</SelectItem>
+              <SelectItem value="custom">Custom...</SelectItem>
             </SelectContent>
           </Select>
-          <span className="text-xs text-muted-foreground hidden sm:inline">{label}</span>
+          <DateRangePicker
+            from={plFrom}
+            to={plTo}
+            open={pickerOpen}
+            onOpenChange={setPickerOpen}
+            onApply={(from, to) => {
+              setCustomFrom(from)
+              setCustomTo(to)
+            }}
+          />
+          <span className="text-xs text-muted-foreground hidden sm:inline">{plLabel}</span>
         </div>
       }
     />

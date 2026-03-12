@@ -41,12 +41,12 @@ import {
 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { toast } from "sonner"
-import { PageShell, PageToolbar, StatusBadge, EmptyState } from "@/components/shared"
+import { PageShell, PageToolbar, StatusBadge, EmptyState, DateRangePicker } from "@/components/shared"
 import { StatCards } from "@/components/ui/StatCards"
 import { SecondaryStats } from "@/components/ui/SecondaryStats"
 
 // ─── Types ──────────────────────────────────────────
-type DatePreset = "today" | "yesterday" | "this-week" | "last-week" | "this-month" | "last-30"
+type DatePreset = "today" | "yesterday" | "this-week" | "last-week" | "this-month" | "last-30" | "custom"
 type SortField = "order_datetime" | "order_number" | "channel" | "gross_amount" | "tax_amount" | "net_amount" | "payment_method"
 type SortDir = "asc" | "desc"
 
@@ -161,13 +161,25 @@ export default function Sales() {
   const isAllVenues = venueId === 'all'
 
   const [datePreset, setDatePreset] = useState<DatePreset>("last-week")
+  const [customFrom, setCustomFrom] = useState<Date | undefined>()
+  const [customTo, setCustomTo] = useState<Date | undefined>()
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [channelFilter, setChannelFilter] = useState<string>("all")
   const [paymentFilter, setPaymentFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [sortField, setSortField] = useState<SortField>("order_datetime")
   const [sortDir, setSortDir] = useState<SortDir>("desc")
 
-  const dateRange = useMemo(() => getDateRange(datePreset), [datePreset])
+  const dateRange = useMemo(() => {
+    if (datePreset === "custom") {
+      const now = new Date()
+      return {
+        start: customFrom ?? startOfDay(now),
+        end: customTo ?? endOfDay(now),
+      }
+    }
+    return getDateRange(datePreset)
+  }, [datePreset, customFrom, customTo])
 
   // ─── Query ──────────────────────────────────────
   const { data: orders = [], isLoading, refetch } = useQuery({
@@ -327,7 +339,14 @@ export default function Sales() {
       title="Sales"
       filters={
         <div className="flex items-center gap-2">
-          <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
+          <Select
+            value={datePreset}
+            onValueChange={(v) => {
+              const val = v as DatePreset
+              setDatePreset(val)
+              if (val === "custom") setPickerOpen(true)
+            }}
+          >
             <SelectTrigger className="h-8 w-[130px]">
               <SelectValue />
             </SelectTrigger>
@@ -338,8 +357,19 @@ export default function Sales() {
               <SelectItem value="last-week">Last Week</SelectItem>
               <SelectItem value="this-month">This Month</SelectItem>
               <SelectItem value="last-30">Last 30 Days</SelectItem>
+              <SelectItem value="custom">Custom...</SelectItem>
             </SelectContent>
           </Select>
+          <DateRangePicker
+            from={dateRange.start}
+            to={dateRange.end}
+            open={pickerOpen}
+            onOpenChange={setPickerOpen}
+            onApply={(from, to) => {
+              setCustomFrom(from)
+              setCustomTo(to)
+            }}
+          />
           <span className="text-xs text-muted-foreground whitespace-nowrap">
             {format(dateRange.start, "d MMM")} – {format(dateRange.end, "d MMM yyyy")}
           </span>
