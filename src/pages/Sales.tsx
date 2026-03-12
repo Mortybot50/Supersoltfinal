@@ -357,7 +357,7 @@ export default function Sales() {
   return (
     <PageShell toolbar={toolbar}>
       {/* Stat cards */}
-      <div className="px-4 pt-4 space-y-3">
+      <div className="px-6 pt-6 pb-2 space-y-3">
         <StatCards stats={[
           { label: "Orders", value: stats.totalOrders },
           { label: "Revenue", value: fmtDollars(stats.totalRevenue) },
@@ -371,14 +371,14 @@ export default function Sales() {
       </div>
 
       {/* Filter bar */}
-      <div className="border-b bg-white dark:bg-gray-800 px-4 py-2 flex items-center gap-3 flex-wrap">
+      <div className="border-b bg-card px-6 py-2 flex items-center gap-3 flex-wrap">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             placeholder="Search order #..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8 w-[180px] pl-8 text-sm"
+            className="h-9 w-[180px] pl-8 text-sm border-border/60"
           />
         </div>
 
@@ -441,8 +441,8 @@ export default function Sales() {
         ) : (
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>
+              <TableRow className="bg-slate-50/80 dark:bg-slate-800/80">
+                <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">
                   <button className="flex items-center text-xs font-medium" onClick={() => handleSort("order_datetime")}>
                     Date/Time <SortIcon field="order_datetime" />
                   </button>

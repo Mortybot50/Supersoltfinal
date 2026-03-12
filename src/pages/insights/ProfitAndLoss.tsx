@@ -72,7 +72,7 @@ export default function ProfitAndLoss() {
   return (
     <PageShell toolbar={toolbar}>
       {/* Connect Xero banner */}
-      <div className="px-4 pt-4">
+      <div className="px-6 pt-6">
         <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20 p-4 flex items-start gap-3">
           <BarChart3 className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
@@ -92,7 +92,7 @@ export default function ProfitAndLoss() {
         </div>
       </div>
 
-      <div className="p-4 md:p-6 space-y-4">
+      <div className="px-6 pb-6 space-y-4">
         <PLSection
           title="Revenue"
           icon={TrendingUp}

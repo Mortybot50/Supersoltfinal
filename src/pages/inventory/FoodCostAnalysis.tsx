@@ -521,7 +521,7 @@ export default function FoodCostAnalysis() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="px-4 pt-4 space-y-3">
+      <div className="px-6 pt-6 pb-2 space-y-3">
         <StatCards
           stats={[
             {
@@ -544,7 +544,7 @@ export default function FoodCostAnalysis() {
           columns={4}
         />
       </div>
-      <div className="p-4 md:p-6 space-y-6">
+      <div className="px-6 pb-6 space-y-6">
 
         {/* COGS breakdown info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -729,16 +729,16 @@ export default function FoodCostAnalysis() {
           </TabsList>
 
           <TabsContent value="category">
-            <Card>
+            <div className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-right">Actual Cost</TableHead>
-                    <TableHead className="text-right">Theoretical</TableHead>
-                    <TableHead className="text-right">Variance $</TableHead>
-                    <TableHead className="text-right">Variance %</TableHead>
-                    <TableHead>Status</TableHead>
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-800/80">
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Category</TableHead>
+                    <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Actual Cost</TableHead>
+                    <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Theoretical</TableHead>
+                    <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Variance $</TableHead>
+                    <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Variance %</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -790,22 +790,22 @@ export default function FoodCostAnalysis() {
                   )}
                 </TableBody>
               </Table>
-            </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="ingredient">
-            <Card>
+            <div className="rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Ingredient</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-right">Actual Cost</TableHead>
-                    {cogsIsDepletion && <TableHead className="text-right">Depletion COGS</TableHead>}
-                    <TableHead className="text-right">Theoretical</TableHead>
-                    <TableHead className="text-right">Variance $</TableHead>
-                    <TableHead className="text-right">Variance %</TableHead>
-                    <TableHead>Flag</TableHead>
+                  <TableRow className="bg-slate-50/80 dark:bg-slate-800/80">
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Ingredient</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Category</TableHead>
+                    <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Actual Cost</TableHead>
+                    {cogsIsDepletion && <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Depletion COGS</TableHead>}
+                    <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Theoretical</TableHead>
+                    <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Variance $</TableHead>
+                    <TableHead className="text-right text-xs uppercase tracking-wider font-medium text-muted-foreground">Variance %</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider font-medium text-muted-foreground">Flag</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -869,7 +869,7 @@ export default function FoodCostAnalysis() {
                   )}
                 </TableBody>
               </Table>
-            </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

@@ -322,7 +322,7 @@ export default function Daybook() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="px-4 pt-4 space-y-3">
+      <div className="px-6 pt-6 pb-2 space-y-3">
         <StatCards stats={[
           { label: 'Entries Today', value: daySummary.total },
           ...(daySummary.totalAmount > 0
@@ -335,7 +335,7 @@ export default function Daybook() {
             .map(cat => ({ label: cat.label, value: cat.count }))} />
         )}
       </div>
-      <div className="p-4 md:p-6 space-y-6">
+      <div className="px-6 pb-6 space-y-6">
 
       {/* Entries List */}
       {filteredEntries.length === 0 ? (

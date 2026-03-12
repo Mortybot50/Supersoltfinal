@@ -927,7 +927,7 @@ export default function LabourReports() {
 
   return (
     <PageShell toolbar={toolbar}>
-      <div className="p-4 md:p-6 space-y-6">
+      <div className="px-6 py-6 space-y-6">
 
         {/* Report selector tiles */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
