@@ -171,9 +171,9 @@ function SidebarContent({
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Header: logo + venue switcher */}
-      <div className="shrink-0 px-3 pt-4 pb-3 border-b border-sidebar-border">
-        <div className="flex items-center justify-between mb-3 px-1">
+      {/* Logo row — h-14 matches the main content header exactly */}
+      <div className="h-14 shrink-0 flex items-center px-4 border-b border-sidebar-border">
+        <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 bg-brand-400 rounded-lg flex items-center justify-center shrink-0">
               <span className="text-gray-900 font-black text-sm leading-none">S</span>
@@ -192,10 +192,10 @@ function SidebarContent({
             </button>
           )}
         </div>
-        {/* Venue switcher */}
-        <div className="text-sidebar-foreground">
-          <VenueSwitcher />
-        </div>
+      </div>
+      {/* Venue switcher — sits below the aligned border */}
+      <div className="shrink-0 px-3 py-2 border-b border-sidebar-border text-sidebar-foreground">
+        <VenueSwitcher />
       </div>
 
       {/* Nav sections (scrollable) */}
