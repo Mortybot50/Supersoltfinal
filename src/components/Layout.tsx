@@ -144,6 +144,20 @@ function SidebarContent({
     [location.pathname]
   )
 
+  // Determine which section contains the current route
+  const getActiveSection = useCallback(() => {
+    const found = navSections.find((s) => s.items.some((i) => isActive(i.url)))
+    return found?.label ?? navSections[0].label
+  }, [isActive])
+
+  const [openSection, setOpenSection] = useState<string>(getActiveSection)
+
+  // Track open section when route changes (e.g. navigating from outside)
+  useEffect(() => {
+    const active = getActiveSection()
+    setOpenSection(active)
+  }, [location.pathname, getActiveSection])
+
   // Auto-open settings if on a settings page
   useEffect(() => {
     if (settingsItems.some((item) => isActive(item.url))) {
@@ -156,10 +170,10 @@ function SidebarContent({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Header: logo + venue switcher */}
-      <div className="shrink-0 px-4 pt-4 pb-3 border-b border-sidebar-border">
-        <div className="flex items-center justify-between mb-3">
+      <div className="shrink-0 px-3 pt-4 pb-3 border-b border-sidebar-border">
+        <div className="flex items-center justify-between mb-3 px-1">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 bg-brand-400 rounded-lg flex items-center justify-center shrink-0">
               <span className="text-gray-900 font-black text-sm leading-none">S</span>
@@ -185,35 +199,54 @@ function SidebarContent({
       </div>
 
       {/* Nav sections (scrollable) */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-5">
-        {navSections.map((section) => (
-          <div key={section.label}>
-            <p className="text-[10px] font-semibold text-sidebar-foreground/50 tracking-widest uppercase mb-1 px-1">
-              {section.label}
-            </p>
-            <div className="space-y-0.5">
-              {section.items.map((item) => {
-                const active = isActive(item.url)
-                return (
-                  <NavLink
-                    key={item.url}
-                    to={item.url}
-                    onClick={handleClick}
-                    className={cn(
-                      "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors relative",
-                      active
-                        ? "border-l-2 border-brand-400 bg-brand-50 text-brand-800 font-medium dark:bg-brand-900/20 dark:text-brand-400 pl-[10px]"
-                        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"
-                    )}
-                  >
-                    <item.icon className={cn("h-4 w-4 shrink-0", active ? "text-brand-600 dark:text-brand-400" : "text-sidebar-foreground/70")} />
-                    <span>{item.title}</span>
-                  </NavLink>
-                )
-              })}
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-3 space-y-1">
+        {navSections.map((section) => {
+          const isOpen = openSection === section.label
+          return (
+            <div key={section.label}>
+              <button
+                onClick={() => setOpenSection(isOpen ? "" : section.label)}
+                className="w-full flex items-center justify-between px-1 py-1 mb-0.5 group rounded-md hover:bg-sidebar-accent/50 transition-colors"
+              >
+                <p className="text-[10px] font-semibold text-sidebar-foreground/50 tracking-widest uppercase">
+                  {section.label}
+                </p>
+                <ChevronDown
+                  className={cn(
+                    "h-3 w-3 text-sidebar-foreground/30 transition-transform duration-200",
+                    isOpen ? "rotate-0" : "-rotate-90"
+                  )}
+                />
+              </button>
+              <div
+                className={cn(
+                  "space-y-0.5 overflow-hidden transition-all duration-200",
+                  isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0 pointer-events-none"
+                )}
+              >
+                {section.items.map((item) => {
+                  const active = isActive(item.url)
+                  return (
+                    <NavLink
+                      key={item.url}
+                      to={item.url}
+                      onClick={handleClick}
+                      className={cn(
+                        "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors relative",
+                        active
+                          ? "border-l-2 border-brand-400 bg-brand-50 text-brand-800 font-medium dark:bg-brand-900/20 dark:text-brand-400 pl-[10px]"
+                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"
+                      )}
+                    >
+                      <item.icon className={cn("h-4 w-4 shrink-0", active ? "text-brand-600 dark:text-brand-400" : "text-sidebar-foreground/70")} />
+                      <span className="truncate">{item.title}</span>
+                    </NavLink>
+                  )
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </nav>
 
       {/* Settings (collapsible, pinned) */}
@@ -316,7 +349,7 @@ export default function Layout() {
     <div className="min-h-screen flex w-full bg-background">
       {/* ── Desktop Sidebar ── */}
       {!isMobile && (
-        <aside className="fixed inset-y-0 left-0 z-30 w-[220px] bg-sidebar border-r border-sidebar-border flex flex-col dark:bg-slate-900 dark:border-slate-800">
+        <aside className="fixed inset-y-0 left-0 z-30 w-[220px] bg-sidebar border-r border-sidebar-border flex flex-col dark:bg-slate-900 dark:border-slate-800 overflow-hidden">
           <SidebarContent />
         </aside>
       )}
