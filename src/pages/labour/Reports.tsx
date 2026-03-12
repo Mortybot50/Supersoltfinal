@@ -928,7 +928,7 @@ export default function LabourReports() {
       <div className="px-6 py-6 space-y-6">
 
         {/* Report selector tiles */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {REPORTS.map(report => {
             const Icon = report.icon
             const isActive = selectedReport === report.id
