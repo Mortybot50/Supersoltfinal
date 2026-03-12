@@ -1800,7 +1800,6 @@ export const useDataStore = create<DataState>()(
           unit: item.unit,
           unit_cost: item.unit_cost,
           line_total: item.line_total,
-          notes: item.notes ?? null,
         }))
         
         const { error: itemsError } = await supabase
@@ -1866,7 +1865,6 @@ export const useDataStore = create<DataState>()(
           unit: item.unit,
           unit_cost: item.unit_cost,
           line_total: item.line_total,
-          notes: item.notes ?? null,
         }))
         
         await supabase

@@ -45,6 +45,7 @@ import {
   FileText,
   ChevronRight,
   ShoppingBag,
+  Plug,
 } from "lucide-react"
 import {
   AreaChart,
@@ -133,7 +134,7 @@ const fmtCompact = (cents: number) => {
   return `$${dollars.toFixed(0)}`
 }
 
-const fmtPct = (v: number) => `${v.toFixed(1)}%`
+const fmtPct = (v: number) => `${(Object.is(v, -0) ? 0 : v).toFixed(1)}%`
 
 // ============================================
 // CHART COLORS
@@ -503,9 +504,12 @@ export default function Dashboard() {
               <span className="text-muted-foreground">Square live</span>
             </span>
           ) : posStatus !== null ? (
-            <Link to="/admin/integrations" className="text-xs border-l pl-3 text-muted-foreground hover:text-foreground transition-colors hidden md:inline">
-              Connect POS
-            </Link>
+            <Button asChild size="sm" variant="outline" className="h-7 text-xs hidden md:flex gap-1.5 border-border/60">
+              <Link to="/admin/integrations">
+                <Plug className="h-3 w-3" />
+                Connect POS
+              </Link>
+            </Button>
           ) : null}
         </div>
       }
@@ -559,44 +563,52 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <KPICard
-              title="COGS %"
-              value={cogsPct === 0 ? "—" : fmtPct(cogsPct)}
-              subtitle="Target: <30%"
-              status={cogsPct === 0 ? "neutral" : cogsPct <= 30 ? "good" : cogsPct <= 35 ? "warn" : "bad"}
-              icon={ShoppingBag}
-              iconBg="bg-blue-50 dark:bg-blue-900/20"
-              iconColor="text-blue-600 dark:text-blue-400"
-            />
-            <KPICard
-              title="Labour %"
-              value={fmtPct(labourPct)}
-              subtitle="Target: 28%"
-              status={labourPct === 0 ? "neutral" : labourPct <= 28 ? "good" : labourPct <= 32 ? "warn" : "bad"}
-              icon={Users}
-              iconBg="bg-teal-50 dark:bg-teal-900/20"
-              iconColor="text-teal-600 dark:text-teal-400"
-            />
-            <KPICard
-              title="Avg Check"
-              value={`$${avgCheck.toFixed(2)}`}
-              change={avgCheckChange}
-              subtitle={`${sales.metrics?.total_orders ?? 0} orders`}
-              sparkline={sparklineData.checks}
-              sparkColor="#3b82f6"
-              icon={ShoppingCart}
-              iconBg="bg-violet-50 dark:bg-violet-900/20"
-              iconColor="text-violet-600 dark:text-violet-400"
-            />
-            <KPICard
-              title="Gross Profit %"
-              value={fmtPct(gpPct)}
-              subtitle="Target: 65%"
-              status={gpPct === 0 ? "neutral" : gpPct >= 65 ? "good" : gpPct >= 55 ? "warn" : "bad"}
-              icon={TrendingUp}
-              iconBg="bg-brand-50 dark:bg-brand-900/20"
-              iconColor="text-brand-600 dark:text-brand-400"
-            />
+            <Link to="/insights/inventory" className="block rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <KPICard
+                title="COGS %"
+                value={cogsPct === 0 ? "—" : fmtPct(cogsPct)}
+                subtitle="Target: <30%"
+                status={cogsPct === 0 ? "neutral" : cogsPct <= 30 ? "good" : cogsPct <= 35 ? "warn" : "bad"}
+                icon={ShoppingBag}
+                iconBg="bg-blue-50 dark:bg-blue-900/20"
+                iconColor="text-blue-600 dark:text-blue-400"
+              />
+            </Link>
+            <Link to="/workforce/reports" className="block rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <KPICard
+                title="Labour %"
+                value={fmtPct(labourPct)}
+                subtitle="Target: 28%"
+                status={labourPct === 0 ? "neutral" : labourPct <= 28 ? "good" : labourPct <= 32 ? "warn" : "bad"}
+                icon={Users}
+                iconBg="bg-teal-50 dark:bg-teal-900/20"
+                iconColor="text-teal-600 dark:text-teal-400"
+              />
+            </Link>
+            <Link to="/sales" className="block rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <KPICard
+                title="Avg Check"
+                value={`$${avgCheck.toFixed(2)}`}
+                change={avgCheckChange}
+                subtitle={`${sales.metrics?.total_orders ?? 0} orders`}
+                sparkline={sparklineData.checks}
+                sparkColor="#3b82f6"
+                icon={ShoppingCart}
+                iconBg="bg-violet-50 dark:bg-violet-900/20"
+                iconColor="text-violet-600 dark:text-violet-400"
+              />
+            </Link>
+            <Link to="/insights/pl" className="block rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <KPICard
+                title="Gross Profit %"
+                value={fmtPct(gpPct)}
+                subtitle="Target: 65%"
+                status={gpPct === 0 ? "neutral" : gpPct >= 65 ? "good" : gpPct >= 55 ? "warn" : "bad"}
+                icon={TrendingUp}
+                iconBg="bg-brand-50 dark:bg-brand-900/20"
+                iconColor="text-brand-600 dark:text-brand-400"
+              />
+            </Link>
           </div>
         )}
 

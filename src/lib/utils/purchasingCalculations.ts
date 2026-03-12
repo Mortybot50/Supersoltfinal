@@ -220,5 +220,7 @@ export function generatePONumber(existingPOs: PurchaseOrder[]): string {
     })
 
   const next = todayPOs.length > 0 ? Math.max(...todayPOs) + 1 : 1
-  return `${prefix}${String(next).padStart(3, '0')}`
+  // Append millisecond suffix to prevent duplicates when creating multiple POs quickly
+  const ms = Date.now().toString(36).slice(-3).toUpperCase()
+  return `${prefix}${String(next).padStart(3, '0')}-${ms}`
 }
