@@ -1,10 +1,20 @@
 {
   "version": 1,
   "skills": {
+    "beautiful-mermaid": {
+      "source": "intellectronica/agent-skills",
+      "sourceType": "github",
+      "computedHash": "0bbbe0bb6d026f50ba64b18bca28fbf646b2602456da9c1ce0f8f3d27bf80b03"
+    },
     "content-strategy": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "computedHash": "c07914262b7fb32e0a379fd5b8b2d0dc92078c543af2d0914006f2e1d61bc1b4"
+    },
+    "context7": {
+      "source": "intellectronica/agent-skills",
+      "sourceType": "github",
+      "computedHash": "fccbea654f8e35824a8bdce3e059e206efeb6c1fab9f6c096c3867e761081983"
     },
     "copywriting": {
       "source": "coreyhaines31/marketingskills",
@@ -21,10 +31,20 @@
       "sourceType": "github",
       "computedHash": "063a0e6448123cd359ad0044cc46b0e490cc7964d45ef4bb9fd842bd2ffbca67"
     },
+    "markdown-converter": {
+      "source": "intellectronica/agent-skills",
+      "sourceType": "github",
+      "computedHash": "bf956f81ca3a5a47d113ee48810dcdc0177c5111fc95d8bd1c83b459f8a45a63"
+    },
     "mcp-builder": {
       "source": "anthropics/skills",
       "sourceType": "github",
       "computedHash": "fc68038c900eb801f73ff96130c9f9dba533cc94212ed8435833242f196dedcf"
+    },
+    "mgrep-code-search": {
+      "source": "intellectronica/agent-skills",
+      "sourceType": "github",
+      "computedHash": "36f005abaf3a8445455cc52db53dccbd3c94839938b1111e4004e9af43439a99"
     },
     "seo-audit": {
       "source": "coreyhaines31/marketingskills",

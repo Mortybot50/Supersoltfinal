@@ -94,6 +94,9 @@ const InvitePortal         = lazy(() => import("./pages/onboarding/InvitePortal"
 const InviteStep           = lazy(() => import("./pages/onboarding/InviteStep"))
 const SetupWizard          = lazy(() => import("./pages/setup/SetupWizard"))
 
+// Dev Tools
+const DevTools             = lazy(() => import("./pages/dev"))
+
 // ────────────────────────────────────────────────────────────────────────────
 
 const queryClient = new QueryClient()
@@ -190,6 +193,9 @@ const App = () => (
               <Route path="admin/access-roles" element={<ProtectedRoute requiredRole="admin"><AccessRoles /></ProtectedRoute>} />
               <Route path="admin/integrations" element={<ProtectedRoute requiredRole="admin"><AdminIntegrations /></ProtectedRoute>} />
               <Route path="admin/integrations/xero/mappings" element={<ProtectedRoute requiredRole="admin"><XeroAccountMappings /></ProtectedRoute>} />
+
+              {/* Dev Tools (development only) */}
+              <Route path="dev" element={<DevTools />} />
 
               {/* Legacy route redirects */}
               <Route path="menu/ingredients" element={<Navigate to="/inventory/ingredients" replace />} />

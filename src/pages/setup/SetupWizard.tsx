@@ -4,7 +4,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Building2, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Building2, Loader2, Sparkles } from "lucide-react";
 import BusinessDetailsStep from "./steps/BusinessDetailsStep";
 import AddVenuesStep from "./steps/AddVenuesStep";
 import ConnectPosStep from "./steps/ConnectPosStep";
@@ -20,10 +22,12 @@ const STEPS = [
 ] as const;
 
 export default function SetupWizard() {
-  const { user, currentOrg, loading: authLoading } = useAuth();
+  const { user, currentOrg, loading: authLoading, session } = useAuth();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [checking, setChecking] = useState(true);
+  const [demoMode, setDemoMode] = useState(false);
+  const [seedingDemo, setSeedingDemo] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -84,6 +88,32 @@ export default function SetupWizard() {
     navigate("/dashboard", { replace: true });
   }, [navigate]);
 
+  const handleSkipToDemo = useCallback(async () => {
+    if (!session) return;
+    
+    setSeedingDemo(true);
+    try {
+      const response = await fetch('/api/dev/seed', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        // Refresh the page to reload with new demo org
+        window.location.href = '/dashboard';
+      } else {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to create demo organization');
+      }
+    } catch (error) {
+      console.error('Demo seed error:', error);
+      setSeedingDemo(false);
+    }
+  }, [session]);
+
   if (authLoading || checking) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -142,6 +172,37 @@ export default function SetupWizard() {
             ))}
           </div>
         </Card>
+
+        {/* Demo Mode Toggle - Show on step 1 */}
+        {currentStep === 1 && (
+          <Alert className="border-amber-200 bg-amber-50">
+            <Sparkles className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="flex items-center justify-between">
+              <span className="text-amber-800">
+                Skip setup with demo data? Creates a sample restaurant with staff, menu, and sales.
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSkipToDemo}
+                disabled={seedingDemo}
+                className="ml-4 border-amber-300 hover:bg-amber-100"
+              >
+                {seedingDemo ? (
+                  <>
+                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    Creating demo...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-3 w-3" />
+                    Skip to Demo
+                  </>
+                )}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {currentStep === 1 && (
           <BusinessDetailsStep orgId={currentOrg?.id ?? ""} onNext={handleNext} />

@@ -1,0 +1,193 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2103.4416666666666 938.8" width="2103.4416666666666" height="938.8" style="--bg:#f5f5f5;--fg:#333333;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="YOU" data-label="MORTY WhatsApp">
+  <rect x="462.4540833333333" y="40" width="133.971" height="96.9" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="462.4540833333333" y="40" width="133.971" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="474.4540833333333" y="54" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">MORTY WhatsApp</text>
+</g>
+<g class="subgraph" data-id="GW" data-label="OpenClaw Gateway">
+  <rect x="443.5585833333332" y="196.9" width="171.762" height="96.9" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="443.5585833333332" y="196.9" width="171.762" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="455.5585833333332" y="210.9" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">OpenClaw Gateway</text>
+</g>
+<g class="subgraph" data-id="AGENTS" data-label="4 AGENTS">
+  <rect x="40" y="573" width="1043.3249999999998" height="132.9" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="40" y="573" width="1043.3249999999998" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="52" y="587" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">4 AGENTS</text>
+</g>
+<g class="subgraph" data-id="TOOLS" data-label="SHARED CAPABILITIES">
+  <rect x="852.6526666666667" y="783.9" width="1210.7889999999998" height="96.9" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="852.6526666666667" y="783.9" width="1210.7889999999998" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="864.6526666666667" y="797.9" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">SHARED CAPABILITIES</text>
+</g>
+<g class="subgraph" data-id="PLATFORMS" data-label="EXTERNAL PLATFORMS">
+  <rect x="63.79766666666683" y="801.9" width="760.855" height="96.9" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="63.79766666666683" y="801.9" width="760.855" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="75.79766666666683" y="815.9" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">EXTERNAL PLATFORMS</text>
+</g>
+<g class="subgraph" data-id="CRON" data-label="BACKGROUND JOBS">
+  <rect x="393.97175000000016" y="404.1" width="716.5440000000001" height="96.9" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="393.97175000000016" y="404.1" width="716.5440000000001" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="405.97175000000016" y="418.1" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">BACKGROUND JOBS</text>
+</g>
+<polyline class="edge" data-from="WA" data-to="Router" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="529.4395833333333,120.9 529.4395833333332,240.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Router" data-to="CEO" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="DM" points="543.4157833333333,277.8 543.4157833333329,323.8 1120.5157499999998,323.8 1120.5157499999998,543 808.4009999999996,543 808.401,629 716.1376666666665,629 716.1376666666665,653" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Router" data-to="DEV" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="Dev Group" points="515.4633833333332,277.8 515.463383333333,323.8 382.97174999999993,323.8 382.97174999999993,555 410.23699999999985,555 410.23699999999997,653" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Router" data-to="MERCH" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="Merchant Group" points="487.51098333333323,277.8 487.5109833333329,311.8 231.01849999999968,311.8 231.01849999999968,555 192.2004999999997,555 192.20049999999998,653" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Router" data-to="CONSULT" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="Consult Group" points="571.3681833333333,277.8 571.368183333333,311.8 1183.70375,311.8 1183.70375,555 978.9946666666664,555 978.9946666666666,653" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="CEO" data-to="TOOLS" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="716.1376666666665,689.9 716.1376666666665,735.9 1579.1260666666667,735.9 1579.1260666666667,783.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DEV" data-to="TOOLS" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="517.9089999999999,689.9 517.9089999999999,747.9 1336.9682666666668,747.9 1336.9682666666668,783.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="MERCH" data-to="TOOLS" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="237.60066666666663,689.9 237.6006666666667,759.9 1094.8104666666668,759.9 1094.8104666666668,783.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="CONSULT" data-to="TOOLS" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="978.9946666666666,689.9 978.9946666666666,723.9 1821.2838666666667,723.9 1821.2838666666667,783.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="CONSULT" data-to="NOTION" data-style="dotted" data-arrow-start="false" data-arrow-end="true" points="890.6643333333333,689.9 890.6643333333333,771.9 754.7031666666669,771.9 754.7031666666669,836.9" fill="none" stroke="var(--_line)" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DEV" data-to="SUPA" data-style="dotted" data-arrow-start="false" data-arrow-end="true" points="410.23699999999997,689.9 410.2370000000001,771.9 245.5636666666669,771.9 245.56366666666685,836.9" fill="none" stroke="var(--_line)" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DEV" data-to="VERCEL" data-style="dotted" data-arrow-start="false" data-arrow-end="true" points="464.073,689.9 464.07299999999987,783.9 365.90166666666687,783.9 365.90166666666687,836.9" fill="none" stroke="var(--_line)" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="MERCH" data-to="SHOPIFY" data-style="dotted" data-arrow-start="false" data-arrow-end="true" points="146.8003333333333,689.9 146.80033333333336,783.9 123.00266666666676,783.9 123.00266666666683,836.9" fill="none" stroke="var(--_line)" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="CEO" data-to="SKILLSMP" data-style="dotted" data-arrow-start="false" data-arrow-end="true" points="657.9413333333332,689.9 657.9413333333332,783.9 625.4731666666669,783.9 625.4731666666668,836.9" fill="none" stroke="var(--_line)" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="POLL" data-to="CEO" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="663.9167500000002,485 663.9167500000003,555 657.9413333333332,555 657.9413333333332,653" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="SYNC" data-to="CONSULT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1023.1527500000002,485 1023.1527500000002,531 798.4009999999998,531 798.4010000000001,641 890.6643333333334,641 890.6643333333334,653" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="HEALTH" data-to="DEV" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="491.3382500000002,485 491.3382500000003,555 464.0729999999999,555 464.07300000000004,653" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="WEEKLY" data-to="DEV" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="839.4592500000003,485 839.4592500000003,519 667.9413333333332,519 667.9413333333332,629 517.909,629 517.909,653" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="edge-label" data-from="Router" data-to="CEO" data-label="DM">
+  <rect x="1103.5157499999998" y="330.8" width="33.688" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1120.3597499999998" y="345.95" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">DM</text>
+</g>
+<g class="edge-label" data-from="Router" data-to="DEV" data-label="Dev Group">
+  <rect x="348.47175000000016" y="330.8" width="68.14" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="382.54175000000015" y="345.95" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Dev Group</text>
+</g>
+<g class="edge-label" data-from="Router" data-to="MERCH" data-label="Merchant Group">
+  <rect x="183.5184999999999" y="493.69999999999993" width="94.87" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="230.9534999999999" y="508.8499999999999" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Merchant Group</text>
+</g>
+<g class="edge-label" data-from="Router" data-to="CONSULT" data-label="Consult Group">
+  <rect x="1141.20375" y="517.6999999999999" width="84.77200000000002" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1183.5897499999999" y="532.8499999999999" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Consult Group</text>
+</g>
+<g class="node" data-id="WA" data-label="WhatsApp" data-shape="rectangle">
+  <rect x="478.4540833333333" y="84" width="101.971" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="529.4395833333333" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">WhatsApp</text>
+</g>
+<g class="node" data-id="Router" data-label="Message Router" data-shape="rectangle">
+  <rect x="459.5585833333332" y="240.9" width="139.762" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="529.4395833333332" y="259.35" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Message Router</text>
+</g>
+<g class="node" data-id="CEO" data-label="CEO - Chief of Staff - DM" data-shape="rectangle">
+  <rect x="599.7449999999999" y="653" width="174.58900000000003" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="687.0394999999999" y="671.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">CEO - Chief of Staff - DM</text>
+</g>
+<g class="node" data-id="DEV" data-label="DEV - Virtual CTO - Dev Group" data-shape="rectangle">
+  <rect x="356.40099999999995" y="653" width="215.344" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="464.073" y="671.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">DEV - Virtual CTO - Dev Group</text>
+</g>
+<g class="node" data-id="MERCH" data-label="MERCHANT - Shopify - Merchant Group" data-shape="rectangle">
+  <rect x="56" y="653" width="272.40099999999995" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="192.20049999999998" y="671.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">MERCHANT - Shopify - Merchant Group</text>
+</g>
+<g class="node" data-id="CONSULT" data-label="CONSULT - Hospitality - Consult Group" data-shape="rectangle">
+  <rect x="802.334" y="653" width="264.991" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="934.8294999999999" y="671.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">CONSULT - Hospitality - Consult Group</text>
+</g>
+<g class="node" data-id="WEB" data-label="Web Search" data-shape="rectangle">
+  <rect x="990.4726666666668" y="836.9" width="114.568" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1047.756666666667" y="855.35" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Web Search</text>
+</g>
+<g class="node" data-id="BROWSER" data-label="Browser" data-shape="rectangle">
+  <rect x="1421.1406666666667" y="836.9" width="93.82" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1468.0506666666668" y="855.35" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Browser</text>
+</g>
+<g class="node" data-id="EXEC" data-label="Terminal" data-shape="rectangle">
+  <rect x="868.6526666666667" y="836.9" width="93.82000000000001" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="915.5626666666667" y="855.35" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Terminal</text>
+</g>
+<g class="node" data-id="FS" data-label="File System" data-shape="rectangle">
+  <rect x="1703.3126666666667" y="836.9" width="109.381" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1758.0031666666666" y="855.35" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">File System</text>
+</g>
+<g class="node" data-id="GMAIL" data-label="Gmail" data-shape="rectangle">
+  <rect x="1840.6936666666668" y="836.9" width="73.072" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1877.2296666666668" y="855.35" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Gmail</text>
+</g>
+<g class="node" data-id="IMG" data-label="Image Gen" data-shape="rectangle">
+  <rect x="1133.0406666666668" y="836.9" width="101.971" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1184.0261666666668" y="855.35" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Image Gen</text>
+</g>
+<g class="node" data-id="IMGREAD" data-label="Image Analysis" data-shape="rectangle">
+  <rect x="1263.0116666666668" y="836.9" width="130.12900000000002" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1328.0761666666667" y="855.35" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Image Analysis</text>
+</g>
+<g class="node" data-id="TTS" data-label="Text-to-Speech" data-shape="rectangle">
+  <rect x="1542.9606666666668" y="836.9" width="132.35199999999998" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1609.1366666666668" y="855.35" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Text-to-Speech</text>
+</g>
+<g class="node" data-id="SUBAG" data-label="Subagents" data-shape="rectangle">
+  <rect x="1941.7656666666667" y="836.9" width="105.676" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1994.6036666666666" y="855.35" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Subagents</text>
+</g>
+<g class="node" data-id="NOTION" data-label="Notion PPB" data-shape="rectangle">
+  <rect x="700.7536666666668" y="836.9" width="107.899" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="754.7031666666669" y="855.35" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Notion PPB</text>
+</g>
+<g class="node" data-id="SUPA" data-label="Supabase" data-shape="rectangle">
+  <rect x="194.20766666666685" y="836.9" width="102.71199999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="245.56366666666685" y="855.35" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Supabase</text>
+</g>
+<g class="node" data-id="VERCEL" data-label="Vercel" data-shape="rectangle">
+  <rect x="324.91966666666684" y="836.9" width="81.964" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="365.90166666666687" y="855.35" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Vercel</text>
+</g>
+<g class="node" data-id="SQUARE" data-label="Square POS" data-shape="rectangle">
+  <rect x="434.88366666666684" y="836.9" width="115.30899999999998" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="492.5381666666668" y="855.35" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Square POS</text>
+</g>
+<g class="node" data-id="SHOPIFY" data-label="Shopify" data-shape="rectangle">
+  <rect x="79.79766666666683" y="836.9" width="86.41" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="123.00266666666683" y="855.35" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Shopify</text>
+</g>
+<g class="node" data-id="SKILLSMP" data-label="SkillsMP" data-shape="rectangle">
+  <rect x="578.1926666666668" y="836.9" width="94.561" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="625.4731666666668" y="855.35" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">SkillsMP</text>
+</g>
+<g class="node" data-id="POLL" data-label="Gmail Poll 2min" data-shape="rectangle">
+  <rect x="600.7047500000002" y="448.1" width="126.424" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="663.9167500000002" y="466.55" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Gmail Poll 2min</text>
+</g>
+<g class="node" data-id="SYNC" data-label="Notion Sync 6hrs" data-shape="rectangle">
+  <rect x="951.7897500000001" y="448.1" width="142.726" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1023.1527500000002" y="466.55" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Notion Sync 6hrs</text>
+</g>
+<g class="node" data-id="HEALTH" data-label="Health Monitor 30min" data-shape="rectangle">
+  <rect x="409.97175000000016" y="448.1" width="162.73300000000003" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="491.3382500000002" y="466.55" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Health Monitor 30min</text>
+</g>
+<g class="node" data-id="WEEKLY" data-label="Arch Review Sun 9am" data-shape="rectangle">
+  <rect x="755.1287500000003" y="448.1" width="168.661" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="839.4592500000003" y="466.55" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Arch Review Sun 9am</text>
+</g>
+</svg>

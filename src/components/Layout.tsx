@@ -50,6 +50,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import DataInitializer from "./DataInitializer"
 import VenueSwitcher from "./venues/VenueSwitcher"
+import DemoModeBanner from "./dev/DemoModeBanner"
 import { LucideIcon } from "lucide-react"
 
 // ─── Navigation config ───────────────────────────────────────
@@ -354,6 +355,21 @@ export default function Layout() {
     navigate("/login")
   }
 
+  // Dev tools keyboard shortcut
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return
+
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'D') {
+        e.preventDefault()
+        window.open('/dev', '_blank')
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [])
+
   const isActiveTab = (url: string) => {
     if (url === "/dashboard") return location.pathname === "/" || location.pathname === "/dashboard"
     if (url === "/sales") return ["/sales", "/workforce/reports", "/insights"].some(p => location.pathname.startsWith(p))
@@ -462,6 +478,9 @@ export default function Layout() {
           </DropdownMenu>
         </header>
 
+        {/* Demo mode banner */}
+        <DemoModeBanner />
+        
         {/* Page content */}
         <main className="flex-1 overflow-auto">
           <DataInitializer />
