@@ -12,6 +12,7 @@ import AddVenuesStep from "./steps/AddVenuesStep";
 import ConnectPosStep from "./steps/ConnectPosStep";
 import InviteTeamStep from "./steps/InviteTeamStep";
 import ReviewStep from "./steps/ReviewStep";
+import { seedDemoData } from "@/lib/demo-seed";
 
 const STEPS = [
   { number: 1, title: "Business Details", description: "Your organisation info" },
@@ -26,7 +27,7 @@ export default function SetupWizard() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [checking, setChecking] = useState(true);
-  const [demoMode, setDemoMode] = useState(false);
+
   const [seedingDemo, setSeedingDemo] = useState(false);
 
   useEffect(() => {
@@ -89,30 +90,24 @@ export default function SetupWizard() {
   }, [navigate]);
 
   const handleSkipToDemo = useCallback(async () => {
-    if (!session) return;
+    if (!user) return;
     
     setSeedingDemo(true);
     try {
-      const response = await fetch('/api/dev/seed', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        // Refresh the page to reload with new demo org
-        window.location.href = '/dashboard';
-      } else {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to create demo organization');
-      }
+      // Use the client-side seed function directly
+      await seedDemoData(supabase, user.id);
+      
+      // Refresh the page to reload with new demo org
+      window.location.href = '/dashboard';
     } catch (error) {
       console.error('Demo seed error:', error);
       setSeedingDemo(false);
+      
+      // If there's an error, show it to the user
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create demo organization';
+      alert(`Error creating demo data: ${errorMessage}`);
     }
-  }, [session]);
+  }, [user]);
 
   if (authLoading || checking) {
     return (

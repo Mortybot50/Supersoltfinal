@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { seedDemoData } from '@/lib/demo-seed'
 
 export default function DevTools() {
   const { user, currentOrg, session } = useAuth()
@@ -33,32 +34,21 @@ export default function DevTools() {
   }
 
   const handleSeedData = async () => {
-    if (!user || !session) return
+    if (!user) return
     
     setSeeding(true)
     setMessage(null)
 
     try {
-      const response = await fetch('/api/dev/seed', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
+      // Use the client-side seed function directly
+      const result = await seedDemoData(supabase, user.id)
+      
+      setMessage({ 
+        type: 'success', 
+        text: `Demo data seeded! Organization ID: ${result.orgId}` 
       })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        setMessage({ 
-          type: 'success', 
-          text: `Demo data seeded! Organization ID: ${data.orgId}` 
-        })
-        // Refresh page to load new org
-        setTimeout(() => window.location.href = '/dashboard', 2000)
-      } else {
-        throw new Error(data.error || 'Failed to seed data')
-      }
+      // Refresh page to load new org
+      setTimeout(() => window.location.href = '/dashboard', 2000)
     } catch (error) {
       setMessage({ 
         type: 'error', 
