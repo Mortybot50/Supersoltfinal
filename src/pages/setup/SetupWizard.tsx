@@ -168,35 +168,40 @@ export default function SetupWizard() {
           </div>
         </Card>
 
-        {/* Demo Mode Toggle - Show on step 1 */}
+        {/* Demo Mode Button - Show on step 1 */}
         {currentStep === 1 && (
-          <Alert className="border-amber-200 bg-amber-50">
-            <Sparkles className="h-4 w-4 text-amber-600" />
-            <AlertDescription className="flex items-center justify-between">
-              <span className="text-amber-800">
-                Skip setup with demo data? Creates a sample restaurant with staff, menu, and sales.
-              </span>
+          <Card className="p-4 border-amber-200 bg-amber-50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Sparkles className="h-5 w-5 text-amber-600" />
+                <div>
+                  <p className="font-medium text-amber-900">Try Demo Mode</p>
+                  <p className="text-sm text-amber-700">
+                    Skip setup with sample data - creates a demo restaurant with staff, menu, and sales
+                  </p>
+                </div>
+              </div>
               <Button
-                variant="outline"
-                size="sm"
+                variant="default"
+                size="default"
                 onClick={handleSkipToDemo}
                 disabled={seedingDemo}
-                className="ml-4 border-amber-300 hover:bg-amber-100"
+                className="bg-amber-600 hover:bg-amber-700 text-white"
               >
                 {seedingDemo ? (
                   <>
-                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                    Creating demo...
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating Demo...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="mr-2 h-3 w-3" />
-                    Skip to Demo
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Load Demo Data
                   </>
                 )}
               </Button>
-            </AlertDescription>
-          </Alert>
+            </div>
+          </Card>
         )}
 
         {currentStep === 1 && (

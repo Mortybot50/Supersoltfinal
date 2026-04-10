@@ -54,6 +54,9 @@ export default function BusinessDetailsStep({ orgId, onNext }: Props) {
 
   useEffect(() => {
     const loadOrg = async () => {
+      // Only load if we have an orgId (existing org)
+      if (!orgId) return;
+      
       const { data } = await supabase
         .from("organizations")
         .select("*")
@@ -76,36 +79,74 @@ export default function BusinessDetailsStep({ orgId, onNext }: Props) {
   const onSubmit = async (formData: BusinessFormData) => {
     setSaving(true);
     try {
-      // First get existing settings to merge
-      const { data: existing } = await supabase
-        .from("organizations")
-        .select("*")
-        .eq("id", orgId)
-        .single();
+      // Check if we're updating existing or creating new
+      if (orgId) {
+        // Update existing organization
+        const { data: existing } = await supabase
+          .from("organizations")
+          .select("*")
+          .eq("id", orgId)
+          .single();
 
-      const existingSettings = ((existing as Record<string, unknown>)?.settings as Record<string, unknown>) ?? {};
+        const existingSettings = ((existing as Record<string, unknown>)?.settings as Record<string, unknown>) ?? {};
 
-      const { error } = await supabase
-        .from("organizations")
-        .update({
-          name: formData.name,
-          settings: {
-            ...existingSettings,
-            abn: formData.abn,
-            gst_registered: formData.gst_registered,
-            contact_email: formData.contact_email,
-            contact_phone: formData.contact_phone,
-          },
-        } as Record<string, unknown>)
-        .eq("id", orgId);
+        const { error } = await supabase
+          .from("organizations")
+          .update({
+            name: formData.name,
+            settings: {
+              ...existingSettings,
+              abn: formData.abn,
+              gst_registered: formData.gst_registered,
+              contact_email: formData.contact_email,
+              contact_phone: formData.contact_phone,
+            },
+          } as Record<string, unknown>)
+          .eq("id", orgId);
 
-      if (error) throw error;
+        if (error) throw error;
+      } else {
+        // Create new organization for new signups
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("No authenticated user");
+
+        const { data: newOrg, error: createError } = await supabase
+          .from("organizations")
+          .insert({
+            name: formData.name,
+            created_by: user.id,
+            settings: {
+              abn: formData.abn,
+              gst_registered: formData.gst_registered,
+              contact_email: formData.contact_email,
+              contact_phone: formData.contact_phone,
+            },
+          })
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        
+        // Also create the org_member record
+        const { error: memberError } = await supabase
+          .from("org_members")
+          .insert({
+            org_id: newOrg.id,
+            user_id: user.id,
+            role: 'owner',
+            is_active: true,
+            joined_at: new Date().toISOString(),
+          });
+          
+        if (memberError) throw memberError;
+      }
 
       toast.success("Business details saved");
       onNext();
     } catch (err) {
-      toast.success("Error saving", { description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive", });
+      toast.error("Error saving", { 
+        description: err instanceof Error ? err.message : "Unknown error"
+      });
     } finally {
       setSaving(false);
     }
