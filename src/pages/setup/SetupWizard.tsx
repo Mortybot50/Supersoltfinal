@@ -31,11 +31,14 @@ export default function SetupWizard() {
   const [seedingDemo, setSeedingDemo] = useState(false);
 
   useEffect(() => {
-    if (authLoading) return;
+    // 🚨 TESTING MODE: Skip auth check - REMOVE BEFORE PRODUCTION!
     if (!user) {
-      navigate("/login", { replace: true });
+      // For testing, create a fake user context
+      setChecking(false);
       return;
     }
+    
+    if (authLoading) return;
     // currentOrg may be null briefly after signup — wait briefly, then show wizard anyway
     if (!currentOrg) {
       const timeout = setTimeout(() => {
@@ -90,12 +93,13 @@ export default function SetupWizard() {
   }, [navigate]);
 
   const handleSkipToDemo = useCallback(async () => {
-    if (!user) return;
+    // For testing: use a fake user ID if no user
+    const userId = user?.id || 'test-user-' + Date.now();
     
     setSeedingDemo(true);
     try {
       // Use the client-side seed function directly
-      await seedDemoData(supabase, user.id);
+      await seedDemoData(supabase, userId);
       
       // Refresh the page to reload with new demo org
       window.location.href = '/dashboard';

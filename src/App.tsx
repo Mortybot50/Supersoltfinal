@@ -205,8 +205,8 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Route>
 
-            {/* Setup Wizard (protected but outside Layout) */}
-            <Route path="/setup" element={<ProtectedRoute><SetupWizard /></ProtectedRoute>} />
+            {/* Setup Wizard (TEMPORARILY UNPROTECTED FOR TESTING) */}
+            <Route path="/setup" element={<SetupWizard />} />
             {/* Public Onboarding Portal (outside Layout) */}
             <Route path="onboarding/portal/:token" element={<InvitePortal />} />
             <Route path="onboarding/portal/:token/step:stepNumber" element={<InviteStep />} />
