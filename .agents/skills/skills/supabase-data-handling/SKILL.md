@@ -110,26 +110,26 @@ WHERE c.table_schema = 'public'
 **PII detection from the SDK:**
 
 ```typescript
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
+  { auth: { autoRefreshToken: false, persistSession: false } },
 );
 
 // Scan a table for PII patterns in text columns
 async function scanTableForPII(tableName: string, sampleSize = 100) {
   const PII_PATTERNS = [
-    { type: 'email', regex: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g },
-    { type: 'phone', regex: /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g },
-    { type: 'ssn', regex: /\b\d{3}-\d{2}-\d{4}\b/g },
-    { type: 'ip_address', regex: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g },
+    { type: "email", regex: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g },
+    { type: "phone", regex: /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g },
+    { type: "ssn", regex: /\b\d{3}-\d{2}-\d{4}\b/g },
+    { type: "ip_address", regex: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g },
   ];
 
   const { data, error } = await supabase
     .from(tableName)
-    .select('*')
+    .select("*")
     .limit(sampleSize);
 
   if (error) throw error;
@@ -138,7 +138,7 @@ async function scanTableForPII(tableName: string, sampleSize = 100) {
 
   for (const row of data ?? []) {
     for (const [column, value] of Object.entries(row)) {
-      if (typeof value !== 'string') continue;
+      if (typeof value !== "string") continue;
       for (const pattern of PII_PATTERNS) {
         const matches = value.match(pattern.regex);
         if (matches) {
@@ -159,12 +159,12 @@ Implement GDPR Article 17 (right to erasure) with `auth.admin.deleteUser()` and 
 **Right to deletion — complete user erasure:**
 
 ```typescript
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
+  { auth: { autoRefreshToken: false, persistSession: false } },
 );
 
 interface DeletionResult {
@@ -181,15 +181,12 @@ async function deleteUserData(userId: string): Promise<DeletionResult> {
   let storageFilesDeleted = 0;
 
   // 1. Delete user data from application tables (cascade order)
-  const tablesToPurge = ['comments', 'orders', 'documents', 'profiles'];
+  const tablesToPurge = ["comments", "orders", "documents", "profiles"];
 
   for (const table of tablesToPurge) {
-    const { error } = await supabase
-      .from(table)
-      .delete()
-      .eq('user_id', userId);
+    const { error } = await supabase.from(table).delete().eq("user_id", userId);
 
-    if (error && !error.message.includes('does not exist')) {
+    if (error && !error.message.includes("does not exist")) {
       console.error(`Failed to delete from ${table}:`, error.message);
     } else {
       tablesProcessed.push(table);
@@ -205,9 +202,7 @@ async function deleteUserData(userId: string): Promise<DeletionResult> {
 
     if (files && files.length > 0) {
       const paths = files.map((f) => `users/${userId}/${f.name}`);
-      const { error } = await supabase.storage
-        .from(bucket.name)
-        .remove(paths);
+      const { error } = await supabase.storage.from(bucket.name).remove(paths);
 
       if (!error) storageFilesDeleted += paths.length;
     }
@@ -218,22 +213,22 @@ async function deleteUserData(userId: string): Promise<DeletionResult> {
   const authDeleted = !authError;
 
   if (authError) {
-    console.error('Auth deletion failed:', authError.message);
+    console.error("Auth deletion failed:", authError.message);
   }
 
   // 4. Create audit log entry (required — must survive deletion)
   const { data: auditEntry } = await supabase
-    .from('gdpr_audit_log')
+    .from("gdpr_audit_log")
     .insert({
-      action: 'USER_DELETION',
+      action: "USER_DELETION",
       subject_id: userId,
       tables_purged: tablesProcessed,
       storage_files_deleted: storageFilesDeleted,
       auth_deleted: authDeleted,
-      performed_by: 'system',
-      legal_basis: 'GDPR Article 17 — Right to Erasure',
+      performed_by: "system",
+      legal_basis: "GDPR Article 17 — Right to Erasure",
     })
-    .select('id')
+    .select("id")
     .single();
 
   return {
@@ -241,7 +236,7 @@ async function deleteUserData(userId: string): Promise<DeletionResult> {
     tablesProcessed,
     storageFilesDeleted,
     authDeleted,
-    auditLogId: auditEntry?.id ?? 'unknown',
+    auditLogId: auditEntry?.id ?? "unknown",
     completedAt: new Date().toISOString(),
   };
 }
@@ -266,12 +261,12 @@ async function deleteUserData(userId: string): Promise<DeletionResult> {
 **Data subject access request (DSAR) — export all user data:**
 
 ```typescript
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
+  { auth: { autoRefreshToken: false, persistSession: false } },
 );
 
 interface DataExport {
@@ -286,13 +281,13 @@ async function exportUserData(userId: string): Promise<DataExport> {
   const exportData: Record<string, unknown[]> = {};
 
   // Export from each table containing user data
-  const tables = ['profiles', 'orders', 'documents', 'comments'];
+  const tables = ["profiles", "orders", "documents", "comments"];
 
   for (const table of tables) {
     const { data, error } = await supabase
       .from(table)
-      .select('*')
-      .eq('user_id', userId);
+      .select("*")
+      .eq("user_id", userId);
 
     if (!error && data) {
       exportData[table] = data;
@@ -313,17 +308,17 @@ async function exportUserData(userId: string): Promise<DataExport> {
   }
 
   // Log the export for compliance
-  await supabase.from('gdpr_audit_log').insert({
-    action: 'DATA_EXPORT',
+  await supabase.from("gdpr_audit_log").insert({
+    action: "DATA_EXPORT",
     subject_id: userId,
-    performed_by: 'system',
-    legal_basis: 'GDPR Article 15 — Right of Access',
+    performed_by: "system",
+    legal_basis: "GDPR Article 15 — Right of Access",
   });
 
   return {
     exportedAt: new Date().toISOString(),
     subjectId: userId,
-    legalBasis: 'GDPR Article 15 — Right of Access',
+    legalBasis: "GDPR Article 15 — Right of Access",
     data: exportData,
     storageFiles,
   };
@@ -385,26 +380,26 @@ LIMIT 20;
 **Retention tracking from the SDK:**
 
 ```typescript
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
+  { auth: { autoRefreshToken: false, persistSession: false } },
 );
 
 // Get retention policy status
 async function getRetentionStatus() {
   const policies = [
-    { table: 'api_logs', retentionDays: 30 },
-    { table: 'error_logs', retentionDays: 90 },
-    { table: 'audit_logs', retentionDays: null },  // Never delete
+    { table: "api_logs", retentionDays: 30 },
+    { table: "error_logs", retentionDays: 90 },
+    { table: "audit_logs", retentionDays: null }, // Never delete
   ];
 
   for (const policy of policies) {
     const { count } = await supabase
       .from(policy.table)
-      .select('*', { count: 'exact', head: true });
+      .select("*", { count: "exact", head: true });
 
     let expiredCount = 0;
     if (policy.retentionDays) {
@@ -413,13 +408,15 @@ async function getRetentionStatus() {
 
       const { count: expired } = await supabase
         .from(policy.table)
-        .select('*', { count: 'exact', head: true })
-        .lt('created_at', cutoff.toISOString());
+        .select("*", { count: "exact", head: true })
+        .lt("created_at", cutoff.toISOString());
 
       expiredCount = expired ?? 0;
     }
 
-    console.log(`${policy.table}: ${count} total, ${expiredCount} expired, retention=${policy.retentionDays ?? 'forever'}`);
+    console.log(
+      `${policy.table}: ${count} total, ${expiredCount} expired, retention=${policy.retentionDays ?? "forever"}`,
+    );
   }
 }
 ```
@@ -465,22 +462,22 @@ After completing this skill, you will have:
 
 ## Error Handling
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `auth.admin.deleteUser()` returns 404 | User already deleted or wrong ID | Check `auth.users` table; may have been deleted by another process |
-| `violates foreign key constraint` during deletion | Child rows reference user | Delete in cascade order (comments → orders → profiles) or use `ON DELETE CASCADE` |
-| `permission denied for function cron.schedule` | `pg_cron` not enabled or wrong plan | Enable `pg_cron` extension; requires Supabase Pro plan |
-| `pg_dump: connection refused` | Using wrong port or pooler URL | Use direct connection (port 5432), not pooler (port 6543) for `pg_dump` |
-| `RLS policy blocks admin operations` | Service role key not used | Use `createClient` with `SUPABASE_SERVICE_ROLE_KEY` to bypass RLS |
-| Audit log entries missing | Table has RLS blocking inserts | Use `SECURITY DEFINER` function or service role for audit writes |
-| Retention job not running | `pg_cron` job disabled or errored | Check `cron.job_run_details` for error messages |
+| Error                                             | Cause                               | Solution                                                                          |
+| ------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------- |
+| `auth.admin.deleteUser()` returns 404             | User already deleted or wrong ID    | Check `auth.users` table; may have been deleted by another process                |
+| `violates foreign key constraint` during deletion | Child rows reference user           | Delete in cascade order (comments → orders → profiles) or use `ON DELETE CASCADE` |
+| `permission denied for function cron.schedule`    | `pg_cron` not enabled or wrong plan | Enable `pg_cron` extension; requires Supabase Pro plan                            |
+| `pg_dump: connection refused`                     | Using wrong port or pooler URL      | Use direct connection (port 5432), not pooler (port 6543) for `pg_dump`           |
+| `RLS policy blocks admin operations`              | Service role key not used           | Use `createClient` with `SUPABASE_SERVICE_ROLE_KEY` to bypass RLS                 |
+| Audit log entries missing                         | Table has RLS blocking inserts      | Use `SECURITY DEFINER` function or service role for audit writes                  |
+| Retention job not running                         | `pg_cron` job disabled or errored   | Check `cron.job_run_details` for error messages                                   |
 
 ## Examples
 
 **Example 1 — Handle a GDPR deletion request:**
 
 ```typescript
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(url, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
@@ -492,14 +489,14 @@ async function handleDeletionRequest(userId: string) {
   const result = await deleteUserData(userId);
 
   console.log(`User ${userId} deleted:`, {
-    tables: result.tablesProcessed.join(', '),
+    tables: result.tablesProcessed.join(", "),
     files: result.storageFilesDeleted,
     auth: result.authDeleted,
     auditId: result.auditLogId,
   });
 
   // GDPR requires completion within 30 days
-  return { status: 'completed', auditId: result.auditLogId };
+  return { status: "completed", auditId: result.auditLogId };
 }
 ```
 
@@ -521,18 +518,20 @@ WHERE notes ~ '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}';
 **Example 3 — Verify retention job execution:**
 
 ```typescript
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(url, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
 async function checkRetentionJobs() {
-  const { data, error } = await supabase.rpc('get_cron_status');
+  const { data, error } = await supabase.rpc("get_cron_status");
   if (error) throw error;
 
   for (const job of data ?? []) {
-    console.log(`Job "${job.jobname}": last_run=${job.last_run}, status=${job.status}`);
+    console.log(
+      `Job "${job.jobname}": last_run=${job.last_run}, status=${job.status}`,
+    );
   }
 }
 ```

@@ -1,4 +1,10 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
 import { User, Session, SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -89,7 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Fetch user's organizations through org_members
       const { data: memberships, error: membershipsError } = await supabase
         .from("org_members")
-        .select(`
+        .select(
+          `
           id,
           org_id,
           role,
@@ -97,7 +104,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             id,
             name
           )
-        `)
+        `,
+        )
         .eq("user_id", userId)
         .eq("is_active", true);
 
@@ -116,9 +124,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setCurrentOrg(orgToUse);
 
         // Get membership details for current org
-        const currentMembership = (memberships as unknown as MembershipWithOrg[]).find(
-          (m) => m.org_id === orgToUse.id
-        );
+        const currentMembership = (
+          memberships as unknown as MembershipWithOrg[]
+        ).find((m) => m.org_id === orgToUse.id);
         if (currentMembership) {
           setOrgMember({
             id: currentMembership.id,

@@ -1,45 +1,105 @@
-import { useState } from "react"
-import { Link } from "react-router-dom"
-import { format, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, subQuarters, startOfYear, endOfYear, subYears } from "date-fns"
-import { DollarSign, TrendingUp, ShoppingCart, Users, Receipt, BarChart3, ExternalLink } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { PageShell, PageToolbar, DateRangePicker } from "@/components/shared"
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  subMonths,
+  startOfQuarter,
+  endOfQuarter,
+  subQuarters,
+  startOfYear,
+  endOfYear,
+  subYears,
+} from "date-fns";
+import {
+  DollarSign,
+  TrendingUp,
+  ShoppingCart,
+  Users,
+  Receipt,
+  BarChart3,
+  ExternalLink,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { PageShell, PageToolbar, DateRangePicker } from "@/components/shared";
 
-type PLPreset = "this-month" | "last-month" | "this-quarter" | "last-quarter" | "this-year" | "last-year" | "custom"
+type PLPreset =
+  | "this-month"
+  | "last-month"
+  | "this-quarter"
+  | "last-quarter"
+  | "this-year"
+  | "last-year"
+  | "custom";
 
-function getPLDateRange(preset: PLPreset): { from: Date; to: Date; label: string } {
-  const now = new Date()
+function getPLDateRange(preset: PLPreset): {
+  from: Date;
+  to: Date;
+  label: string;
+} {
+  const now = new Date();
   switch (preset) {
     case "this-month":
-      return { from: startOfMonth(now), to: endOfMonth(now), label: format(now, "MMMM yyyy") }
+      return {
+        from: startOfMonth(now),
+        to: endOfMonth(now),
+        label: format(now, "MMMM yyyy"),
+      };
     case "last-month": {
-      const lm = subMonths(now, 1)
-      return { from: startOfMonth(lm), to: endOfMonth(lm), label: format(lm, "MMMM yyyy") }
+      const lm = subMonths(now, 1);
+      return {
+        from: startOfMonth(lm),
+        to: endOfMonth(lm),
+        label: format(lm, "MMMM yyyy"),
+      };
     }
     case "this-quarter":
-      return { from: startOfQuarter(now), to: endOfQuarter(now), label: `Q${Math.ceil((now.getMonth() + 1) / 3)} ${format(now, "yyyy")}` }
+      return {
+        from: startOfQuarter(now),
+        to: endOfQuarter(now),
+        label: `Q${Math.ceil((now.getMonth() + 1) / 3)} ${format(now, "yyyy")}`,
+      };
     case "last-quarter": {
-      const lq = subQuarters(now, 1)
-      return { from: startOfQuarter(lq), to: endOfQuarter(lq), label: `Q${Math.ceil((lq.getMonth() + 1) / 3)} ${format(lq, "yyyy")}` }
+      const lq = subQuarters(now, 1);
+      return {
+        from: startOfQuarter(lq),
+        to: endOfQuarter(lq),
+        label: `Q${Math.ceil((lq.getMonth() + 1) / 3)} ${format(lq, "yyyy")}`,
+      };
     }
     case "this-year":
-      return { from: startOfYear(now), to: endOfYear(now), label: `FY ${format(now, "yyyy")}` }
+      return {
+        from: startOfYear(now),
+        to: endOfYear(now),
+        label: `FY ${format(now, "yyyy")}`,
+      };
     case "last-year": {
-      const ly = subYears(now, 1)
-      return { from: startOfYear(ly), to: endOfYear(ly), label: `FY ${format(ly, "yyyy")}` }
+      const ly = subYears(now, 1);
+      return {
+        from: startOfYear(ly),
+        to: endOfYear(ly),
+        label: `FY ${format(ly, "yyyy")}`,
+      };
     }
   }
 }
 
-const DASH = "—"
+const DASH = "—";
 
 interface PLRow {
-  label: string
-  value: string
-  icon?: React.ElementType
-  emphasis?: "total" | "profit" | "loss" | "subtotal"
+  label: string;
+  value: string;
+  icon?: React.ElementType;
+  emphasis?: "total" | "profit" | "loss" | "subtotal";
 }
 
 function PLSection({
@@ -47,9 +107,9 @@ function PLSection({
   rows,
   icon: Icon,
 }: {
-  title: string
-  rows: PLRow[]
-  icon: React.ElementType
+  title: string;
+  rows: PLRow[];
+  icon: React.ElementType;
 }) {
   return (
     <Card className="border-border/60">
@@ -68,12 +128,12 @@ function PLSection({
                 row.emphasis === "total"
                   ? "bg-slate-100 dark:bg-slate-800 font-semibold"
                   : row.emphasis === "profit"
-                  ? "bg-emerald-50 dark:bg-emerald-950/30 font-semibold text-emerald-700 dark:text-emerald-400"
-                  : row.emphasis === "loss"
-                  ? "bg-red-50 dark:bg-red-950/30 font-semibold text-red-700 dark:text-red-400"
-                  : row.emphasis === "subtotal"
-                  ? "border-t pt-2 mt-1"
-                  : ""
+                    ? "bg-emerald-50 dark:bg-emerald-950/30 font-semibold text-emerald-700 dark:text-emerald-400"
+                    : row.emphasis === "loss"
+                      ? "bg-red-50 dark:bg-red-950/30 font-semibold text-red-700 dark:text-red-400"
+                      : row.emphasis === "subtotal"
+                        ? "border-t pt-2 mt-1"
+                        : ""
               }`}
             >
               <span className="text-sm">{row.label}</span>
@@ -83,24 +143,29 @@ function PLSection({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 export default function ProfitAndLoss() {
-  const [preset, setPreset] = useState<PLPreset>("this-month")
-  const [customFrom, setCustomFrom] = useState<Date | undefined>()
-  const [customTo, setCustomTo] = useState<Date | undefined>()
-  const [pickerOpen, setPickerOpen] = useState(false)
+  const [preset, setPreset] = useState<PLPreset>("this-month");
+  const [customFrom, setCustomFrom] = useState<Date | undefined>();
+  const [customTo, setCustomTo] = useState<Date | undefined>();
+  const [pickerOpen, setPickerOpen] = useState(false);
 
-  const { from: plFrom, to: plTo, label: plLabel } = preset === "custom"
+  const {
+    from: plFrom,
+    to: plTo,
+    label: plLabel,
+  } = preset === "custom"
     ? {
         from: customFrom ?? startOfMonth(new Date()),
         to: customTo ?? endOfMonth(new Date()),
-        label: customFrom && customTo
-          ? `${format(customFrom, "d MMM")} – ${format(customTo, "d MMM yyyy")}`
-          : "Custom",
+        label:
+          customFrom && customTo
+            ? `${format(customFrom, "d MMM")} – ${format(customTo, "d MMM yyyy")}`
+            : "Custom",
       }
-    : getPLDateRange(preset)
+    : getPLDateRange(preset);
 
   const toolbar = (
     <PageToolbar
@@ -110,9 +175,9 @@ export default function ProfitAndLoss() {
           <Select
             value={preset}
             onValueChange={(v) => {
-              const val = v as PLPreset
-              setPreset(val)
-              if (val === "custom") setTimeout(() => setPickerOpen(true), 50)
+              const val = v as PLPreset;
+              setPreset(val);
+              if (val === "custom") setTimeout(() => setPickerOpen(true), 50);
             }}
           >
             <SelectTrigger className="h-9 w-[160px] border-border/60">
@@ -134,15 +199,17 @@ export default function ProfitAndLoss() {
             open={pickerOpen}
             onOpenChange={setPickerOpen}
             onApply={(from, to) => {
-              setCustomFrom(from)
-              setCustomTo(to)
+              setCustomFrom(from);
+              setCustomTo(to);
             }}
           />
-          <span className="text-xs text-muted-foreground hidden sm:inline">{plLabel}</span>
+          <span className="text-xs text-muted-foreground hidden sm:inline">
+            {plLabel}
+          </span>
         </div>
       }
     />
-  )
+  );
 
   return (
     <PageShell toolbar={toolbar}>
@@ -155,10 +222,16 @@ export default function ProfitAndLoss() {
               P&L data will appear here once Xero is connected
             </p>
             <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
-              Connect your Xero account to automatically pull income, COGS, payroll and expense data into your P&L.
+              Connect your Xero account to automatically pull income, COGS,
+              payroll and expense data into your P&L.
             </p>
           </div>
-          <Button asChild size="sm" variant="outline" className="shrink-0 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400">
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="shrink-0 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400"
+          >
             <Link to="/admin/integrations">
               <ExternalLink className="h-3.5 w-3.5 mr-1" />
               Connect Xero
@@ -239,5 +312,5 @@ export default function ProfitAndLoss() {
         </Card>
       </div>
     </PageShell>
-  )
+  );
 }

@@ -1,6 +1,7 @@
 ---
 name: studio-best-practices
-description: React and TypeScript best practices for Supabase Studio. Use when writing
+description:
+  React and TypeScript best practices for Supabase Studio. Use when writing
   or reviewing Studio components — covers boolean naming, component structure, loading/error
   states, state management, custom hooks, event handlers, conditional rendering,
   performance, and TypeScript conventions.
@@ -24,14 +25,20 @@ Extract complex conditions into named variables:
 ```tsx
 // ❌ inline multi-condition
 {
-  !isSchemaLocked && isTableLike(selectedTable) && canUpdateColumns && !isLoading && <Button />
+  !isSchemaLocked &&
+    isTableLike(selectedTable) &&
+    canUpdateColumns &&
+    !isLoading && <Button />;
 }
 
 // ✅ named variable
 const canShowAddButton =
-  !isSchemaLocked && isTableLike(selectedTable) && canUpdateColumns && !isLoading
+  !isSchemaLocked &&
+  isTableLike(selectedTable) &&
+  canUpdateColumns &&
+  !isLoading;
 {
-  canShowAddButton && <Button />
+  canShowAddButton && <Button />;
 }
 ```
 
@@ -39,13 +46,13 @@ Derive booleans — don't store them:
 
 ```tsx
 // ❌ stored derived state
-const [isFormValid, setIsFormValid] = useState(false)
+const [isFormValid, setIsFormValid] = useState(false);
 useEffect(() => {
-  setIsFormValid(name.length > 0 && email.includes('@'))
-}, [name, email])
+  setIsFormValid(name.length > 0 && email.includes("@"));
+}, [name, email]);
 
 // ✅ derived
-const isFormValid = name.length > 0 && email.includes('@')
+const isFormValid = name.length > 0 && email.includes("@");
 ```
 
 ## Component Structure
@@ -101,11 +108,11 @@ Group related form state with `react-hook-form` rather than multiple `useState` 
 
 ```tsx
 // ❌ multiple related useState
-const [name, setName] = useState('')
-const [email, setEmail] = useState('')
+const [name, setName] = useState("");
+const [email, setEmail] = useState("");
 
 // ✅ grouped with react-hook-form
-const form = useForm<FormValues>({ defaultValues: { name: '', email: '' } })
+const form = useForm<FormValues>({ defaultValues: { name: "", email: "" } });
 ```
 
 ## Custom Hooks
@@ -114,10 +121,10 @@ Extract complex or reusable logic into hooks. Return objects, not arrays:
 
 ```tsx
 // ❌ array return (hard to extend)
-return [value, toggle]
+return [value, toggle];
 
 // ✅ object return
-return { value, toggle, setTrue, setFalse }
+return { value, toggle, setTrue, setFalse };
 ```
 
 ## Event Handlers
@@ -152,22 +159,22 @@ Define prop interfaces explicitly. Use discriminated unions for complex state:
 
 ```tsx
 type AsyncState<T> =
-  | { status: 'idle' }
-  | { status: 'loading' }
-  | { status: 'success'; data: T }
-  | { status: 'error'; error: Error }
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success"; data: T }
+  | { status: "error"; error: Error };
 ```
 
 Avoid `as any` / `as Type` casts. Validate at boundaries with zod:
 
 ```tsx
 // ❌ type cast
-const user = apiResponse as User
+const user = apiResponse as User;
 
 // ✅ zod parse
-const user = userSchema.parse(apiResponse)
+const user = userSchema.parse(apiResponse);
 // or safe:
-const result = userSchema.safeParse(apiResponse)
+const result = userSchema.safeParse(apiResponse);
 ```
 
 ## Testing

@@ -1,6 +1,7 @@
 # MortyBot OpenClaw Setup — Visual Guide
-*Last updated: 7 April 2026*
-*Based on: 26 config files, 107 skills across 5 locations*
+
+_Last updated: 7 April 2026_
+_Based on: 26 config files, 107 skills across 5 locations_
 
 ---
 
@@ -8,34 +9,34 @@
 
 26 files read, zero missing. Here is what each one does:
 
-| # | File | Purpose |
-|---|------|---------|
-| 1 | dev/SOUL.md | Defines DEV as SuperSolt's Virtual CTO with full-stack mastery |
-| 2 | dev/AGENTS.md | DEV operating manual: boot sequence, memory, safety, Gmail, SkillsMP, image handling |
-| 3 | dev/TOOLS.md | DEV environment: SuperSolt location, Supabase ref, production URL |
-| 4 | dev/IDENTITY.md | DEV persona: sharp, direct, Australian, delegates heavy coding to Claude Code |
-| 5 | dev/HEARTBEAT.md | DEV periodic checks: POS sync, build status, PRs, emails, calendar |
-| 6 | merchant/SOUL.md | MERCHANT as autonomous Shopify dropshipping operator with 30% margin floor |
-| 7 | merchant/AGENTS.md | MERCHANT operating manual: pricing/ad-spend/supplier safety rails, reporting templates |
-| 8 | merchant/TOOLS.md | MERCHANT API conventions: Shopify Admin, Meta Ads, Klaviyo, Google Trends |
-| 9 | merchant/IDENTITY.md | MERCHANT persona: autonomous operator covering research, pricing, ads, margins |
-| 10 | merchant/HEARTBEAT.md | MERCHANT periodic checks: orders, ads ROAS, inventory, revenue, trends, UGC |
-| 11 | consult/SOUL.md | CONSULT as hospitality operations consultant with AU compliance expertise |
-| 12 | consult/AGENTS.md | CONSULT operating manual: Notion integration, PPB workspace map, meeting transcript workflow |
-| 13 | consult/TOOLS.md | CONSULT environment: AU hospitality benchmarks, compliance references (mostly placeholder) |
-| 14 | consult/IDENTITY.md | CONSULT persona: professional, methodical, commercially sharp, Australian English |
-| 15 | consult/HEARTBEAT.md | CONSULT periodic checks: deliverables, meetings, memory (minimal, pending build-out) |
-| 16 | ceo/SOUL.md | CEO as virtual chief of staff overseeing all three ventures |
-| 17 | ceo/AGENTS.md | CEO operating manual: triage rules, Gmail integration, email templates, SkillsMP |
-| 18 | ceo/TOOLS.md | CEO environment: agent landscape, key references, autonomy rules |
-| 19 | ceo/IDENTITY.md | CEO persona: calm, strategic, sees the whole board, connects dots |
-| 20 | ceo/HEARTBEAT.md | CEO periodic checks: cross-venture priorities, commitments, follow-ups |
-| 21 | workspace/USER.md | Morty's profile: ghostwriting style, communication preferences |
-| 22 | workspace/MEMORY.md | Shared memory: SuperSolt status, partnerships, known issues |
-| 23 | ~/workspace/USER.md | Richer profile: SuperSolt MVP description, 7 modules, tech stack, build phases |
-| 24 | ~/workspace/MEMORY.md | Curated memory: 74 tables, 166 RLS, partnerships, merchant build status |
-| 25 | openclaw.json | Master config: 4 agents, models, sandbox, WhatsApp bindings, plugins |
-| 26 | cron/jobs.json | 2 cron jobs: 30-min health monitor + weekly Sunday architecture review |
+| #   | File                  | Purpose                                                                                      |
+| --- | --------------------- | -------------------------------------------------------------------------------------------- |
+| 1   | dev/SOUL.md           | Defines DEV as SuperSolt's Virtual CTO with full-stack mastery                               |
+| 2   | dev/AGENTS.md         | DEV operating manual: boot sequence, memory, safety, Gmail, SkillsMP, image handling         |
+| 3   | dev/TOOLS.md          | DEV environment: SuperSolt location, Supabase ref, production URL                            |
+| 4   | dev/IDENTITY.md       | DEV persona: sharp, direct, Australian, delegates heavy coding to Claude Code                |
+| 5   | dev/HEARTBEAT.md      | DEV periodic checks: POS sync, build status, PRs, emails, calendar                           |
+| 6   | merchant/SOUL.md      | MERCHANT as autonomous Shopify dropshipping operator with 30% margin floor                   |
+| 7   | merchant/AGENTS.md    | MERCHANT operating manual: pricing/ad-spend/supplier safety rails, reporting templates       |
+| 8   | merchant/TOOLS.md     | MERCHANT API conventions: Shopify Admin, Meta Ads, Klaviyo, Google Trends                    |
+| 9   | merchant/IDENTITY.md  | MERCHANT persona: autonomous operator covering research, pricing, ads, margins               |
+| 10  | merchant/HEARTBEAT.md | MERCHANT periodic checks: orders, ads ROAS, inventory, revenue, trends, UGC                  |
+| 11  | consult/SOUL.md       | CONSULT as hospitality operations consultant with AU compliance expertise                    |
+| 12  | consult/AGENTS.md     | CONSULT operating manual: Notion integration, PPB workspace map, meeting transcript workflow |
+| 13  | consult/TOOLS.md      | CONSULT environment: AU hospitality benchmarks, compliance references (mostly placeholder)   |
+| 14  | consult/IDENTITY.md   | CONSULT persona: professional, methodical, commercially sharp, Australian English            |
+| 15  | consult/HEARTBEAT.md  | CONSULT periodic checks: deliverables, meetings, memory (minimal, pending build-out)         |
+| 16  | ceo/SOUL.md           | CEO as virtual chief of staff overseeing all three ventures                                  |
+| 17  | ceo/AGENTS.md         | CEO operating manual: triage rules, Gmail integration, email templates, SkillsMP             |
+| 18  | ceo/TOOLS.md          | CEO environment: agent landscape, key references, autonomy rules                             |
+| 19  | ceo/IDENTITY.md       | CEO persona: calm, strategic, sees the whole board, connects dots                            |
+| 20  | ceo/HEARTBEAT.md      | CEO periodic checks: cross-venture priorities, commitments, follow-ups                       |
+| 21  | workspace/USER.md     | Morty's profile: ghostwriting style, communication preferences                               |
+| 22  | workspace/MEMORY.md   | Shared memory: SuperSolt status, partnerships, known issues                                  |
+| 23  | ~/workspace/USER.md   | Richer profile: SuperSolt MVP description, 7 modules, tech stack, build phases               |
+| 24  | ~/workspace/MEMORY.md | Curated memory: 74 tables, 166 RLS, partnerships, merchant build status                      |
+| 25  | openclaw.json         | Master config: 4 agents, models, sandbox, WhatsApp bindings, plugins                         |
+| 26  | cron/jobs.json        | 2 cron jobs: 30-min health monitor + weekly Sunday architecture review                       |
 
 ---
 
@@ -43,94 +44,95 @@
 
 ### CEO — Chief of Staff
 
-| Field | Detail |
-|-------|--------|
-| Name | MortyBot |
-| Role | Virtual Chief of Staff / Strategic Orchestrator |
-| Personality | Calm, strategic, sees the whole board |
-| Primary Job | Oversee all 3 ventures, triage incoming requests to the right specialist |
-| Reports to | Morty (via WhatsApp DM) |
-| Works with | Routes tasks to DEV, MERCHANT, and CONSULT |
-| Knows about | Cross-venture priorities, deadlines, commitments, Gmail inbox |
-| Status | ACTIVE — handles DMs, email triage, strategic coordination |
-| WhatsApp | Direct message with the bot number |
-| Skills | 10 — strategy, research, financial modelling, investor materials, KPI design |
+| Field       | Detail                                                                       |
+| ----------- | ---------------------------------------------------------------------------- |
+| Name        | MortyBot                                                                     |
+| Role        | Virtual Chief of Staff / Strategic Orchestrator                              |
+| Personality | Calm, strategic, sees the whole board                                        |
+| Primary Job | Oversee all 3 ventures, triage incoming requests to the right specialist     |
+| Reports to  | Morty (via WhatsApp DM)                                                      |
+| Works with  | Routes tasks to DEV, MERCHANT, and CONSULT                                   |
+| Knows about | Cross-venture priorities, deadlines, commitments, Gmail inbox                |
+| Status      | ACTIVE — handles DMs, email triage, strategic coordination                   |
+| WhatsApp    | Direct message with the bot number                                           |
+| Skills      | 10 — strategy, research, financial modelling, investor materials, KPI design |
 
 ### DEV — Virtual CTO
 
-| Field | Detail |
-|-------|--------|
-| Name | MortyBot |
-| Role | Virtual CTO for SuperSolt |
-| Personality | Sharp, direct, Australian, technically deep |
-| Primary Job | Build and maintain SuperSolt (restaurant ops SaaS) |
-| Reports to | Morty (via Dev WhatsApp group) |
-| Works with | Delegates heavy coding to Claude Code via ACP |
-| Knows about | React, TypeScript, Supabase, Vercel, Square POS, RLS, database design |
-| Status | ACTIVE — most mature agent, 29 skills, 2 cron jobs |
-| WhatsApp | Dev group (120363424566542395@g.us) |
-| Skills | 29 — Supabase (6), Vercel (2), Square, PostgreSQL, testing, debugging, design, SEO |
+| Field       | Detail                                                                             |
+| ----------- | ---------------------------------------------------------------------------------- |
+| Name        | MortyBot                                                                           |
+| Role        | Virtual CTO for SuperSolt                                                          |
+| Personality | Sharp, direct, Australian, technically deep                                        |
+| Primary Job | Build and maintain SuperSolt (restaurant ops SaaS)                                 |
+| Reports to  | Morty (via Dev WhatsApp group)                                                     |
+| Works with  | Delegates heavy coding to Claude Code via ACP                                      |
+| Knows about | React, TypeScript, Supabase, Vercel, Square POS, RLS, database design              |
+| Status      | ACTIVE — most mature agent, 29 skills, 2 cron jobs                                 |
+| WhatsApp    | Dev group (120363424566542395@g.us)                                                |
+| Skills      | 29 — Supabase (6), Vercel (2), Square, PostgreSQL, testing, debugging, design, SEO |
 
 ### MERCHANT — Shopify Operator
 
-| Field | Detail |
-|-------|--------|
-| Name | Merchant |
-| Role | Autonomous Shopify Dropshipping Operator |
-| Personality | Data-driven, margin-protective, safety-railed |
-| Primary Job | Run the dropshipping business — product research, ads, pricing, margins |
-| Reports to | Morty (via Merchant WhatsApp group) |
-| Works with | Independent, peer relationship with DEV |
-| Knows about | Shopify Admin API, Meta Ads, Klaviyo, Google Trends, supplier management |
-| Status | ACTIVE — 27 skills, heartbeat with 6 automated checks |
-| WhatsApp | Merchant group (120363424934625243@g.us) |
-| Skills | 27 — ecommerce (5), ads (3), marketing (4), research (3), operations (5), self-built (5) |
+| Field       | Detail                                                                                   |
+| ----------- | ---------------------------------------------------------------------------------------- |
+| Name        | Merchant                                                                                 |
+| Role        | Autonomous Shopify Dropshipping Operator                                                 |
+| Personality | Data-driven, margin-protective, safety-railed                                            |
+| Primary Job | Run the dropshipping business — product research, ads, pricing, margins                  |
+| Reports to  | Morty (via Merchant WhatsApp group)                                                      |
+| Works with  | Independent, peer relationship with DEV                                                  |
+| Knows about | Shopify Admin API, Meta Ads, Klaviyo, Google Trends, supplier management                 |
+| Status      | ACTIVE — 27 skills, heartbeat with 6 automated checks                                    |
+| WhatsApp    | Merchant group (120363424934625243@g.us)                                                 |
+| Skills      | 27 — ecommerce (5), ads (3), marketing (4), research (3), operations (5), self-built (5) |
 
 ### CONSULT — Hospitality Advisor
 
-| Field | Detail |
-|-------|--------|
-| Name | MortyBot |
-| Role | Hospitality Operations Consultant |
-| Personality | Professional, methodical, commercially sharp, Australian English |
+| Field       | Detail                                                                                |
+| ----------- | ------------------------------------------------------------------------------------- |
+| Name        | MortyBot                                                                              |
+| Role        | Hospitality Operations Consultant                                                     |
+| Personality | Professional, methodical, commercially sharp, Australian English                      |
 | Primary Job | Service PPB (Piccolo Panini Bar) — meeting summaries, Notion management, ops analysis |
-| Reports to | Morty (via Consult WhatsApp group) |
-| Works with | Reads/writes PPB Notion workspace |
-| Knows about | AU Fair Work, FSANZ food safety, P&L analysis, food/labour cost benchmarking |
-| Status | ACTIVE — 7 skills, Notion integration working, meeting workflow defined |
-| WhatsApp | Consult group (120363427361906219@g.us) |
-| Skills | 7 — Notion integration, compliance, restaurant ops, client flow, competitive analysis |
+| Reports to  | Morty (via Consult WhatsApp group)                                                    |
+| Works with  | Reads/writes PPB Notion workspace                                                     |
+| Knows about | AU Fair Work, FSANZ food safety, P&L analysis, food/labour cost benchmarking          |
+| Status      | ACTIVE — 7 skills, Notion integration working, meeting workflow defined               |
+| WhatsApp    | Consult group (120363427361906219@g.us)                                               |
+| Skills      | 7 — Notion integration, compliance, restaurant ops, client flow, competitive analysis |
 
 ---
 
 ## STEP 3 — CAPABILITY MAP
 
-| Capability | CEO | DEV | MERCHANT | CONSULT |
-|------------|-----|-----|----------|---------|
-| Browse the web (Brave search) | YES | YES | YES | YES |
-| Browser automation (fill forms, click) | YES | YES | YES | YES |
-| Run terminal commands | YES | YES | YES | YES |
-| Read/write files on Mac Mini | YES | YES | YES | YES |
-| Send WhatsApp messages | YES | YES | YES | YES |
-| Receive WhatsApp messages | YES (DM) | YES (group) | YES (group) | YES (group) |
-| Read Notion | NO | NO | NO | YES (PPB only) |
-| Write to Notion | NO | NO | NO | YES (PPB only) |
-| Access Supabase (SuperSolt DB) | NO | PARTIAL | NO | NO |
-| Interact with Square POS | NO | PARTIAL | NO | NO |
-| Access Shopify | NO | NO | PARTIAL | NO |
-| Send emails (Gmail) | YES | YES | YES | YES |
-| Receive emails (Gmail) | YES (auto) | YES (manual) | YES (manual) | YES (manual) |
-| Remember between conversations | YES | YES | YES | YES |
-| Run scheduled tasks (cron) | YES | YES | YES | YES |
-| Call external APIs | YES | YES | YES | YES |
-| Analyse images from WhatsApp | YES | YES | YES | YES |
-| Generate images (OpenAI) | YES | YES | YES | YES |
-| Send images via WhatsApp | YES | YES | YES | YES |
-| Spawn subagents | YES | YES | YES | YES |
-| Text-to-speech | YES | YES | YES | YES |
-| Read PDFs | YES | YES | YES | YES |
+| Capability                             | CEO        | DEV          | MERCHANT     | CONSULT        |
+| -------------------------------------- | ---------- | ------------ | ------------ | -------------- |
+| Browse the web (Brave search)          | YES        | YES          | YES          | YES            |
+| Browser automation (fill forms, click) | YES        | YES          | YES          | YES            |
+| Run terminal commands                  | YES        | YES          | YES          | YES            |
+| Read/write files on Mac Mini           | YES        | YES          | YES          | YES            |
+| Send WhatsApp messages                 | YES        | YES          | YES          | YES            |
+| Receive WhatsApp messages              | YES (DM)   | YES (group)  | YES (group)  | YES (group)    |
+| Read Notion                            | NO         | NO           | NO           | YES (PPB only) |
+| Write to Notion                        | NO         | NO           | NO           | YES (PPB only) |
+| Access Supabase (SuperSolt DB)         | NO         | PARTIAL      | NO           | NO             |
+| Interact with Square POS               | NO         | PARTIAL      | NO           | NO             |
+| Access Shopify                         | NO         | NO           | PARTIAL      | NO             |
+| Send emails (Gmail)                    | YES        | YES          | YES          | YES            |
+| Receive emails (Gmail)                 | YES (auto) | YES (manual) | YES (manual) | YES (manual)   |
+| Remember between conversations         | YES        | YES          | YES          | YES            |
+| Run scheduled tasks (cron)             | YES        | YES          | YES          | YES            |
+| Call external APIs                     | YES        | YES          | YES          | YES            |
+| Analyse images from WhatsApp           | YES        | YES          | YES          | YES            |
+| Generate images (OpenAI)               | YES        | YES          | YES          | YES            |
+| Send images via WhatsApp               | YES        | YES          | YES          | YES            |
+| Spawn subagents                        | YES        | YES          | YES          | YES            |
+| Text-to-speech                         | YES        | YES          | YES          | YES            |
+| Read PDFs                              | YES        | YES          | YES          | YES            |
 
 **PARTIAL notes:**
+
 - DEV + Supabase: Can access via Supabase CLI and direct SQL, but no dedicated API skill
 - DEV + Square: Has a Square skill but integration depth unclear
 - MERCHANT + Shopify: Has API conventions documented in TOOLS.md but no live store connected yet
@@ -259,6 +261,7 @@
 | competitor-intel | Legacy competitor intelligence (may overlap with competitive-intelligence) |
 
 **Potentially redundant:**
+
 - `ad-manager.replaced` — appears to be a deprecated/replaced version of ads-manager-claw
 - `competitor-intel` vs `competitive-intelligence` — likely duplicate functionality
 
@@ -283,6 +286,7 @@ The system diagram has been rendered as an SVG file:
 **File:** `/Users/mortybot/.openclaw/roles/dev/supersolt/openclaw-system-diagram.svg`
 
 The diagram shows:
+
 - You (Morty) send messages via WhatsApp
 - The OpenClaw Gateway (port 18789) routes messages based on which group they come from
 - DM goes to CEO, Dev Group to DEV, Merchant Group to MERCHANT, Consult Group to CONSULT
@@ -296,40 +300,40 @@ The diagram shows:
 
 ### Configured but not functioning correctly
 
-| Issue | Detail |
-|-------|--------|
-| Cron jobs skipping | Both cron jobs (30-min health monitor, weekly architecture review) show status "skipped" with lastError "disabled" — they are not actually running |
-| Consult meeting workflow | Meeting transcript to Notion flow works but requires multiple retries, the agent sometimes ignores the format instructions in NOTION-BRIEFING.md |
+| Issue                     | Detail                                                                                                                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Cron jobs skipping        | Both cron jobs (30-min health monitor, weekly architecture review) show status "skipped" with lastError "disabled" — they are not actually running                             |
+| Consult meeting workflow  | Meeting transcript to Notion flow works but requires multiple retries, the agent sometimes ignores the format instructions in NOTION-BRIEFING.md                               |
 | auth-profiles.json format | All 5 agent auth-profiles.json files have OpenAI keys in an invalid format (gateway logs "ignored invalid auth profile entries") — image generation works via env.vars instead |
 
 ### Capabilities you probably think you have but actually don't
 
-| Assumption | Reality |
-|------------|---------|
-| Square POS live data | The DEV agent has a Square skill but there is no evidence of a live, working Square API integration that pulls real sales data |
-| Shopify live store | The MERCHANT agent has Shopify skills and API docs in TOOLS.md but no Shopify store is actually connected — all API keys reference environment variables that may not be set |
-| Notion for all agents | Only CONSULT can access Notion — CEO, DEV, and MERCHANT cannot read or write to it |
-| Auto-forward manufacturer emails | The gmail-forward-check.py script and rules exist, but no log entries show it has ever successfully forwarded an email — needs testing |
+| Assumption                       | Reality                                                                                                                                                                      |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Square POS live data             | The DEV agent has a Square skill but there is no evidence of a live, working Square API integration that pulls real sales data                                               |
+| Shopify live store               | The MERCHANT agent has Shopify skills and API docs in TOOLS.md but no Shopify store is actually connected — all API keys reference environment variables that may not be set |
+| Notion for all agents            | Only CONSULT can access Notion — CEO, DEV, and MERCHANT cannot read or write to it                                                                                           |
+| Auto-forward manufacturer emails | The gmail-forward-check.py script and rules exist, but no log entries show it has ever successfully forwarded an email — needs testing                                       |
 
 ### Gaps — things none of your agents can currently do
 
-| Gap | Impact |
-|-----|--------|
-| No calendar integration | No agent can read or create Google Calendar events — useful for meeting scheduling |
-| No Slack/Discord | Only WhatsApp is connected — if you ever need other channels, they would need setup |
-| No automated financial reporting | No agent pulls P&L data, COGS, or labour costs automatically from any source |
-| No client-facing portal | CONSULT produces work in Notion but there is no way for PPB owners to interact with the bot directly |
-| No voice transcription | You send PDFs of transcripts — if the agents could transcribe audio directly, the workflow would be smoother |
+| Gap                              | Impact                                                                                                       |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| No calendar integration          | No agent can read or create Google Calendar events — useful for meeting scheduling                           |
+| No Slack/Discord                 | Only WhatsApp is connected — if you ever need other channels, they would need setup                          |
+| No automated financial reporting | No agent pulls P&L data, COGS, or labour costs automatically from any source                                 |
+| No client-facing portal          | CONSULT produces work in Notion but there is no way for PPB owners to interact with the bot directly         |
+| No voice transcription           | You send PDFs of transcripts — if the agents could transcribe audio directly, the workflow would be smoother |
 
 ### Quick wins — small changes with big impact
 
-| Win | Effort | Impact |
-|-----|--------|--------|
-| Fix the 2 cron jobs | 5 min — enable them properly | DEV gets automated health monitoring and weekly reviews |
-| Copy Notion skill to CEO | 10 min — copy skill + add to AGENTS.md | CEO can read/write Notion for cross-venture tracking |
-| Connect Shopify store | 30 min — set API keys in env | MERCHANT goes from theoretical to actually managing a live store |
-| Switch to Haiku for routine tasks | 5 min — change model in config | ~70% cost reduction on API bills for standard operations |
-| Fix auth-profiles.json format | 10 min — remove invalid entries | Eliminates gateway warnings on every agent session load |
+| Win                               | Effort                                 | Impact                                                           |
+| --------------------------------- | -------------------------------------- | ---------------------------------------------------------------- |
+| Fix the 2 cron jobs               | 5 min — enable them properly           | DEV gets automated health monitoring and weekly reviews          |
+| Copy Notion skill to CEO          | 10 min — copy skill + add to AGENTS.md | CEO can read/write Notion for cross-venture tracking             |
+| Connect Shopify store             | 30 min — set API keys in env           | MERCHANT goes from theoretical to actually managing a live store |
+| Switch to Haiku for routine tasks | 5 min — change model in config         | ~70% cost reduction on API bills for standard operations         |
+| Fix auth-profiles.json format     | 10 min — remove invalid entries        | Eliminates gateway warnings on every agent session load          |
 
 ---
 

@@ -99,6 +99,7 @@ EOF
 ```
 
 **Response:**
+
 ```json
 {
   "connection": {
@@ -1008,14 +1009,11 @@ Continue fetching by passing the cursor value in subsequent requests until no cu
 ### JavaScript
 
 ```javascript
-const response = await fetch(
-  'https://gateway.maton.ai/squareup/v2/locations',
-  {
-    headers: {
-      'Authorization': `Bearer ${process.env.MATON_API_KEY}`
-    }
-  }
-);
+const response = await fetch("https://gateway.maton.ai/squareup/v2/locations", {
+  headers: {
+    Authorization: `Bearer ${process.env.MATON_API_KEY}`,
+  },
+});
 const data = await response.json();
 ```
 
@@ -1044,14 +1042,14 @@ data = response.json()
 
 ## Error Handling
 
-| Status | Meaning |
-|--------|---------|
-| 400 | Missing Square connection or bad request |
-| 401 | Invalid or missing Maton API key |
-| 403 | Insufficient OAuth scopes |
-| 404 | Resource not found |
-| 429 | Rate limited |
-| 4xx/5xx | Passthrough error from Square API |
+| Status  | Meaning                                  |
+| ------- | ---------------------------------------- |
+| 400     | Missing Square connection or bad request |
+| 401     | Invalid or missing Maton API key         |
+| 403     | Insufficient OAuth scopes                |
+| 404     | Resource not found                       |
+| 429     | Rate limited                             |
+| 4xx/5xx | Passthrough error from Square API        |
 
 ### Error Response Format
 

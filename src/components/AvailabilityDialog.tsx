@@ -1,15 +1,15 @@
-import { useAuth } from "@/contexts/AuthContext"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
-import { useEffect } from "react"
+import { useAuth } from "@/contexts/AuthContext";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useEffect } from "react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -17,21 +17,21 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Textarea } from "@/components/ui/textarea"
-import { StaffAvailability, Staff } from "@/types"
-import { useDataStore } from "@/lib/store/dataStore"
-import { toast } from "sonner"
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { StaffAvailability, Staff } from "@/types";
+import { useDataStore } from "@/lib/store/dataStore";
+import { toast } from "sonner";
 
 const DAYS_OF_WEEK = [
   { value: "1", label: "Monday" },
@@ -41,7 +41,7 @@ const DAYS_OF_WEEK = [
   { value: "5", label: "Friday" },
   { value: "6", label: "Saturday" },
   { value: "0", label: "Sunday" },
-]
+];
 
 const availabilitySchema = z.object({
   staff_id: z.string().min(1, "Staff member is required"),
@@ -52,15 +52,15 @@ const availabilitySchema = z.object({
   start_time: z.string().optional(),
   end_time: z.string().optional(),
   notes: z.string().optional(),
-})
+});
 
-type AvailabilityFormValues = z.infer<typeof availabilitySchema>
+type AvailabilityFormValues = z.infer<typeof availabilitySchema>;
 
 interface AvailabilityDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  availability?: StaffAvailability
-  staffId?: string
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  availability?: StaffAvailability;
+  staffId?: string;
 }
 
 export function AvailabilityDialog({
@@ -69,9 +69,10 @@ export function AvailabilityDialog({
   availability,
   staffId,
 }: AvailabilityDialogProps) {
-  const { currentVenue } = useAuth()
-  const { staff, addStaffAvailability, updateStaffAvailability } = useDataStore()
-  const activeStaff = staff.filter((s) => s.status === "active")
+  const { currentVenue } = useAuth();
+  const { staff, addStaffAvailability, updateStaffAvailability } =
+    useDataStore();
+  const activeStaff = staff.filter((s) => s.status === "active");
 
   const form = useForm<AvailabilityFormValues>({
     resolver: zodResolver(availabilitySchema),
@@ -85,9 +86,9 @@ export function AvailabilityDialog({
       end_time: "",
       notes: "",
     },
-  })
+  });
 
-  const isRecurring = form.watch("is_recurring")
+  const isRecurring = form.watch("is_recurring");
 
   useEffect(() => {
     if (availability) {
@@ -102,7 +103,7 @@ export function AvailabilityDialog({
         start_time: availability.start_time || "",
         end_time: availability.end_time || "",
         notes: availability.notes || "",
-      })
+      });
     } else {
       form.reset({
         staff_id: staffId || "",
@@ -113,9 +114,9 @@ export function AvailabilityDialog({
         start_time: "",
         end_time: "",
         notes: "",
-      })
+      });
     }
-  }, [availability, staffId, form])
+  }, [availability, staffId, form]);
 
   const onSubmit = (values: AvailabilityFormValues) => {
     const data: StaffAvailability = {
@@ -124,41 +125,44 @@ export function AvailabilityDialog({
       venue_id: currentVenue?.id || "",
       type: values.type,
       is_recurring: values.is_recurring,
-      day_of_week: values.is_recurring ? parseInt(values.day_of_week || "1") : undefined,
-      specific_date: !values.is_recurring && values.specific_date
-        ? new Date(values.specific_date)
+      day_of_week: values.is_recurring
+        ? parseInt(values.day_of_week || "1")
         : undefined,
+      specific_date:
+        !values.is_recurring && values.specific_date
+          ? new Date(values.specific_date)
+          : undefined,
       start_time: values.start_time || undefined,
       end_time: values.end_time || undefined,
       notes: values.notes,
       created_at: availability?.created_at || new Date(),
       updated_at: new Date(),
-    }
+    };
 
     if (availability) {
-      updateStaffAvailability(availability.id, data)
-      toast.success("Availability updated")
+      updateStaffAvailability(availability.id, data);
+      toast.success("Availability updated");
     } else {
-      addStaffAvailability(data)
-      toast.success("Availability added")
+      addStaffAvailability(data);
+      toast.success("Availability added");
     }
 
-    form.reset()
-    onOpenChange(false)
-  }
+    form.reset();
+    onOpenChange(false);
+  };
 
   const getTypeLabel = (type: string) => {
     switch (type) {
       case "available":
-        return "Available"
+        return "Available";
       case "unavailable":
-        return "Unavailable"
+        return "Unavailable";
       case "preferred":
-        return "Preferred"
+        return "Preferred";
       default:
-        return type
+        return type;
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -364,5 +368,5 @@ export function AvailabilityDialog({
         </Form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

@@ -1,19 +1,19 @@
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import { Separator } from "@/components/ui/separator"
-import { Copy, FileText, Clock, Zap } from "lucide-react"
-import { ShiftTemplate } from "@/types"
-import { formatTimeCompact } from "@/lib/utils/rosterCalculations"
+} from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
+import { Copy, FileText, Clock, Zap } from "lucide-react";
+import { ShiftTemplate } from "@/types";
+import { formatTimeCompact } from "@/lib/utils/rosterCalculations";
 
 interface QuickBuildPopoverProps {
-  shiftTemplates: ShiftTemplate[]
-  onCopyPreviousWeek: () => void
-  onApplyTemplate: (template: ShiftTemplate) => void
-  children: React.ReactNode
+  shiftTemplates: ShiftTemplate[];
+  onCopyPreviousWeek: () => void;
+  onApplyTemplate: (template: ShiftTemplate) => void;
+  children: React.ReactNode;
 }
 
 export function QuickBuildPopover({
@@ -59,7 +59,8 @@ export function QuickBuildPopover({
                     <div className="text-sm font-medium">{template.name}</div>
                     <div className="text-xs text-muted-foreground flex items-center gap-2">
                       <Clock className="h-3 w-3" />
-                      {formatTimeCompact(template.start_time)} - {formatTimeCompact(template.end_time)}
+                      {formatTimeCompact(template.start_time)} -{" "}
+                      {formatTimeCompact(template.end_time)}
                       {template.break_minutes > 0 && (
                         <span>· {template.break_minutes}m break</span>
                       )}
@@ -95,5 +96,5 @@ export function QuickBuildPopover({
         </div>
       </PopoverContent>
     </Popover>
-  )
+  );
 }

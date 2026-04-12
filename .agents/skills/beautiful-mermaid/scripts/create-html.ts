@@ -103,13 +103,13 @@ function extractBackgroundFromSvg(svgContent: string): string | null {
 
   // Check for a background rect
   const rectMatch = svgContent.match(
-    /<rect[^>]*fill="([^"]+)"[^>]*(?:width="100%"|height="100%")/i
+    /<rect[^>]*fill="([^"]+)"[^>]*(?:width="100%"|height="100%")/i,
   );
   if (rectMatch) return rectMatch[1];
 
   // Check style attribute on svg element
   const svgStyleMatch = svgContent.match(
-    /<svg[^>]*style="[^"]*background(?:-color)?:\s*([^;"\s]+)/i
+    /<svg[^>]*style="[^"]*background(?:-color)?:\s*([^;"\s]+)/i,
   );
   if (svgStyleMatch) return svgStyleMatch[1];
 

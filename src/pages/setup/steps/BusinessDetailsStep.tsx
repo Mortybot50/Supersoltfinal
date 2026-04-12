@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { toast } from 'sonner'
+import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 const businessSchema = z.object({
@@ -18,8 +18,6 @@ const businessSchema = z.object({
     .regex(/^\d{11}$/, "ABN must be exactly 11 digits")
     .or(z.literal("")),
   gst_registered: z.boolean(),
-  contact_email: z.string().email("Invalid email").or(z.literal("")),
-  contact_phone: z.string().or(z.literal("")),
 });
 
 type BusinessFormData = z.infer<typeof businessSchema>;
@@ -30,7 +28,6 @@ interface Props {
 }
 
 export default function BusinessDetailsStep({ orgId, onNext }: Props) {
-;
   const [saving, setSaving] = useState(false);
 
   const {
@@ -45,8 +42,6 @@ export default function BusinessDetailsStep({ orgId, onNext }: Props) {
       name: "",
       abn: "",
       gst_registered: false,
-      contact_email: "",
-      contact_phone: "",
     },
   });
 
@@ -55,8 +50,8 @@ export default function BusinessDetailsStep({ orgId, onNext }: Props) {
   useEffect(() => {
     const loadOrg = async () => {
       // Only load if we have an orgId (existing org)
-      if (!orgId) return;
-      
+      if (!orgId || orgId === "") return;
+
       const { data } = await supabase
         .from("organizations")
         .select("*")
@@ -68,9 +63,10 @@ export default function BusinessDetailsStep({ orgId, onNext }: Props) {
         const settings = (orgData.settings as Record<string, unknown>) ?? {};
         setValue("name", (orgData.name as string) ?? "");
         setValue("abn", (settings.abn as string) ?? "");
-        setValue("gst_registered", (settings.gst_registered as boolean) ?? false);
-        setValue("contact_email", (settings.contact_email as string) ?? "");
-        setValue("contact_phone", (settings.contact_phone as string) ?? "");
+        setValue(
+          "gst_registered",
+          (settings.gst_registered as boolean) ?? false,
+        );
       }
     };
     loadOrg();
@@ -80,7 +76,7 @@ export default function BusinessDetailsStep({ orgId, onNext }: Props) {
     setSaving(true);
     try {
       // Check if we're updating existing or creating new
-      if (orgId) {
+      if (orgId && orgId !== "") {
         // Update existing organization
         const { data: existing } = await supabase
           .from("organizations")
@@ -88,7 +84,11 @@ export default function BusinessDetailsStep({ orgId, onNext }: Props) {
           .eq("id", orgId)
           .single();
 
-        const existingSettings = ((existing as Record<string, unknown>)?.settings as Record<string, unknown>) ?? {};
+        const existingSettings =
+          ((existing as Record<string, unknown>)?.settings as Record<
+            string,
+            unknown
+          >) ?? {};
 
         const { error } = await supabase
           .from("organizations")
@@ -98,8 +98,6 @@ export default function BusinessDetailsStep({ orgId, onNext }: Props) {
               ...existingSettings,
               abn: formData.abn,
               gst_registered: formData.gst_registered,
-              contact_email: formData.contact_email,
-              contact_phone: formData.contact_phone,
             },
           } as Record<string, unknown>)
           .eq("id", orgId);
@@ -107,45 +105,52 @@ export default function BusinessDetailsStep({ orgId, onNext }: Props) {
         if (error) throw error;
       } else {
         // Create new organization for new signups
-        const { data: { user } } = await supabase.auth.getUser();
-        const userId = user?.id || 'test-user-' + Date.now(); // Testing fallback
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          throw new Error("No authenticated user found. Please login first.");
+        }
+
+        const userId = user.id;
 
         const { data: newOrg, error: createError } = await supabase
           .from("organizations")
           .insert({
             name: formData.name,
-            created_by: userId,
             settings: {
               abn: formData.abn,
               gst_registered: formData.gst_registered,
-              contact_email: formData.contact_email,
-              contact_phone: formData.contact_phone,
             },
           })
           .select()
           .single();
 
         if (createError) throw createError;
-        
+
         // Also create the org_member record
         const { error: memberError } = await supabase
           .from("org_members")
           .insert({
             org_id: newOrg.id,
             user_id: userId,
-            role: 'owner',
+            role: "owner",
             is_active: true,
-            joined_at: new Date().toISOString(),
           });
-          
+
         if (memberError) throw memberError;
+
+        // Reload the page to refresh auth context with the new org
+        window.location.reload();
       }
 
       toast.success("Business details saved");
       onNext();
     } catch (err) {
-      toast.error("Error saving", { 
-        description: err instanceof Error ? err.message : "Unknown error"
+      console.error("Business details error:", err);
+      toast.error("Error saving", {
+        description: err instanceof Error ? err.message : "Unknown error",
       });
     } finally {
       setSaving(false);
@@ -159,13 +164,21 @@ export default function BusinessDetailsStep({ orgId, onNext }: Props) {
         <div>
           <Label htmlFor="name">Organisation Name *</Label>
           <Input id="name" {...register("name")} />
-          {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
+          {errors.name && (
+            <p className="text-sm text-destructive mt-1">
+              {errors.name.message}
+            </p>
+          )}
         </div>
 
         <div>
           <Label htmlFor="abn">ABN</Label>
           <Input id="abn" placeholder="11-digit ABN" {...register("abn")} />
-          {errors.abn && <p className="text-sm text-destructive mt-1">{errors.abn.message}</p>}
+          {errors.abn && (
+            <p className="text-sm text-destructive mt-1">
+              {errors.abn.message}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -175,17 +188,6 @@ export default function BusinessDetailsStep({ orgId, onNext }: Props) {
             onCheckedChange={(checked) => setValue("gst_registered", checked)}
           />
           <Label htmlFor="gst">GST Registered</Label>
-        </div>
-
-        <div>
-          <Label htmlFor="contact_email">Contact Email</Label>
-          <Input id="contact_email" type="email" {...register("contact_email")} />
-          {errors.contact_email && <p className="text-sm text-destructive mt-1">{errors.contact_email.message}</p>}
-        </div>
-
-        <div>
-          <Label htmlFor="contact_phone">Contact Phone</Label>
-          <Input id="contact_phone" type="tel" {...register("contact_phone")} />
         </div>
 
         <div className="flex justify-end pt-4">

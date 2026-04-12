@@ -2,105 +2,140 @@
  * BulkStaffImport — modal for importing staff from CSV.
  * Parses CSV, shows preview, and creates staff via API.
  */
-import { useState, useCallback } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { toast } from 'sonner'
-import { Upload, Download, Loader2, AlertTriangle, Check } from 'lucide-react'
-import { parseStaffCSV, generateStaffTemplate, downloadCSV, type StaffCSVRow } from '@/lib/utils/csvImport'
-import { createStaffInDB } from '@/lib/services/labourService'
-import { useAuth } from '@/contexts/AuthContext'
-import type { Staff } from '@/types'
+import { useState, useCallback } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
+import { Upload, Download, Loader2, AlertTriangle, Check } from "lucide-react";
+import {
+  parseStaffCSV,
+  generateStaffTemplate,
+  downloadCSV,
+  type StaffCSVRow,
+} from "@/lib/utils/csvImport";
+import { createStaffInDB } from "@/lib/services/labourService";
+import { useAuth } from "@/contexts/AuthContext";
+import type { Staff } from "@/types";
 
 interface Props {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onImportComplete: () => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onImportComplete: () => void;
 }
 
-export function BulkStaffImport({ open, onOpenChange, onImportComplete }: Props) {
-  const { currentOrg, currentVenue } = useAuth()
-  const [parsed, setParsed] = useState<StaffCSVRow[]>([])
-  const [errors, setErrors] = useState<{ row: number; message: string }[]>([])
-  const [importing, setImporting] = useState(false)
-  const [importProgress, setImportProgress] = useState(0)
-  const [importResults, setImportResults] = useState<{ success: number; failed: number } | null>(null)
+export function BulkStaffImport({
+  open,
+  onOpenChange,
+  onImportComplete,
+}: Props) {
+  const { currentOrg, currentVenue } = useAuth();
+  const [parsed, setParsed] = useState<StaffCSVRow[]>([]);
+  const [errors, setErrors] = useState<{ row: number; message: string }[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importResults, setImportResults] = useState<{
+    success: number;
+    failed: number;
+  } | null>(null);
 
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
 
-    const reader = new FileReader()
-    reader.onload = (evt) => {
-      const text = evt.target?.result as string
-      const result = parseStaffCSV(text)
-      setParsed(result.data)
-      setErrors(result.errors)
-      setImportResults(null)
-    }
-    reader.readAsText(file)
-    // Reset input so same file can be selected again
-    e.target.value = ''
-  }, [])
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const text = evt.target?.result as string;
+        const result = parseStaffCSV(text);
+        setParsed(result.data);
+        setErrors(result.errors);
+        setImportResults(null);
+      };
+      reader.readAsText(file);
+      // Reset input so same file can be selected again
+      e.target.value = "";
+    },
+    [],
+  );
 
   const handleImport = async () => {
-    if (!currentOrg?.id || !currentVenue?.id || parsed.length === 0) return
+    if (!currentOrg?.id || !currentVenue?.id || parsed.length === 0) return;
 
-    setImporting(true)
-    setImportProgress(0)
-    let success = 0
-    let failed = 0
+    setImporting(true);
+    setImportProgress(0);
+    let success = 0;
+    let failed = 0;
 
     for (let i = 0; i < parsed.length; i++) {
-      const row = parsed[i]
+      const row = parsed[i];
       const staffData: Staff = {
-        id: '',
+        id: "",
         organization_id: currentOrg.id,
         venue_id: currentVenue.id,
         name: `${row.first_name} ${row.last_name}`.trim(),
-        email: row.email || '',
+        email: row.email || "",
         phone: row.phone,
         role: row.role,
-        employment_type: row.employment_type.replace('_', '-') as Staff['employment_type'],
+        employment_type: row.employment_type.replace(
+          "_",
+          "-",
+        ) as Staff["employment_type"],
         hourly_rate: Math.round(row.base_hourly_rate * 100), // dollars to cents
         award_classification: row.award_classification,
         start_date: row.start_date ? new Date(row.start_date) : new Date(),
-        status: 'active',
-        onboarding_status: 'not_started',
+        status: "active",
+        onboarding_status: "not_started",
         onboarding_progress: 0,
-      }
+      };
 
-      const result = await createStaffInDB(staffData)
+      const result = await createStaffInDB(staffData);
       if (result) {
-        success++
+        success++;
       } else {
-        failed++
+        failed++;
       }
-      setImportProgress(((i + 1) / parsed.length) * 100)
+      setImportProgress(((i + 1) / parsed.length) * 100);
     }
 
-    setImporting(false)
-    setImportResults({ success, failed })
+    setImporting(false);
+    setImportResults({ success, failed });
 
     if (success > 0) {
-      toast.success(`Imported ${success} staff member${success !== 1 ? 's' : ''}`)
-      onImportComplete()
+      toast.success(
+        `Imported ${success} staff member${success !== 1 ? "s" : ""}`,
+      );
+      onImportComplete();
     }
     if (failed > 0) {
-      toast.error(`${failed} staff member${failed !== 1 ? 's' : ''} failed to import`)
+      toast.error(
+        `${failed} staff member${failed !== 1 ? "s" : ""} failed to import`,
+      );
     }
-  }
+  };
 
   const handleClose = () => {
-    setParsed([])
-    setErrors([])
-    setImportResults(null)
-    setImportProgress(0)
-    onOpenChange(false)
-  }
+    setParsed([]);
+    setErrors([]);
+    setImportResults(null);
+    setImportProgress(0);
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -118,7 +153,9 @@ export function BulkStaffImport({ open, onOpenChange, onImportComplete }: Props)
           <Button
             variant="outline"
             size="sm"
-            onClick={() => downloadCSV(generateStaffTemplate(), 'staff-import-template.csv')}
+            onClick={() =>
+              downloadCSV(generateStaffTemplate(), "staff-import-template.csv")
+            }
           >
             Download Template
           </Button>
@@ -129,11 +166,16 @@ export function BulkStaffImport({ open, onOpenChange, onImportComplete }: Props)
           <label className="flex items-center gap-2 px-4 py-2 border rounded-md cursor-pointer hover:bg-muted transition-colors">
             <Upload className="h-4 w-4" />
             <span className="text-sm">Choose CSV File</span>
-            <input type="file" accept=".csv" onChange={handleFileSelect} className="hidden" />
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
           </label>
           {parsed.length > 0 && (
             <span className="text-sm text-muted-foreground">
-              {parsed.length} staff member{parsed.length !== 1 ? 's' : ''} found
+              {parsed.length} staff member{parsed.length !== 1 ? "s" : ""} found
             </span>
           )}
         </div>
@@ -143,10 +185,12 @@ export function BulkStaffImport({ open, onOpenChange, onImportComplete }: Props)
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              {errors.length} row{errors.length !== 1 ? 's' : ''} had errors:
+              {errors.length} row{errors.length !== 1 ? "s" : ""} had errors:
               <ul className="mt-1 list-disc list-inside text-xs">
                 {errors.slice(0, 5).map((e, i) => (
-                  <li key={i}>Row {e.row}: {e.message}</li>
+                  <li key={i}>
+                    Row {e.row}: {e.message}
+                  </li>
                 ))}
                 {errors.length > 5 && <li>...and {errors.length - 5} more</li>}
               </ul>
@@ -170,11 +214,19 @@ export function BulkStaffImport({ open, onOpenChange, onImportComplete }: Props)
               <TableBody>
                 {parsed.map((row, i) => (
                   <TableRow key={i}>
-                    <TableCell className="font-medium">{row.first_name} {row.last_name}</TableCell>
-                    <TableCell><Badge variant="outline">{row.role}</Badge></TableCell>
-                    <TableCell>{row.employment_type.replace('_', ' ')}</TableCell>
+                    <TableCell className="font-medium">
+                      {row.first_name} {row.last_name}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{row.role}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {row.employment_type.replace("_", " ")}
+                    </TableCell>
                     <TableCell>${row.base_hourly_rate.toFixed(2)}/hr</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{row.award_classification || '—'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {row.award_classification || "—"}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -190,7 +242,10 @@ export function BulkStaffImport({ open, onOpenChange, onImportComplete }: Props)
               Importing... {Math.round(importProgress)}%
             </div>
             <div className="h-2 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-brand transition-all" style={{ width: `${importProgress}%` }} />
+              <div
+                className="h-full bg-brand transition-all"
+                style={{ width: `${importProgress}%` }}
+              />
             </div>
           </div>
         )}
@@ -208,7 +263,7 @@ export function BulkStaffImport({ open, onOpenChange, onImportComplete }: Props)
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
-            {importResults ? 'Close' : 'Cancel'}
+            {importResults ? "Close" : "Cancel"}
           </Button>
           {parsed.length > 0 && !importResults && (
             <Button
@@ -229,5 +284,5 @@ export function BulkStaffImport({ open, onOpenChange, onImportComplete }: Props)
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

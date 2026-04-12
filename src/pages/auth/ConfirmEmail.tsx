@@ -1,5 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Mail } from "lucide-react";
 
@@ -23,8 +30,8 @@ export default function ConfirmEmail() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Click the link in your email to confirm your account and get started.
-            If you don&apos;t see it, check your spam folder.
+            Click the link in your email to confirm your account and get
+            started. If you don&apos;t see it, check your spam folder.
           </p>
         </CardContent>
         <CardFooter className="justify-center">

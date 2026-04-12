@@ -17,7 +17,18 @@ version: 1.0.0
 license: MIT
 author: Jeremy Longshore <jeremy@intentsolutions.io>
 compatible-with: claude-code, codex, openclaw
-tags: [saas, supabase, architecture, nextjs, ssr, spa, mobile, multi-tenant, serverless]
+tags:
+  [
+    saas,
+    supabase,
+    architecture,
+    nextjs,
+    ssr,
+    spa,
+    mobile,
+    multi-tenant,
+    serverless,
+  ]
 ---
 
 # Supabase Architecture Variants
@@ -42,12 +53,12 @@ Next.js App Router requires **two separate clients**: a server-side client using
 
 ```typescript
 // lib/supabase/server.ts
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import type { Database } from '../database.types'
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import type { Database } from "../database.types";
 
 export async function createSupabaseServer() {
-  const cookieStore = await cookies()
+  const cookieStore = await cookies();
 
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -55,34 +66,34 @@ export async function createSupabaseServer() {
     {
       cookies: {
         getAll() {
-          return cookieStore.getAll()
+          return cookieStore.getAll();
         },
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
+              cookieStore.set(name, value, options),
+            );
           } catch {
             // Called from Server Component — cookies are read-only
           }
         },
       },
-    }
-  )
+    },
+  );
 }
 
 // Admin client for server-only operations (bypasses RLS)
 // NEVER import this in client components or expose to the browser
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from "@supabase/supabase-js";
 
 export function createSupabaseAdmin() {
   return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,  // NOT NEXT_PUBLIC_ — server only
+    process.env.SUPABASE_SERVICE_ROLE_KEY!, // NOT NEXT_PUBLIC_ — server only
     {
       auth: { autoRefreshToken: false, persistSession: false },
-    }
-  )
+    },
+  );
 }
 ```
 
@@ -90,22 +101,22 @@ export function createSupabaseAdmin() {
 
 ```typescript
 // lib/supabase/client.ts
-'use client'
+"use client";
 
-import { createBrowserClient } from '@supabase/ssr'
-import type { Database } from '../database.types'
+import { createBrowserClient } from "@supabase/ssr";
+import type { Database } from "../database.types";
 
-let client: ReturnType<typeof createBrowserClient<Database>> | null = null
+let client: ReturnType<typeof createBrowserClient<Database>> | null = null;
 
 export function createSupabaseBrowser() {
-  if (client) return client
+  if (client) return client;
 
   client = createBrowserClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!  // anon key only — respects RLS
-  )
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, // anon key only — respects RLS
+  );
 
-  return client
+  return client;
 }
 ```
 
@@ -113,11 +124,11 @@ export function createSupabaseBrowser() {
 
 ```typescript
 // middleware.ts
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request })
+  let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -125,30 +136,32 @@ export async function middleware(request: NextRequest) {
     {
       cookies: {
         getAll() {
-          return request.cookies.getAll()
+          return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          )
-          response = NextResponse.next({ request })
+            request.cookies.set(name, value),
+          );
+          response = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          )
+            response.cookies.set(name, value, options),
+          );
         },
       },
-    }
-  )
+    },
+  );
 
   // Refresh session — this is the critical call
-  await supabase.auth.getUser()
+  await supabase.auth.getUser();
 
-  return response
+  return response;
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
-}
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
+};
 ```
 
 ### Server Component Usage
@@ -185,24 +198,25 @@ export default async function DashboardPage() {
 
 ```typescript
 // app/actions/admin.ts
-'use server'
+"use server";
 
-import { createSupabaseAdmin } from '@/lib/supabase/server'
+import { createSupabaseAdmin } from "@/lib/supabase/server";
 
 export async function deleteUserAccount(userId: string) {
-  const supabase = createSupabaseAdmin()
+  const supabase = createSupabaseAdmin();
 
   // Admin operation — bypasses RLS
   const { error: deleteError } = await supabase
-    .from('user_data')
+    .from("user_data")
     .delete()
-    .eq('user_id', userId)
+    .eq("user_id", userId);
 
-  if (deleteError) throw new Error(`Data deletion failed: ${deleteError.message}`)
+  if (deleteError)
+    throw new Error(`Data deletion failed: ${deleteError.message}`);
 
   // Delete auth user
-  const { error: authError } = await supabase.auth.admin.deleteUser(userId)
-  if (authError) throw new Error(`Auth deletion failed: ${authError.message}`)
+  const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+  if (authError) throw new Error(`Auth deletion failed: ${authError.message}`);
 }
 ```
 
@@ -214,8 +228,8 @@ SPAs use a single browser client with the anon key. All authorization is enforce
 
 ```typescript
 // src/lib/supabase.ts
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from './database.types'
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "./database.types";
 
 // Singleton client — one instance for the entire SPA
 export const supabase = createClient<Database>(
@@ -225,64 +239,64 @@ export const supabase = createClient<Database>(
     auth: {
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: true,  // handles OAuth redirects
+      detectSessionInUrl: true, // handles OAuth redirects
       storage: window.localStorage,
     },
-  }
-)
+  },
+);
 
 // Auth state listener — call once at app initialization
 supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_OUT') {
+  if (event === "SIGNED_OUT") {
     // Clear local caches
-    queryClient.clear()  // React Query
+    queryClient.clear(); // React Query
   }
-  if (event === 'TOKEN_REFRESHED') {
-    console.log('Token refreshed')
+  if (event === "TOKEN_REFRESHED") {
+    console.log("Token refreshed");
   }
-})
+});
 ```
 
 ### React Hook for Auth-Protected Queries
 
 ```typescript
 // src/hooks/useSupabaseQuery.ts
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '../lib/supabase'
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "../lib/supabase";
 
 export function useTodos() {
   return useQuery({
-    queryKey: ['todos'],
+    queryKey: ["todos"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('todos')
-        .select('id, title, is_complete, created_at')
-        .order('created_at', { ascending: false })
+        .from("todos")
+        .select("id, title, is_complete, created_at")
+        .order("created_at", { ascending: false });
 
-      if (error) throw new Error(`Failed to load todos: ${error.message}`)
-      return data
+      if (error) throw new Error(`Failed to load todos: ${error.message}`);
+      return data;
     },
-  })
+  });
 }
 
 export function useCreateTodo() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (title: string) => {
       const { data, error } = await supabase
-        .from('todos')
+        .from("todos")
         .insert({ title })
-        .select('id, title, is_complete, created_at')
-        .single()
+        .select("id, title, is_complete, created_at")
+        .single();
 
-      if (error) throw new Error(`Failed to create todo: ${error.message}`)
-      return data
+      if (error) throw new Error(`Failed to create todo: ${error.message}`);
+      return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['todos'] })
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
     },
-  })
+  });
 }
 ```
 
@@ -292,9 +306,9 @@ React Native needs `AsyncStorage` for session persistence and deep link handling
 
 ```typescript
 // lib/supabase.ts (React Native)
-import { createClient } from '@supabase/supabase-js'
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import type { Database } from './database.types'
+import { createClient } from "@supabase/supabase-js";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { Database } from "./database.types";
 
 export const supabase = createClient<Database>(
   process.env.EXPO_PUBLIC_SUPABASE_URL!,
@@ -304,49 +318,49 @@ export const supabase = createClient<Database>(
       storage: AsyncStorage,
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: false,  // disabled for React Native
+      detectSessionInUrl: false, // disabled for React Native
     },
-  }
-)
+  },
+);
 ```
 
 ### Mobile OAuth with Deep Links
 
 ```typescript
 // lib/auth.ts (React Native)
-import { supabase } from './supabase'
-import * as Linking from 'expo-linking'
-import * as WebBrowser from 'expo-web-browser'
+import { supabase } from "./supabase";
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
 
-const redirectUrl = Linking.createURL('auth/callback')
+const redirectUrl = Linking.createURL("auth/callback");
 
 export async function signInWithGoogle() {
   const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
+    provider: "google",
     options: {
       redirectTo: redirectUrl,
-      skipBrowserRedirect: true,  // handle manually for RN
+      skipBrowserRedirect: true, // handle manually for RN
     },
-  })
+  });
 
-  if (error) throw new Error(`OAuth failed: ${error.message}`)
-  if (!data.url) throw new Error('No OAuth URL returned')
+  if (error) throw new Error(`OAuth failed: ${error.message}`);
+  if (!data.url) throw new Error("No OAuth URL returned");
 
   // Open in-app browser
-  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl)
+  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
 
-  if (result.type === 'success') {
-    const url = new URL(result.url)
-    const params = new URLSearchParams(url.hash.substring(1))
-    const accessToken = params.get('access_token')
-    const refreshToken = params.get('refresh_token')
+  if (result.type === "success") {
+    const url = new URL(result.url);
+    const params = new URLSearchParams(url.hash.substring(1));
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
 
     if (accessToken && refreshToken) {
       const { error: sessionError } = await supabase.auth.setSession({
         access_token: accessToken,
         refresh_token: refreshToken,
-      })
-      if (sessionError) throw sessionError
+      });
+      if (sessionError) throw sessionError;
     }
   }
 }
@@ -378,86 +392,98 @@ Edge Functions create a new Supabase client per request, extracting the user's J
 
 ```typescript
 // supabase/functions/api/index.ts
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 Deno.serve(async (req) => {
   // Per-request client with the user's JWT for RLS
   const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
     {
       global: {
-        headers: { Authorization: req.headers.get('Authorization')! },
+        headers: { Authorization: req.headers.get("Authorization")! },
       },
-    }
-  )
+    },
+  );
 
   // This client respects RLS using the user's JWT
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+    });
   }
 
   // Queries are scoped to the authenticated user via RLS
   const { data, error } = await supabase
-    .from('todos')
-    .select('id, title, is_complete')
-    .order('created_at', { ascending: false })
+    .from("todos")
+    .select("id, title, is_complete")
+    .order("created_at", { ascending: false });
 
   if (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 })
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+    });
   }
 
   return new Response(JSON.stringify(data), {
-    headers: { 'Content-Type': 'application/json' },
-  })
-})
+    headers: { "Content-Type": "application/json" },
+  });
+});
 ```
 
 ### Edge Function with Admin Operations
 
 ```typescript
 // supabase/functions/admin-task/index.ts
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 Deno.serve(async (req) => {
   // Verify the request has a valid admin JWT first
   const userClient = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
-  )
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    {
+      global: { headers: { Authorization: req.headers.get("Authorization")! } },
+    },
+  );
 
-  const { data: { user } } = await userClient.auth.getUser()
+  const {
+    data: { user },
+  } = await userClient.auth.getUser();
   if (!user) {
-    return new Response('Unauthorized', { status: 401 })
+    return new Response("Unauthorized", { status: 401 });
   }
 
   // Check if user is admin
   const { data: profile } = await userClient
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
 
-  if (profile?.role !== 'admin') {
-    return new Response('Forbidden', { status: 403 })
+  if (profile?.role !== "admin") {
+    return new Response("Forbidden", { status: 403 });
   }
 
   // Now use service_role for admin operations
   const adminClient = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  )
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
 
   // Admin operation: get all users
-  const { data, error } = await adminClient.auth.admin.listUsers()
+  const { data, error } = await adminClient.auth.admin.listUsers();
   if (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 })
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+    });
   }
 
-  return new Response(JSON.stringify({ users: data.users.length }))
-})
+  return new Response(JSON.stringify({ users: data.users.length }));
+});
 ```
 
 ### Multi-Tenant: RLS-Based Isolation (Recommended)
@@ -508,48 +534,46 @@ CREATE INDEX idx_tenant_members_user_id ON public.tenant_members(user_id);
 
 ```typescript
 // lib/supabase-tenant.ts
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from './database.types'
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "./database.types";
 
 const supabase = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+);
 
 // All queries are automatically scoped to the user's tenant via RLS
 export async function getTenantProjects() {
   const { data, error } = await supabase
-    .from('projects')
-    .select('id, name, created_at, tenant_id')
-    .order('created_at', { ascending: false })
+    .from("projects")
+    .select("id, name, created_at, tenant_id")
+    .order("created_at", { ascending: false });
 
-  if (error) throw new Error(`Failed to load projects: ${error.message}`)
-  return data  // Only returns projects for the authenticated user's tenant(s)
+  if (error) throw new Error(`Failed to load projects: ${error.message}`);
+  return data; // Only returns projects for the authenticated user's tenant(s)
 }
 
 // Switch active tenant (for users in multiple tenants)
 export async function getUserTenants() {
-  const { data, error } = await supabase
-    .from('tenant_members')
-    .select(`
+  const { data, error } = await supabase.from("tenant_members").select(`
       role,
       tenants:tenant_id (id, name, slug, plan)
-    `)
+    `);
 
-  if (error) throw new Error(`Failed to load tenants: ${error.message}`)
-  return data
+  if (error) throw new Error(`Failed to load tenants: ${error.message}`);
+  return data;
 }
 
 // Create project in a specific tenant
 export async function createProject(tenantId: string, name: string) {
   const { data, error } = await supabase
-    .from('projects')
+    .from("projects")
     .insert({ tenant_id: tenantId, name })
-    .select('id, name, tenant_id, created_at')
-    .single()
+    .select("id, name, tenant_id, created_at")
+    .single();
 
-  if (error) throw new Error(`Failed to create project: ${error.message}`)
-  return data
+  if (error) throw new Error(`Failed to create project: ${error.message}`);
+  return data;
 }
 ```
 
@@ -565,14 +589,14 @@ export async function createProject(tenantId: string, name: string) {
 
 ## Error Handling
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| `AuthSessionMissingError` in Server Component | Cookies not passed to Supabase client | Use `createServerClient` from `@supabase/ssr` with cookie handlers |
-| OAuth redirect fails in React Native | Missing deep link scheme | Add `scheme` to app.json and configure Supabase redirect URL |
-| service_role key in client bundle | Wrong env var prefix (`NEXT_PUBLIC_`) | Remove `NEXT_PUBLIC_` prefix; only server code should access it |
-| Multi-tenant data leak | Missing RLS policy or missing tenant_id filter | Verify RLS is enabled and policies check `tenant_members` |
-| Edge Function `auth.getUser()` returns null | Missing Authorization header | Forward user's JWT from the client call |
-| Session not persisting on mobile | AsyncStorage not configured | Pass `AsyncStorage` in auth config; ensure package is installed |
+| Issue                                         | Cause                                          | Solution                                                           |
+| --------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------ |
+| `AuthSessionMissingError` in Server Component | Cookies not passed to Supabase client          | Use `createServerClient` from `@supabase/ssr` with cookie handlers |
+| OAuth redirect fails in React Native          | Missing deep link scheme                       | Add `scheme` to app.json and configure Supabase redirect URL       |
+| service_role key in client bundle             | Wrong env var prefix (`NEXT_PUBLIC_`)          | Remove `NEXT_PUBLIC_` prefix; only server code should access it    |
+| Multi-tenant data leak                        | Missing RLS policy or missing tenant_id filter | Verify RLS is enabled and policies check `tenant_members`          |
+| Edge Function `auth.getUser()` returns null   | Missing Authorization header                   | Forward user's JWT from the client call                            |
+| Session not persisting on mobile              | AsyncStorage not configured                    | Pass `AsyncStorage` in auth config; ensure package is installed    |
 
 ## Examples
 
@@ -580,22 +604,24 @@ export async function createProject(tenantId: string, name: string) {
 
 ```typescript
 // app/auth/callback/route.ts
-import { createSupabaseServer } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
+import { createSupabaseServer } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const code = searchParams.get('code')
+  const { searchParams } = new URL(request.url);
+  const code = searchParams.get("code");
 
   if (code) {
-    const supabase = await createSupabaseServer()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const supabase = await createSupabaseServer();
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
-      return NextResponse.redirect(new URL('/login?error=auth_failed', request.url))
+      return NextResponse.redirect(
+        new URL("/login?error=auth_failed", request.url),
+      );
     }
   }
 
-  return NextResponse.redirect(new URL('/dashboard', request.url))
+  return NextResponse.redirect(new URL("/dashboard", request.url));
 }
 ```
 

@@ -1,4 +1,5 @@
 # Test Results — SuperSolt
+
 **Date:** 2026-03-12
 **Branch:** fix/skill-audit-sweep
 
@@ -13,6 +14,7 @@ Duration    ~220ms
 ```
 
 All 58 tests pass after two fixes applied in this audit:
+
 1. **Public holiday UTC/local date bug** — `calculatePenaltyRate` and `isPublicHoliday` used `toISOString().split('T')[0]` which returns UTC date. In AEST/AEDT timezone (UTC+10/11), midnight local time becomes the previous day in UTC, causing all public holiday checks to fail. Fixed to use `getFullYear() / getMonth() / getDate()` (local time).
 2. **Orphaned SuperSoltMVP-main tests** — vitest was picking up test files in the unrelated `SuperSoltMVP-main/` subdirectory which depend on `drizzle-orm` and `@testing-library/react` (not installed). Fixed by adding `include`/`exclude` patterns to vitest config.
 
@@ -23,6 +25,7 @@ All 58 tests pass after two fixes applied in this audit:
 ### `rosterCalculations.test.ts` — 29 tests ✅
 
 **`calculatePenaltyRate`** (all day/time combos):
+
 - ✅ Weekday day shift → no penalty
 - ✅ Saturday → 1.25× full-time, 1.25× casual (casual loading covers it)
 - ✅ Sunday → 1.50× full-time, 1.75× casual
@@ -35,6 +38,7 @@ All 58 tests pass after two fixes applied in this audit:
 - ✅ ISO timestamp input normalization via `parseTimeToHHMM`
 
 **`calculateShiftCostBreakdown`** (all employment types):
+
 - ✅ Base hours with 30min break (8h shift → 7.5h paid)
 - ✅ Overnight shift (end time < start time)
 - ✅ ISO timestamp normalization (DB timestamptz format)
@@ -55,6 +59,7 @@ All 58 tests pass after two fixes applied in this audit:
 ### `unitConversions.test.ts` — 17 tests ✅
 
 **Recipe cost calculation with unit conversions:**
+
 - ✅ `convertQtyToBaseUnits`: g/kg/ml/L/each conversions
 - ✅ `calculatePackToBaseFactor`: pack size to per-unit cost
 - ✅ `calculateCostPerBaseUnit`: purchase unit cost → recipe unit cost
@@ -65,6 +70,7 @@ All 58 tests pass after two fixes applied in this audit:
 ### `orderCalculations.test.ts` — 12 tests ✅
 
 **Order guide par levels:**
+
 - ✅ `calculateRecommendedQuantity`: safety stock + lead time demand
 - ✅ `determineUrgency`: critical/low/ok thresholds from par levels
 - ✅ `calculateGST`: GST-inclusive vs exclusive price calculations
@@ -74,11 +80,13 @@ All 58 tests pass after two fixes applied in this audit:
 ## Fixes Applied
 
 ### Bug Fix: Public holiday UTC/local date mismatch
+
 - **File:** `src/lib/utils/rosterCalculations.ts`
 - **Functions fixed:** `calculatePenaltyRate`, `isPublicHoliday`, `getPublicHolidayName`
 - **Impact:** In production (AEST/AEDT timezone), public holiday detection was silently broken for any shift starting at midnight or shortly after. Staff rostered on Australia Day, Christmas, ANZAC Day etc. were being calculated at base rate instead of 2.5× rate — an underpayment compliance risk.
 
 ### Config Fix: Exclude orphaned SuperSoltMVP-main tests
+
 - **File:** `vite.config.ts`
 - **Change:** Added `include: ["src/**/*.test.{ts,tsx}"]` and explicit `exclude` for `SuperSoltMVP-main/**`
 - **Reason:** The `SuperSoltMVP-main/` subdirectory contains tests for a different project stack (Drizzle ORM + Express) that were being picked up and failing on missing packages.
@@ -89,11 +97,11 @@ All 58 tests pass after two fixes applied in this audit:
 
 The following integration flows require a live Supabase test environment and are documented as pending:
 
-| Flow | Status | Blocker |
-|------|--------|---------|
-| Staff creation (API route) | ⚠️ Pending | Needs Supabase test DB / mock |
-| Shift CRUD + DB persistence | ⚠️ Pending | Needs Supabase test DB |
-| Roster publish flow | ⚠️ Pending | Needs Supabase test DB |
-| Stock count → inventory deduction | ⚠️ Pending | Needs Supabase test DB |
+| Flow                              | Status     | Blocker                       |
+| --------------------------------- | ---------- | ----------------------------- |
+| Staff creation (API route)        | ⚠️ Pending | Needs Supabase test DB / mock |
+| Shift CRUD + DB persistence       | ⚠️ Pending | Needs Supabase test DB        |
+| Roster publish flow               | ⚠️ Pending | Needs Supabase test DB        |
+| Stock count → inventory deduction | ⚠️ Pending | Needs Supabase test DB        |
 
 **Recommendation:** Set up a `SUPABASE_TEST_URL` + `SUPABASE_TEST_ANON_KEY` pointing to a separate Supabase project (free tier) for integration testing. Use `vitest` with `beforeAll` to seed test data and `afterAll` to clean up.

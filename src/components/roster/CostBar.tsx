@@ -5,35 +5,41 @@
  * ⚠️ All costs are ESTIMATED based on simplified AU award rates.
  */
 
-import { useMemo } from 'react'
-import { useRosterStore } from '@/stores/useRosterStore'
-import { useLabourCost } from '@/lib/hooks/useLabourCost'
-import { formatCurrency } from '@/lib/utils/formatters'
-import { calculateWeeklyRosterMetrics } from '@/lib/utils/rosterCalculations'
-import { ChevronDown, ChevronUp, DollarSign, AlertTriangle, Loader2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { useMemo } from "react";
+import { useRosterStore } from "@/stores/useRosterStore";
+import { useLabourCost } from "@/lib/hooks/useLabourCost";
+import { formatCurrency } from "@/lib/utils/formatters";
+import { calculateWeeklyRosterMetrics } from "@/lib/utils/rosterCalculations";
+import {
+  ChevronDown,
+  ChevronUp,
+  DollarSign,
+  AlertTriangle,
+  Loader2,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const STATUS_COLORS = {
-  green: 'text-green-600',
-  amber: 'text-amber-600',
-  red: 'text-red-600',
-  unknown: 'text-gray-500',
-} as const
+  green: "text-green-600",
+  amber: "text-amber-600",
+  red: "text-red-600",
+  unknown: "text-gray-500",
+} as const;
 
 const STATUS_BG = {
-  green: 'bg-green-50',
-  amber: 'bg-amber-50',
-  red: 'bg-red-50',
-  unknown: 'bg-gray-50',
-} as const
+  green: "bg-green-50",
+  amber: "bg-amber-50",
+  red: "bg-red-50",
+  unknown: "bg-gray-50",
+} as const;
 
 export function CostBar() {
-  const { shifts, costBarExpanded, toggleCostBar } = useRosterStore()
-  const { labourPercent, costStatus, isLoadingRevenue } = useLabourCost()
+  const { shifts, costBarExpanded, toggleCostBar } = useRosterStore();
+  const { labourPercent, costStatus, isLoadingRevenue } = useLabourCost();
 
-  const metrics = useMemo(() => calculateWeeklyRosterMetrics(shifts), [shifts])
+  const metrics = useMemo(() => calculateWeeklyRosterMetrics(shifts), [shifts]);
 
-  const hasPenalties = metrics.penaltyCost > 0
+  const hasPenalties = metrics.penaltyCost > 0;
 
   return (
     <div className="shrink-0 bg-white border-t shadow-sm print:hidden">
@@ -46,7 +52,9 @@ export function CostBar() {
 
         {/* Total cost */}
         <div className="flex flex-col leading-tight">
-          <span className="text-sm font-bold tabular-nums">{formatCurrency(metrics.totalCost)}</span>
+          <span className="text-sm font-bold tabular-nums">
+            {formatCurrency(metrics.totalCost)}
+          </span>
           <span className="text-[10px] text-gray-400">est. labour</span>
         </div>
 
@@ -54,15 +62,21 @@ export function CostBar() {
 
         {/* Hours */}
         <div className="flex flex-col leading-tight">
-          <span className="text-sm font-semibold tabular-nums">{metrics.totalHours.toFixed(1)}h</span>
-          <span className="text-[10px] text-gray-400">{metrics.shiftCount} shifts</span>
+          <span className="text-sm font-semibold tabular-nums">
+            {metrics.totalHours.toFixed(1)}h
+          </span>
+          <span className="text-[10px] text-gray-400">
+            {metrics.shiftCount} shifts
+          </span>
         </div>
 
         <div className="w-px h-8 bg-gray-100" />
 
         {/* Staff */}
         <div className="flex flex-col leading-tight">
-          <span className="text-sm font-semibold tabular-nums">{metrics.staffCount}</span>
+          <span className="text-sm font-semibold tabular-nums">
+            {metrics.staffCount}
+          </span>
           <span className="text-[10px] text-gray-400">staff rostered</span>
         </div>
 
@@ -84,11 +98,23 @@ export function CostBar() {
         {isLoadingRevenue ? (
           <div className="flex items-center gap-1">
             <Loader2 className="h-3 w-3 animate-spin text-gray-400" />
-            <span className="text-[10px] text-gray-400">loading revenue...</span>
+            <span className="text-[10px] text-gray-400">
+              loading revenue...
+            </span>
           </div>
         ) : labourPercent !== null ? (
-          <div className={cn('flex flex-col leading-tight px-2 py-0.5 rounded', STATUS_BG[costStatus])}>
-            <span className={cn('text-sm font-semibold tabular-nums', STATUS_COLORS[costStatus])}>
+          <div
+            className={cn(
+              "flex flex-col leading-tight px-2 py-0.5 rounded",
+              STATUS_BG[costStatus],
+            )}
+          >
+            <span
+              className={cn(
+                "text-sm font-semibold tabular-nums",
+                STATUS_COLORS[costStatus],
+              )}
+            >
               {labourPercent.toFixed(1)}%
             </span>
             <span className="text-[10px] text-gray-400">of avg revenue</span>
@@ -115,11 +141,12 @@ export function CostBar() {
           </div>
         )}
 
-        {costBarExpanded
-          ? <ChevronUp className="h-4 w-4 text-gray-400 shrink-0" />
-          : <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
-        }
+        {costBarExpanded ? (
+          <ChevronUp className="h-4 w-4 text-gray-400 shrink-0" />
+        ) : (
+          <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
+        )}
       </button>
     </div>
-  )
+  );
 }

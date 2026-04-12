@@ -1,29 +1,29 @@
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 export interface StatCardItem {
-  label: string
-  value: string | number
-  subtitle?: string
-  trend?: 'up' | 'down' | 'neutral'
-  icon?: React.ReactNode
+  label: string;
+  value: string | number;
+  subtitle?: string;
+  trend?: "up" | "down" | "neutral";
+  icon?: React.ReactNode;
 }
 
 interface StatCardsProps {
-  stats: StatCardItem[]
-  columns?: 2 | 3 | 4 | 5 | 6
+  stats: StatCardItem[];
+  columns?: 2 | 3 | 4 | 5 | 6;
 }
 
 const GRID_COLS = {
-  2: 'grid-cols-1 sm:grid-cols-2',
-  3: 'grid-cols-1 sm:grid-cols-3',
-  4: 'grid-cols-2 sm:grid-cols-4',
-  5: 'grid-cols-2 sm:grid-cols-5',
-  6: 'grid-cols-2 sm:grid-cols-6',
-} as const
+  2: "grid-cols-1 sm:grid-cols-2",
+  3: "grid-cols-1 sm:grid-cols-3",
+  4: "grid-cols-2 sm:grid-cols-4",
+  5: "grid-cols-2 sm:grid-cols-5",
+  6: "grid-cols-2 sm:grid-cols-6",
+} as const;
 
 export function StatCards({ stats, columns = 4 }: StatCardsProps) {
   return (
-    <div className={cn('grid gap-4', GRID_COLS[columns])}>
+    <div className={cn("grid gap-4", GRID_COLS[columns])}>
       {stats.map((stat) => (
         <div
           key={stat.label}
@@ -41,10 +41,11 @@ export function StatCards({ stats, columns = 4 }: StatCardsProps) {
           {stat.subtitle && (
             <div
               className={cn(
-                'text-sm mt-0.5',
-                stat.trend === 'up' && 'text-emerald-600',
-                stat.trend === 'down' && 'text-red-500',
-                (!stat.trend || stat.trend === 'neutral') && 'text-slate-500 dark:text-slate-400'
+                "text-sm mt-0.5",
+                stat.trend === "up" && "text-emerald-600",
+                stat.trend === "down" && "text-red-500",
+                (!stat.trend || stat.trend === "neutral") &&
+                  "text-slate-500 dark:text-slate-400",
               )}
             >
               {stat.subtitle}
@@ -53,5 +54,5 @@ export function StatCards({ stats, columns = 4 }: StatCardsProps) {
         </div>
       ))}
     </div>
-  )
+  );
 }

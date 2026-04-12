@@ -1,47 +1,64 @@
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import * as Types from '@/types'
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import * as Types from "@/types";
 
 const orderFormSchema = z.object({
   order_number: z.string().min(1, "Required"),
   order_datetime: z.string(),
-  channel: z.enum(['dine-in', 'takeaway', 'delivery', 'online']),
+  channel: z.enum(["dine-in", "takeaway", "delivery", "online"]),
   gross_amount: z.number().nonnegative("Cannot be negative"),
   tax_amount: z.number().nonnegative("Cannot be negative"),
   discount_amount: z.number().nonnegative("Cannot be negative"),
   net_amount: z.number().nonnegative("Cannot be negative"),
-})
+});
 
-type OrderFormValues = z.infer<typeof orderFormSchema>
+type OrderFormValues = z.infer<typeof orderFormSchema>;
 
 interface OrderFormProps {
-  onSubmit: (data: Partial<Types.Order>) => void
-  onCancel: () => void
-  initialData?: Partial<Types.Order>
+  onSubmit: (data: Partial<Types.Order>) => void;
+  onCancel: () => void;
+  initialData?: Partial<Types.Order>;
 }
 
 export function OrderForm({ onSubmit, onCancel, initialData }: OrderFormProps) {
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(orderFormSchema),
     defaultValues: {
-      order_number: initialData?.order_number || '',
-      order_datetime: initialData?.order_datetime 
+      order_number: initialData?.order_number || "",
+      order_datetime: initialData?.order_datetime
         ? new Date(initialData.order_datetime).toISOString().slice(0, 16)
         : new Date().toISOString().slice(0, 16),
-      channel: initialData?.channel || 'dine-in',
-      gross_amount: initialData?.gross_amount ? initialData.gross_amount / 100 : 0,
+      channel: initialData?.channel || "dine-in",
+      gross_amount: initialData?.gross_amount
+        ? initialData.gross_amount / 100
+        : 0,
       tax_amount: initialData?.tax_amount ? initialData.tax_amount / 100 : 0,
-      discount_amount: initialData?.discount_amount ? initialData.discount_amount / 100 : 0,
+      discount_amount: initialData?.discount_amount
+        ? initialData.discount_amount / 100
+        : 0,
       net_amount: initialData?.net_amount ? initialData.net_amount / 100 : 0,
-    }
-  })
-  
+    },
+  });
+
   const handleSubmit = (data: OrderFormValues) => {
     // Convert to cents and proper dates
     const orderData = {
@@ -51,10 +68,10 @@ export function OrderForm({ onSubmit, onCancel, initialData }: OrderFormProps) {
       tax_amount: Math.round(data.tax_amount * 100),
       discount_amount: Math.round(data.discount_amount * 100),
       net_amount: Math.round(data.net_amount * 100),
-    }
-    onSubmit(orderData as Partial<Types.Order>)
-  }
-  
+    };
+    onSubmit(orderData as Partial<Types.Order>);
+  };
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -72,14 +89,17 @@ export function OrderForm({ onSubmit, onCancel, initialData }: OrderFormProps) {
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="channel"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Channel *</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue />
@@ -97,7 +117,7 @@ export function OrderForm({ onSubmit, onCancel, initialData }: OrderFormProps) {
             )}
           />
         </div>
-        
+
         <FormField
           control={form.control}
           name="order_datetime"
@@ -111,7 +131,7 @@ export function OrderForm({ onSubmit, onCancel, initialData }: OrderFormProps) {
             </FormItem>
           )}
         />
-        
+
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -120,18 +140,20 @@ export function OrderForm({ onSubmit, onCancel, initialData }: OrderFormProps) {
               <FormItem>
                 <FormLabel>Gross Amount ($) *</FormLabel>
                 <FormControl>
-                  <Input 
-                    {...field} 
-                    type="number" 
+                  <Input
+                    {...field}
+                    type="number"
                     step="0.01"
-                    onChange={e => field.onChange(parseFloat(e.target.value) || 0)}
+                    onChange={(e) =>
+                      field.onChange(parseFloat(e.target.value) || 0)
+                    }
                   />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="tax_amount"
@@ -139,11 +161,13 @@ export function OrderForm({ onSubmit, onCancel, initialData }: OrderFormProps) {
               <FormItem>
                 <FormLabel>Tax Amount ($) *</FormLabel>
                 <FormControl>
-                  <Input 
-                    {...field} 
-                    type="number" 
+                  <Input
+                    {...field}
+                    type="number"
                     step="0.01"
-                    onChange={e => field.onChange(parseFloat(e.target.value) || 0)}
+                    onChange={(e) =>
+                      field.onChange(parseFloat(e.target.value) || 0)
+                    }
                   />
                 </FormControl>
                 <FormMessage />
@@ -151,7 +175,7 @@ export function OrderForm({ onSubmit, onCancel, initialData }: OrderFormProps) {
             )}
           />
         </div>
-        
+
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -160,18 +184,20 @@ export function OrderForm({ onSubmit, onCancel, initialData }: OrderFormProps) {
               <FormItem>
                 <FormLabel>Discount ($)</FormLabel>
                 <FormControl>
-                  <Input 
-                    {...field} 
-                    type="number" 
+                  <Input
+                    {...field}
+                    type="number"
                     step="0.01"
-                    onChange={e => field.onChange(parseFloat(e.target.value) || 0)}
+                    onChange={(e) =>
+                      field.onChange(parseFloat(e.target.value) || 0)
+                    }
                   />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="net_amount"
@@ -179,11 +205,13 @@ export function OrderForm({ onSubmit, onCancel, initialData }: OrderFormProps) {
               <FormItem>
                 <FormLabel>Net Amount ($) *</FormLabel>
                 <FormControl>
-                  <Input 
-                    {...field} 
-                    type="number" 
+                  <Input
+                    {...field}
+                    type="number"
                     step="0.01"
-                    onChange={e => field.onChange(parseFloat(e.target.value) || 0)}
+                    onChange={(e) =>
+                      field.onChange(parseFloat(e.target.value) || 0)
+                    }
                   />
                 </FormControl>
                 <FormMessage />
@@ -191,17 +219,19 @@ export function OrderForm({ onSubmit, onCancel, initialData }: OrderFormProps) {
             )}
           />
         </div>
-        
+
         <div className="flex gap-2 pt-4">
           <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Save
-            </Button>
+            {form.formState.isSubmitting && (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            )}
+            Save
+          </Button>
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
         </div>
       </form>
     </Form>
-  )
+  );
 }

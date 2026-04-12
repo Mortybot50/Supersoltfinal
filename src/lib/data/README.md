@@ -3,6 +3,7 @@
 ## Overview
 
 SuperSolt uses a centralized data store (Zustand) to manage all application data. This architecture makes it easy to:
+
 - Import data from external sources
 - Share data across components
 - Maintain data consistency
@@ -33,17 +34,21 @@ All data is stored in `src/lib/data/store.ts` using Zustand state management.
 ## Importing Data
 
 ### Step 1: Navigate to Data Imports
+
 Go to **Admin → Data Imports** in the application.
 
 ### Step 2: Prepare Your Data
+
 Data must be in JSON format matching the TypeScript interfaces in `src/types/index.ts`.
 
 ### Step 3: Upload
+
 Select the entity type and upload your JSON file.
 
 ## Data Format Examples
 
 ### Orders (orders.json)
+
 ```json
 [
   {
@@ -65,6 +70,7 @@ Select the entity type and upload your JSON file.
 ```
 
 ### Order Items (order-items.json)
+
 ```json
 [
   {
@@ -82,6 +88,7 @@ Select the entity type and upload your JSON file.
 ```
 
 ### Ingredients (ingredients.json)
+
 ```json
 [
   {
@@ -102,6 +109,7 @@ Select the entity type and upload your JSON file.
 ```
 
 ### Staff (staff.json)
+
 ```json
 [
   {
@@ -122,22 +130,24 @@ Select the entity type and upload your JSON file.
 ## Using Data in Components
 
 ### Import the hook
+
 ```typescript
-import { useSalesMetrics } from '@/lib/hooks/useSalesMetrics'
+import { useSalesMetrics } from "@/lib/hooks/useSalesMetrics";
 ```
 
 ### Use in component
+
 ```typescript
 function MyComponent() {
   const { metrics, hasData } = useSalesMetrics({
     startDate: new Date('2024-10-01'),
     endDate: new Date('2024-10-31')
   })
-  
+
   if (!hasData) {
     return <EmptyState message="No data available" />
   }
-  
+
   return (
     <div>
       Net Sales: {formatCurrency(metrics.net_sales)}
@@ -149,6 +159,7 @@ function MyComponent() {
 ## Currency Format
 
 All monetary values are stored as **integers in cents**:
+
 - $12.50 is stored as `1250`
 - $100.00 is stored as `10000`
 
@@ -157,6 +168,7 @@ Use `formatCurrency()` from `@/lib/utils/formatters` to display values.
 ## Date Format
 
 All dates are stored as ISO 8601 strings:
+
 - `"2024-10-25T10:30:00Z"`
 
 Use `formatDate()` from `@/lib/utils/formatters` to display dates.

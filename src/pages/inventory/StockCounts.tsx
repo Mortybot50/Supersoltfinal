@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ClipboardCheck,
   Plus,
@@ -17,13 +17,19 @@ import {
   Trash2,
   Activity,
   Package,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,10 +39,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { Progress } from '@/components/ui/progress'
+} from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import {
   BarChart,
   Bar,
@@ -46,70 +52,79 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
-} from 'recharts'
-import { format, formatDistanceToNow } from 'date-fns'
-import { toast } from 'sonner'
-import { supabase } from '@/integrations/supabase/client'
-import { PageShell, PageToolbar } from '@/components/shared'
-import { useAuth } from '@/contexts/AuthContext'
-import { formatCurrency } from '@/lib/utils/formatters'
+} from "recharts";
+import { format, formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { PageShell, PageToolbar } from "@/components/shared";
+import { useAuth } from "@/contexts/AuthContext";
+import { formatCurrency } from "@/lib/utils/formatters";
 import {
   useStockCountsList,
   useApproveStockCount,
-} from '@/lib/hooks/useStockCounts'
+} from "@/lib/hooks/useStockCounts";
 import {
   calculateVariancePercent,
   aggregateVarianceByCategory,
   isLargeVariance,
-} from '@/lib/utils/inventoryCalculations'
-import type { StockCount } from '@/types'
+} from "@/lib/utils/inventoryCalculations";
+import type { StockCount } from "@/types";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
-type StockStatus = 'healthy' | 'low' | 'critical' | 'out'
+type StockStatus = "healthy" | "low" | "critical" | "out";
 
 interface StockLevelItem {
-  ingredient_id: string
-  ingredient_name: string
-  status: StockStatus
+  ingredient_id: string;
+  ingredient_name: string;
+  status: StockStatus;
 }
 
 interface StockSummary {
-  total: number
-  healthy: number
-  low: number
-  critical: number
-  out: number
-  alertItems: StockLevelItem[]
+  total: number;
+  healthy: number;
+  low: number;
+  critical: number;
+  out: number;
+  alertItems: StockLevelItem[];
 }
 
 // ── Status badge helper ─────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
   switch (status) {
-    case 'in-progress':
+    case "in-progress":
       return (
-        <Badge variant="outline" className="gap-1 border-amber-300 text-amber-700 bg-amber-50">
+        <Badge
+          variant="outline"
+          className="gap-1 border-amber-300 text-amber-700 bg-amber-50"
+        >
           <Clock className="h-3 w-3" />
           In Progress
         </Badge>
-      )
-    case 'completed':
+      );
+    case "completed":
       return (
-        <Badge variant="outline" className="gap-1 border-blue-300 text-blue-700 bg-blue-50">
+        <Badge
+          variant="outline"
+          className="gap-1 border-blue-300 text-blue-700 bg-blue-50"
+        >
           <CheckCircle2 className="h-3 w-3" />
           Completed
         </Badge>
-      )
-    case 'reviewed':
+      );
+    case "reviewed":
       return (
-        <Badge variant="outline" className="gap-1 border-green-300 text-green-700 bg-green-50">
+        <Badge
+          variant="outline"
+          className="gap-1 border-green-300 text-green-700 bg-green-50"
+        >
           <CheckCircle2 className="h-3 w-3" />
           Approved
         </Badge>
-      )
+      );
     default:
-      return <Badge variant="outline">{status}</Badge>
+      return <Badge variant="outline">{status}</Badge>;
   }
 }
 
@@ -120,41 +135,43 @@ function VarianceSummaryDialog({
   open,
   onOpenChange,
 }: {
-  stockCount: StockCount | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  stockCount: StockCount | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [managerNote, setManagerNote] = useState('')
-  const approveCount = useApproveStockCount()
+  const [managerNote, setManagerNote] = useState("");
+  const approveCount = useApproveStockCount();
 
-  const items = useMemo(() => stockCount?.items ?? [], [stockCount])
+  const items = useMemo(() => stockCount?.items ?? [], [stockCount]);
 
   const topVarianceItems = useMemo(() => {
     return [...items]
       .sort((a, b) => Math.abs(b.variance_value) - Math.abs(a.variance_value))
-      .slice(0, 5)
-  }, [items])
+      .slice(0, 5);
+  }, [items]);
 
   const varianceByCategory = useMemo(() => {
     return aggregateVarianceByCategory(
       items.map((item) => ({
-        ingredientCategory: item.ingredient_name.split(' ')[0] ?? 'Other',
+        ingredientCategory: item.ingredient_name.split(" ")[0] ?? "Other",
         varianceValue: item.variance_value,
-      }))
-    ).slice(0, 8)
-  }, [items])
+      })),
+    ).slice(0, 8);
+  }, [items]);
 
-  const totalVariance = stockCount?.total_variance_value ?? 0
+  const totalVariance = stockCount?.total_variance_value ?? 0;
   const needsManagerNote =
     Math.abs(totalVariance) > 5000 ||
     items.some(
       (i) =>
-        Math.abs(calculateVariancePercent(i.actual_quantity, i.expected_quantity)) > 15
-    )
+        Math.abs(
+          calculateVariancePercent(i.actual_quantity, i.expected_quantity),
+        ) > 15,
+    );
 
   const handleApprove = () => {
-    if (!stockCount) return
-    if (needsManagerNote && !managerNote.trim()) return
+    if (!stockCount) return;
+    if (needsManagerNote && !managerNote.trim()) return;
 
     approveCount.mutate(
       {
@@ -164,14 +181,14 @@ function VarianceSummaryDialog({
       },
       {
         onSuccess: () => {
-          setManagerNote('')
-          onOpenChange(false)
+          setManagerNote("");
+          onOpenChange(false);
         },
-      }
-    )
-  }
+      },
+    );
+  };
 
-  if (!stockCount) return null
+  if (!stockCount) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -194,10 +211,10 @@ function VarianceSummaryDialog({
             <p className="text-sm text-muted-foreground">Total Variance</p>
             <p
               className={`text-xl font-bold ${
-                totalVariance < 0 ? 'text-red-600' : 'text-green-600'
+                totalVariance < 0 ? "text-red-600" : "text-green-600"
               }`}
             >
-              {totalVariance >= 0 ? '+' : ''}
+              {totalVariance >= 0 ? "+" : ""}
               {formatCurrency(totalVariance)}
             </p>
           </div>
@@ -225,32 +242,36 @@ function VarianceSummaryDialog({
                 {topVarianceItems.map((item) => {
                   const varPct = calculateVariancePercent(
                     item.actual_quantity,
-                    item.expected_quantity
-                  )
+                    item.expected_quantity,
+                  );
                   return (
                     <tr key={item.id} className="border-t">
-                      <td className="p-2 font-medium">{item.ingredient_name}</td>
+                      <td className="p-2 font-medium">
+                        {item.ingredient_name}
+                      </td>
                       <td className="p-2 text-right text-muted-foreground">
                         {item.expected_quantity}
                       </td>
                       <td className="p-2 text-right">{item.actual_quantity}</td>
                       <td
                         className={`p-2 text-right font-semibold ${
-                          Math.abs(varPct) > 10 ? 'text-red-600' : ''
+                          Math.abs(varPct) > 10 ? "text-red-600" : ""
                         }`}
                       >
-                        {varPct > 0 ? '+' : ''}
+                        {varPct > 0 ? "+" : ""}
                         {varPct.toFixed(1)}%
                       </td>
                       <td
                         className={`p-2 text-right font-semibold ${
-                          item.variance_value < 0 ? 'text-red-600' : 'text-green-600'
+                          item.variance_value < 0
+                            ? "text-red-600"
+                            : "text-green-600"
                         }`}
                       >
                         {formatCurrency(item.variance_value)}
                       </td>
                     </tr>
-                  )
+                  );
                 })}
               </tbody>
             </table>
@@ -271,13 +292,16 @@ function VarianceSummaryDialog({
                     tickFormatter={(v: number) => formatCurrency(v)}
                   />
                   <Tooltip
-                    formatter={(value: number) => [formatCurrency(value), 'Variance']}
+                    formatter={(value: number) => [
+                      formatCurrency(value),
+                      "Variance",
+                    ]}
                   />
                   <Bar dataKey="variance" radius={[4, 4, 0, 0]}>
                     {varianceByCategory.map((entry, idx) => (
                       <Cell
                         key={idx}
-                        fill={entry.variance < 0 ? '#ef4444' : '#22c55e'}
+                        fill={entry.variance < 0 ? "#ef4444" : "#22c55e"}
                       />
                     ))}
                   </Bar>
@@ -309,7 +333,7 @@ function VarianceSummaryDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
-          {stockCount.status !== 'reviewed' && (
+          {stockCount.status !== "reviewed" && (
             <Button
               onClick={handleApprove}
               disabled={
@@ -328,44 +352,50 @@ function VarianceSummaryDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
 // ── Overview tab ────────────────────────────────────────────────────────────
 
 function OverviewTab({ stockCounts }: { stockCounts: StockCount[] }) {
-  const { currentVenueId, organization } = useAuth()
-  const orgId = organization?.id
+  const { currentVenueId, organization } = useAuth();
+  const orgId = organization?.id;
 
-  const { data: stockSummary, isLoading: summaryLoading } = useQuery<StockSummary>({
-    queryKey: ['stock-levels-summary', orgId, currentVenueId],
-    queryFn: async () => {
-      const res = await fetch(
-        `/api/inventory?action=get-stock-levels&org_id=${orgId}&venue_id=${currentVenueId}`
-      )
-      if (!res.ok) throw new Error('Failed to fetch stock levels')
-      const data = await res.json()
-      const levels: StockLevelItem[] = data.stock_levels ?? []
-      return {
-        total: levels.length,
-        healthy: levels.filter((s) => s.status === 'healthy').length,
-        low: levels.filter((s) => s.status === 'low').length,
-        critical: levels.filter((s) => s.status === 'critical').length,
-        out: levels.filter((s) => s.status === 'out').length,
-        alertItems: levels.filter((s) => s.status === 'out' || s.status === 'critical').slice(0, 5),
-      }
-    },
-    enabled: !!orgId && !!currentVenueId,
-    staleTime: 60_000,
-  })
+  const { data: stockSummary, isLoading: summaryLoading } =
+    useQuery<StockSummary>({
+      queryKey: ["stock-levels-summary", orgId, currentVenueId],
+      queryFn: async () => {
+        const res = await fetch(
+          `/api/inventory?action=get-stock-levels&org_id=${orgId}&venue_id=${currentVenueId}`,
+        );
+        if (!res.ok) throw new Error("Failed to fetch stock levels");
+        const data = await res.json();
+        const levels: StockLevelItem[] = data.stock_levels ?? [];
+        return {
+          total: levels.length,
+          healthy: levels.filter((s) => s.status === "healthy").length,
+          low: levels.filter((s) => s.status === "low").length,
+          critical: levels.filter((s) => s.status === "critical").length,
+          out: levels.filter((s) => s.status === "out").length,
+          alertItems: levels
+            .filter((s) => s.status === "out" || s.status === "critical")
+            .slice(0, 5),
+        };
+      },
+      enabled: !!orgId && !!currentVenueId,
+      staleTime: 60_000,
+    });
 
   const recentCounts = useMemo(
     () =>
       [...stockCounts]
-        .sort((a, b) => new Date(b.count_date).getTime() - new Date(a.count_date).getTime())
+        .sort(
+          (a, b) =>
+            new Date(b.count_date).getTime() - new Date(a.count_date).getTime(),
+        )
         .slice(0, 5),
-    [stockCounts]
-  )
+    [stockCounts],
+  );
 
   return (
     <div className="space-y-6">
@@ -378,11 +408,11 @@ function OverviewTab({ stockCounts }: { stockCounts: StockCount[] }) {
               {stockSummary.out > 0 && stockSummary.critical > 0
                 ? `${stockSummary.out + stockSummary.critical} ingredients need attention`
                 : stockSummary.out > 0
-                ? `${stockSummary.out} ingredient${stockSummary.out !== 1 ? 's' : ''} out of stock`
-                : `${stockSummary.critical} ingredient${stockSummary.critical !== 1 ? 's' : ''} critically low`}
+                  ? `${stockSummary.out} ingredient${stockSummary.out !== 1 ? "s" : ""} out of stock`
+                  : `${stockSummary.critical} ingredient${stockSummary.critical !== 1 ? "s" : ""} critically low`}
             </p>
             <p className="text-xs text-red-600 mt-0.5">
-              {stockSummary.alertItems.map((i) => i.ingredient_name).join(', ')}
+              {stockSummary.alertItems.map((i) => i.ingredient_name).join(", ")}
             </p>
           </div>
         </div>
@@ -397,20 +427,49 @@ function OverviewTab({ stockCounts }: { stockCounts: StockCount[] }) {
           </div>
         ) : !stockSummary || stockSummary.total === 0 ? (
           <Card className="p-6 text-center text-sm text-muted-foreground">
-            No stock level data. Set up POS mapping and run a depletion sync to see stock levels here.
+            No stock level data. Set up POS mapping and run a depletion sync to
+            see stock levels here.
           </Card>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
             {(
               [
-                { label: 'Total', value: stockSummary.total, icon: Package, color: 'text-foreground' },
-                { label: 'Healthy', value: stockSummary.healthy, icon: Activity, color: 'text-green-600' },
-                { label: 'Low', value: stockSummary.low, icon: TrendingDown, color: 'text-amber-600' },
-                { label: 'Critical', value: stockSummary.critical, icon: AlertTriangle, color: 'text-red-600' },
-                { label: 'Out of Stock', value: stockSummary.out, icon: Package, color: 'text-red-800' },
+                {
+                  label: "Total",
+                  value: stockSummary.total,
+                  icon: Package,
+                  color: "text-foreground",
+                },
+                {
+                  label: "Healthy",
+                  value: stockSummary.healthy,
+                  icon: Activity,
+                  color: "text-green-600",
+                },
+                {
+                  label: "Low",
+                  value: stockSummary.low,
+                  icon: TrendingDown,
+                  color: "text-amber-600",
+                },
+                {
+                  label: "Critical",
+                  value: stockSummary.critical,
+                  icon: AlertTriangle,
+                  color: "text-red-600",
+                },
+                {
+                  label: "Out of Stock",
+                  value: stockSummary.out,
+                  icon: Package,
+                  color: "text-red-800",
+                },
               ] as const
             ).map(({ label, value, icon: Icon, color }) => (
-              <Card key={label} className="rounded-xl border border-border/60 bg-card shadow-sm">
+              <Card
+                key={label}
+                className="rounded-xl border border-border/60 bg-card shadow-sm"
+              >
                 <CardContent className="p-5 flex items-center gap-3">
                   <Icon className={`h-5 w-5 ${color} shrink-0`} />
                   <div>
@@ -436,105 +495,118 @@ function OverviewTab({ stockCounts }: { stockCounts: StockCount[] }) {
             <div className="divide-y">
               {recentCounts.map((sc) => {
                 const countDate =
-                  sc.count_date instanceof Date ? sc.count_date : new Date(sc.count_date)
+                  sc.count_date instanceof Date
+                    ? sc.count_date
+                    : new Date(sc.count_date);
                 return (
-                  <div key={sc.id} className="flex items-center gap-3 px-4 py-3">
+                  <div
+                    key={sc.id}
+                    className="flex items-center gap-3 px-4 py-3"
+                  >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{sc.count_number}</p>
                       <p className="text-xs text-muted-foreground">
-                        {sc.counted_by_name ?? 'Unknown'} · {format(countDate, 'dd MMM yyyy')}
+                        {sc.counted_by_name ?? "Unknown"} ·{" "}
+                        {format(countDate, "dd MMM yyyy")}
                       </p>
                     </div>
                     <StatusBadge status={sc.status} />
                     <span
                       className={`text-sm font-semibold tabular-nums ${
-                        (sc.total_variance_value ?? 0) < 0 ? 'text-red-600' : 'text-green-600'
+                        (sc.total_variance_value ?? 0) < 0
+                          ? "text-red-600"
+                          : "text-green-600"
                       }`}
                     >
                       {formatCurrency(sc.total_variance_value ?? 0)}
                     </span>
                   </div>
-                )
+                );
               })}
             </div>
           </Card>
         )}
       </div>
     </div>
-  )
+  );
 }
 
 // ── Main StockCounts page ───────────────────────────────────────────────────
 
 export default function StockCounts() {
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const { data: stockCounts = [], isLoading } = useStockCountsList()
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { data: stockCounts = [], isLoading } = useStockCountsList();
 
-  const [pageTab, setPageTab] = useState('counts')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [activeTab, setActiveTab] = useState('all')
-  const [selectedCount, setSelectedCount] = useState<StockCount | null>(null)
-  const [showVariance, setShowVariance] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<StockCount | null>(null)
+  const [pageTab, setPageTab] = useState("counts");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+  const [selectedCount, setSelectedCount] = useState<StockCount | null>(null);
+  const [showVariance, setShowVariance] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<StockCount | null>(null);
 
   // Delete mutation — Supabase first, then invalidate query cache
   const deleteCountMutation = useMutation({
     mutationFn: async (countId: string) => {
-      const { error } = await supabase.from('stock_counts').delete().eq('id', countId)
-      if (error) throw error
+      const { error } = await supabase
+        .from("stock_counts")
+        .delete()
+        .eq("id", countId);
+      if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['stock-counts'] })
-      toast.success('Stock count deleted')
-      setDeleteTarget(null)
+      queryClient.invalidateQueries({ queryKey: ["stock-counts"] });
+      toast.success("Stock count deleted");
+      setDeleteTarget(null);
     },
     onError: () => {
-      toast.error('Failed to delete stock count')
+      toast.error("Failed to delete stock count");
     },
-  })
+  });
 
   // Filter counts
   const filteredCounts = useMemo(() => {
-    let filtered = stockCounts
+    let filtered = stockCounts;
 
-    if (activeTab === 'in-progress') {
-      filtered = filtered.filter((sc) => sc.status === 'in-progress')
-    } else if (activeTab === 'completed') {
+    if (activeTab === "in-progress") {
+      filtered = filtered.filter((sc) => sc.status === "in-progress");
+    } else if (activeTab === "completed") {
       filtered = filtered.filter(
-        (sc) => sc.status === 'completed' || sc.status === 'reviewed'
-      )
+        (sc) => sc.status === "completed" || sc.status === "reviewed",
+      );
     }
 
     if (searchQuery) {
-      const q = searchQuery.toLowerCase()
+      const q = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (sc) =>
           sc.count_number.toLowerCase().includes(q) ||
-          sc.counted_by_name?.toLowerCase().includes(q)
-      )
+          sc.counted_by_name?.toLowerCase().includes(q),
+      );
     }
 
-    return filtered
-  }, [stockCounts, activeTab, searchQuery])
+    return filtered;
+  }, [stockCounts, activeTab, searchQuery]);
 
   // Summary stats
   const stats = useMemo(() => {
-    const inProgress = stockCounts.filter((sc) => sc.status === 'in-progress').length
+    const inProgress = stockCounts.filter(
+      (sc) => sc.status === "in-progress",
+    ).length;
     const completed = stockCounts.filter(
-      (sc) => sc.status === 'completed' || sc.status === 'reviewed'
-    ).length
+      (sc) => sc.status === "completed" || sc.status === "reviewed",
+    ).length;
     const totalVariance = stockCounts
-      .filter((sc) => sc.status === 'completed' || sc.status === 'reviewed')
-      .reduce((sum, sc) => sum + (sc.total_variance_value ?? 0), 0)
+      .filter((sc) => sc.status === "completed" || sc.status === "reviewed")
+      .reduce((sum, sc) => sum + (sc.total_variance_value ?? 0), 0);
 
-    return { total: stockCounts.length, inProgress, completed, totalVariance }
-  }, [stockCounts])
+    return { total: stockCounts.length, inProgress, completed, totalVariance };
+  }, [stockCounts]);
 
   const openVarianceSummary = (sc: StockCount) => {
-    setSelectedCount(sc)
-    setShowVariance(true)
-  }
+    setSelectedCount(sc);
+    setShowVariance(true);
+  };
 
   const toolbar = (
     <PageToolbar
@@ -551,13 +623,13 @@ export default function StockCounts() {
         </div>
       }
       primaryAction={{
-        label: 'New Count',
+        label: "New Count",
         icon: Plus,
-        onClick: () => navigate('/inventory/stock-counts/new'),
-        variant: 'primary',
+        onClick: () => navigate("/inventory/stock-counts/new"),
+        variant: "primary",
       }}
     />
-  )
+  );
 
   return (
     <PageShell toolbar={toolbar}>
@@ -592,14 +664,18 @@ export default function StockCounts() {
               <Card className="p-5">
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-amber-500" />
-                  <span className="text-sm text-muted-foreground">In Progress</span>
+                  <span className="text-sm text-muted-foreground">
+                    In Progress
+                  </span>
                 </div>
                 <p className="text-2xl font-bold mt-1">{stats.inProgress}</p>
               </Card>
               <Card className="p-5">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-muted-foreground">Completed</span>
+                  <span className="text-sm text-muted-foreground">
+                    Completed
+                  </span>
                 </div>
                 <p className="text-2xl font-bold mt-1">{stats.completed}</p>
               </Card>
@@ -610,11 +686,13 @@ export default function StockCounts() {
                   ) : (
                     <TrendingUp className="h-4 w-4 text-green-500" />
                   )}
-                  <span className="text-sm text-muted-foreground">Net Variance</span>
+                  <span className="text-sm text-muted-foreground">
+                    Net Variance
+                  </span>
                 </div>
                 <p
                   className={`text-2xl font-bold mt-1 ${
-                    stats.totalVariance < 0 ? 'text-red-600' : 'text-green-600'
+                    stats.totalVariance < 0 ? "text-red-600" : "text-green-600"
                   }`}
                 >
                   {formatCurrency(stats.totalVariance)}
@@ -655,10 +733,12 @@ export default function StockCounts() {
                     <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
                       <ClipboardCheck className="h-7 w-7 text-muted-foreground/50" />
                     </div>
-                    <p className="text-sm text-muted-foreground mb-4">No stock counts found</p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      No stock counts found
+                    </p>
                     <Button
                       className="btn-press"
-                      onClick={() => navigate('/inventory/stock-counts/new')}
+                      onClick={() => navigate("/inventory/stock-counts/new")}
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Start a Count
@@ -667,7 +747,7 @@ export default function StockCounts() {
                 ) : (
                   <div className="grid gap-4 md:grid-cols-2">
                     {filteredCounts.map((sc) => {
-                      const itemCount = sc.items?.length ?? 0
+                      const itemCount = sc.items?.length ?? 0;
                       const largeVarCount =
                         sc.items?.filter((i) =>
                           isLargeVariance(
@@ -675,13 +755,13 @@ export default function StockCounts() {
                             i.expected_quantity,
                             0,
                             10,
-                            0
-                          )
-                        ).length ?? 0
+                            0,
+                          ),
+                        ).length ?? 0;
                       const countDate =
                         sc.count_date instanceof Date
                           ? sc.count_date
-                          : new Date(sc.count_date)
+                          : new Date(sc.count_date);
 
                       return (
                         <Card
@@ -696,7 +776,7 @@ export default function StockCounts() {
                                   {sc.count_number}
                                 </CardTitle>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  {sc.counted_by_name ?? 'Unknown'}
+                                  {sc.counted_by_name ?? "Unknown"}
                                 </p>
                               </div>
                               <StatusBadge status={sc.status} />
@@ -706,10 +786,12 @@ export default function StockCounts() {
                             <div className="flex items-center gap-3 text-sm text-muted-foreground">
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-3.5 w-3.5" />
-                                {format(countDate, 'dd MMM yyyy')}
+                                {format(countDate, "dd MMM yyyy")}
                               </span>
                               <span>
-                                {formatDistanceToNow(countDate, { addSuffix: true })}
+                                {formatDistanceToNow(countDate, {
+                                  addSuffix: true,
+                                })}
                               </span>
                             </div>
 
@@ -721,8 +803,8 @@ export default function StockCounts() {
                                 <span
                                   className={`font-semibold ${
                                     (sc.total_variance_value ?? 0) < 0
-                                      ? 'text-red-600'
-                                      : 'text-green-600'
+                                      ? "text-red-600"
+                                      : "text-green-600"
                                   }`}
                                 >
                                   {formatCurrency(sc.total_variance_value ?? 0)}
@@ -731,7 +813,11 @@ export default function StockCounts() {
                               <Progress
                                 value={Math.min(
                                   100,
-                                  itemCount > 0 ? ((itemCount - largeVarCount) / itemCount) * 100 : 100
+                                  itemCount > 0
+                                    ? ((itemCount - largeVarCount) /
+                                        itemCount) *
+                                        100
+                                    : 100,
                                 )}
                                 className="h-1.5"
                               />
@@ -740,8 +826,9 @@ export default function StockCounts() {
                             {largeVarCount > 0 && (
                               <div className="flex items-center gap-1.5 text-xs text-amber-600">
                                 <AlertTriangle className="h-3.5 w-3.5" />
-                                {largeVarCount} item{largeVarCount > 1 ? 's' : ''} with
-                                large variance
+                                {largeVarCount} item
+                                {largeVarCount > 1 ? "s" : ""} with large
+                                variance
                               </div>
                             )}
 
@@ -751,20 +838,20 @@ export default function StockCounts() {
                                 size="sm"
                                 className="flex-1 text-xs"
                                 onClick={(e) => {
-                                  e.stopPropagation()
-                                  openVarianceSummary(sc)
+                                  e.stopPropagation();
+                                  openVarianceSummary(sc);
                                 }}
                               >
                                 <Eye className="h-3.5 w-3.5 mr-1" />
                                 Review
                               </Button>
-                              {sc.status === 'in-progress' && (
+                              {sc.status === "in-progress" && (
                                 <Button
                                   size="sm"
                                   className="flex-1 text-xs"
                                   onClick={(e) => {
-                                    e.stopPropagation()
-                                    navigate('/inventory/stock-counts/new')
+                                    e.stopPropagation();
+                                    navigate("/inventory/stock-counts/new");
                                   }}
                                 >
                                   Continue
@@ -775,8 +862,8 @@ export default function StockCounts() {
                                 size="sm"
                                 className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
                                 onClick={(e) => {
-                                  e.stopPropagation()
-                                  setDeleteTarget(sc)
+                                  e.stopPropagation();
+                                  setDeleteTarget(sc);
                                 }}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -784,7 +871,7 @@ export default function StockCounts() {
                             </div>
                           </CardContent>
                         </Card>
-                      )
+                      );
                     })}
                   </div>
                 )}
@@ -802,14 +889,21 @@ export default function StockCounts() {
       />
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Stock Count</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete{' '}
-              <span className="font-semibold">{deleteTarget?.count_number}</span>?
-              This action cannot be undone.
+              Are you sure you want to delete{" "}
+              <span className="font-semibold">
+                {deleteTarget?.count_number}
+              </span>
+              ? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -817,7 +911,7 @@ export default function StockCounts() {
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
-                if (deleteTarget) deleteCountMutation.mutate(deleteTarget.id)
+                if (deleteTarget) deleteCountMutation.mutate(deleteTarget.id);
               }}
               disabled={deleteCountMutation.isPending}
             >
@@ -832,5 +926,5 @@ export default function StockCounts() {
         </AlertDialogContent>
       </AlertDialog>
     </PageShell>
-  )
+  );
 }

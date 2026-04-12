@@ -1,28 +1,28 @@
-import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface DateNavigation {
-  label: string
-  onBack: () => void
-  onForward: () => void
+  label: string;
+  onBack: () => void;
+  onForward: () => void;
 }
 
 interface PrimaryAction {
-  label: string
-  icon?: React.ComponentType<{ className?: string }>
-  onClick: () => void
-  disabled?: boolean
-  variant?: "primary" | "export" | "default"
+  label: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  onClick: () => void;
+  disabled?: boolean;
+  variant?: "primary" | "export" | "default";
 }
 
 interface PageToolbarProps {
-  title?: string
-  dateNavigation?: DateNavigation
-  filters?: React.ReactNode
-  actions?: React.ReactNode
-  primaryAction?: PrimaryAction
-  className?: string
+  title?: string;
+  dateNavigation?: DateNavigation;
+  filters?: React.ReactNode;
+  actions?: React.ReactNode;
+  primaryAction?: PrimaryAction;
+  className?: string;
 }
 
 export function PageToolbar({
@@ -37,12 +37,14 @@ export function PageToolbar({
     <div
       className={cn(
         "bg-card border-b border-border/60 px-6 py-3 flex items-center gap-3 flex-wrap print:hidden shrink-0",
-        className
+        className,
       )}
     >
       {/* Title */}
       {title && (
-        <h1 className="text-base font-semibold tracking-tight whitespace-nowrap">{title}</h1>
+        <h1 className="text-base font-semibold tracking-tight whitespace-nowrap">
+          {title}
+        </h1>
       )}
 
       {/* Date Navigation */}
@@ -57,7 +59,10 @@ export function PageToolbar({
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" className="h-9 px-3 font-medium text-sm border-border/60 min-w-[120px] justify-center">
+          <Button
+            variant="outline"
+            className="h-9 px-3 font-medium text-sm border-border/60 min-w-[120px] justify-center"
+          >
             {dateNavigation.label}
           </Button>
           <Button
@@ -88,7 +93,7 @@ export function PageToolbar({
               "h-9 btn-press",
               primaryAction.variant === "export"
                 ? "bg-teal-600 hover:bg-teal-700 text-white dark:bg-teal-500 dark:hover:bg-teal-600"
-                : ""
+                : "",
             )}
             onClick={primaryAction.onClick}
             disabled={primaryAction.disabled}
@@ -101,5 +106,5 @@ export function PageToolbar({
         )}
       </div>
     </div>
-  )
+  );
 }

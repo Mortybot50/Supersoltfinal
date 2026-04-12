@@ -4,7 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, CheckCircle } from "lucide-react";
 
@@ -19,7 +26,9 @@ export default function ResetPassword() {
   // Supabase handles the token from the URL hash automatically on page load
   useEffect(() => {
     // Listen for the PASSWORD_RECOVERY event
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         // User has been authenticated via the recovery link — form is ready
       }
@@ -49,7 +58,9 @@ export default function ResetPassword() {
       setSuccess(true);
       setTimeout(() => navigate("/login"), 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update password");
+      setError(
+        err instanceof Error ? err.message : "Failed to update password",
+      );
     } finally {
       setLoading(false);
     }
@@ -63,7 +74,9 @@ export default function ResetPassword() {
             <div className="w-12 h-12 bg-brand rounded-xl flex items-center justify-center">
               <span className="text-gray-900 font-black text-2xl">S</span>
             </div>
-            <span className="text-3xl font-black tracking-tight uppercase">SuperSolt</span>
+            <span className="text-3xl font-black tracking-tight uppercase">
+              SuperSolt
+            </span>
           </div>
           <CardDescription>
             {success ? "Password updated!" : "Set your new password"}

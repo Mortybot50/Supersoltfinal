@@ -88,13 +88,13 @@ export interface OrgSettings {
 export function getEffectiveVenueSetting(
   venueSettings: VenueSettings | null,
   orgSettings: OrgSettings,
-  fieldName: string
+  fieldName: string,
 ): unknown {
   // If no venue settings or inherit flag is true, return org default
   if (!venueSettings || venueSettings.inherit?.[fieldName] === true) {
     return orgSettings[fieldName];
   }
-  
+
   // Otherwise return venue override
   return venueSettings[fieldName];
 }
@@ -105,24 +105,43 @@ export function getEffectiveVenueSetting(
 export function getAllEffectiveSettings(
   venueId: string,
   venueSettings: VenueSettings | null,
-  orgSettings: OrgSettings
+  orgSettings: OrgSettings,
 ) {
   const fields = [
-    'timezone', 'price_display_mode', 'gst_rate_percent', 'week_starts_on',
-    'default_gp_target_percent', 'menu_sections', 'price_endings', 'rounding_mode',
-    'primary_suppliers', 'delivery_windows', 'order_cutoffs',
-    'payroll_cycle', 'award_region', 'roster_budget_percent',
-    'pos_provider', 'printer_map', 'tax_code_default',
-    'use_au_public_holidays', 'state', 'custom_closed_dates',
-    'price_change_max_percent_no_approval', 'po_amount_over_requires_owner',
-    'below_gp_threshold_alert_percent'
+    "timezone",
+    "price_display_mode",
+    "gst_rate_percent",
+    "week_starts_on",
+    "default_gp_target_percent",
+    "menu_sections",
+    "price_endings",
+    "rounding_mode",
+    "primary_suppliers",
+    "delivery_windows",
+    "order_cutoffs",
+    "payroll_cycle",
+    "award_region",
+    "roster_budget_percent",
+    "pos_provider",
+    "printer_map",
+    "tax_code_default",
+    "use_au_public_holidays",
+    "state",
+    "custom_closed_dates",
+    "price_change_max_percent_no_approval",
+    "po_amount_over_requires_owner",
+    "below_gp_threshold_alert_percent",
   ];
-  
+
   const effective: Record<string, unknown> = { venue_id: venueId };
-  fields.forEach(field => {
-    effective[field] = getEffectiveVenueSetting(venueSettings, orgSettings, field);
+  fields.forEach((field) => {
+    effective[field] = getEffectiveVenueSetting(
+      venueSettings,
+      orgSettings,
+      field,
+    );
   });
-  
+
   return effective;
 }
 
@@ -131,25 +150,25 @@ export function getAllEffectiveSettings(
  */
 export function getDefaultOrgSettings(): OrgSettings {
   return {
-    timezone: 'Australia/Melbourne',
-    price_display_mode: 'INC_GST',
+    timezone: "Australia/Melbourne",
+    price_display_mode: "INC_GST",
     gst_rate_percent: 10.0,
-    week_starts_on: 'Monday',
+    week_starts_on: "Monday",
     default_gp_target_percent: 70.0,
     menu_sections: [],
-    price_endings: '.00',
-    rounding_mode: 'NEAREST',
+    price_endings: ".00",
+    rounding_mode: "NEAREST",
     primary_suppliers: [],
     delivery_windows: [],
     order_cutoffs: [],
-    payroll_cycle: 'Fortnightly',
-    award_region: 'VIC',
+    payroll_cycle: "Fortnightly",
+    award_region: "VIC",
     roster_budget_percent: 25.0,
-    pos_provider: '',
+    pos_provider: "",
     printer_map: [],
-    tax_code_default: '',
+    tax_code_default: "",
     use_au_public_holidays: true,
-    state: 'VIC',
+    state: "VIC",
     custom_closed_dates: [],
     price_change_max_percent_no_approval: 15.0,
     po_amount_over_requires_owner: 5000.0,

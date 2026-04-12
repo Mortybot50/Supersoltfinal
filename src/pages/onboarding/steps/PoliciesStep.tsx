@@ -1,23 +1,23 @@
-import { useState } from 'react'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { toast } from 'sonner'
-import { FileText, AlertCircle } from 'lucide-react'
+import { useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
+import { FileText, AlertCircle } from "lucide-react";
 
 interface PoliciesStepProps {
-  staffId: string
-  onComplete: () => void
-  onBack?: () => void
+  staffId: string;
+  onComplete: () => void;
+  onBack?: () => void;
 }
 
 const WORKPLACE_POLICIES = [
   {
-    id: 'code-of-conduct',
-    title: 'Code of Conduct',
+    id: "code-of-conduct",
+    title: "Code of Conduct",
     mandatory: true,
     content: `Our Code of Conduct outlines expected behaviors and professional standards...
 
@@ -25,11 +25,11 @@ const WORKPLACE_POLICIES = [
 2. Health and Safety
 3. Confidentiality
 4. Conflict of Interest
-5. Discrimination and Harassment Prevention`
+5. Discrimination and Harassment Prevention`,
   },
   {
-    id: 'whs-policy',
-    title: 'Work Health & Safety Policy',
+    id: "whs-policy",
+    title: "Work Health & Safety Policy",
     mandatory: true,
     content: `We are committed to providing a safe working environment...
 
@@ -37,11 +37,11 @@ const WORKPLACE_POLICIES = [
 2. Incident Reporting
 3. Emergency Procedures
 4. Personal Protective Equipment
-5. Safe Work Practices`
+5. Safe Work Practices`,
   },
   {
-    id: 'privacy-policy',
-    title: 'Privacy Policy',
+    id: "privacy-policy",
+    title: "Privacy Policy",
     mandatory: true,
     content: `How we collect, use and protect your personal information...
 
@@ -49,29 +49,37 @@ const WORKPLACE_POLICIES = [
 2. Data Storage and Security
 3. Your Rights
 4. Third Party Disclosure
-5. Policy Updates`
-  }
-]
+5. Policy Updates`,
+  },
+];
 
-export default function PoliciesStep({ staffId, onComplete, onBack }: PoliciesStepProps) {
-const [acknowledged, setAcknowledged] = useState<Record<string, boolean>>({})
-  const [selectedPolicy, setSelectedPolicy] = useState<string | null>(null)
+export default function PoliciesStep({
+  staffId,
+  onComplete,
+  onBack,
+}: PoliciesStepProps) {
+  const [acknowledged, setAcknowledged] = useState<Record<string, boolean>>({});
+  const [selectedPolicy, setSelectedPolicy] = useState<string | null>(null);
 
-  const allMandatoryAcknowledged = WORKPLACE_POLICIES
-    .filter(p => p.mandatory)
-    .every(p => acknowledged[p.id])
+  const allMandatoryAcknowledged = WORKPLACE_POLICIES.filter(
+    (p) => p.mandatory,
+  ).every((p) => acknowledged[p.id]);
 
   const handleContinue = () => {
     if (!allMandatoryAcknowledged) {
-      toast.error('Acknowledgment Required', { description: 'Please read and acknowledge all mandatory policies.' })
-      return
+      toast.error("Acknowledgment Required", {
+        description: "Please read and acknowledge all mandatory policies.",
+      });
+      return;
     }
 
     // In real app, save acknowledgments to store
-    toast.success('Policies acknowledged', { description: 'You have acknowledged all workplace policies.' })
-    
-    onComplete()
-  }
+    toast.success("Policies acknowledged", {
+      description: "You have acknowledged all workplace policies.",
+    });
+
+    onComplete();
+  };
 
   return (
     <Card className="p-6">
@@ -83,11 +91,13 @@ const [acknowledged, setAcknowledged] = useState<Record<string, boolean>>({})
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Policy List */}
         <div className="space-y-3">
-          {WORKPLACE_POLICIES.map(policy => (
+          {WORKPLACE_POLICIES.map((policy) => (
             <Card
               key={policy.id}
               className={`p-4 cursor-pointer transition-colors ${
-                selectedPolicy === policy.id ? 'border-primary bg-primary/5' : ''
+                selectedPolicy === policy.id
+                  ? "border-primary bg-primary/5"
+                  : ""
               }`}
               onClick={() => setSelectedPolicy(policy.id)}
             >
@@ -100,18 +110,21 @@ const [acknowledged, setAcknowledged] = useState<Record<string, boolean>>({})
                   )}
                 </div>
               </div>
-              
+
               <div className="flex items-center space-x-2 mt-3">
                 <Checkbox
                   id={policy.id}
                   checked={acknowledged[policy.id] || false}
                   onCheckedChange={(checked) => {
-                    setAcknowledged({ ...acknowledged, [policy.id]: checked as boolean })
+                    setAcknowledged({
+                      ...acknowledged,
+                      [policy.id]: checked as boolean,
+                    });
                   }}
                   onClick={(e) => e.stopPropagation()}
                 />
-                <Label 
-                  htmlFor={policy.id} 
+                <Label
+                  htmlFor={policy.id}
                   className="text-sm font-normal cursor-pointer"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -127,11 +140,14 @@ const [acknowledged, setAcknowledged] = useState<Record<string, boolean>>({})
           {selectedPolicy ? (
             <Card className="p-4">
               <h3 className="font-semibold text-lg mb-3">
-                {WORKPLACE_POLICIES.find(p => p.id === selectedPolicy)?.title}
+                {WORKPLACE_POLICIES.find((p) => p.id === selectedPolicy)?.title}
               </h3>
               <ScrollArea className="h-[400px] pr-4">
                 <div className="whitespace-pre-wrap text-sm">
-                  {WORKPLACE_POLICIES.find(p => p.id === selectedPolicy)?.content}
+                  {
+                    WORKPLACE_POLICIES.find((p) => p.id === selectedPolicy)
+                      ?.content
+                  }
                 </div>
               </ScrollArea>
             </Card>
@@ -150,7 +166,8 @@ const [acknowledged, setAcknowledged] = useState<Record<string, boolean>>({})
         <Alert className="mt-6">
           <AlertCircle className="w-4 h-4" />
           <AlertDescription>
-            You must read and acknowledge all mandatory policies before continuing.
+            You must read and acknowledge all mandatory policies before
+            continuing.
           </AlertDescription>
         </Alert>
       )}
@@ -166,5 +183,5 @@ const [acknowledged, setAcknowledged] = useState<Record<string, boolean>>({})
         </Button>
       </div>
     </Card>
-  )
+  );
 }

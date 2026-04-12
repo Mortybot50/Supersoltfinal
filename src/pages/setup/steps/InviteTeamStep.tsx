@@ -8,8 +8,14 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from 'sonner'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
 import { Loader2, Mail, Trash2, UserPlus } from "lucide-react";
 
 const inviteSchema = z.object({
@@ -73,7 +79,9 @@ export default function InviteTeamStep({ orgId, onNext, onBack }: Props) {
     setSaving(true);
     try {
       const token = crypto.randomUUID();
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const expiresAt = new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000,
+      ).toISOString();
 
       const { data, error } = await supabase
         .from("staff_invites")
@@ -95,17 +103,24 @@ export default function InviteTeamStep({ orgId, onNext, onBack }: Props) {
       }
 
       reset({ email: "", role: "staff" });
-      toast.success('Invite sent', { description: `Invited ${formData.email} as ${formData.role}` });
+      toast.success("Invite sent", {
+        description: `Invited ${formData.email} as ${formData.role}`,
+      });
     } catch (err) {
-      toast.error("Error sending invite", { description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive", });
+      toast.error("Error sending invite", {
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
     } finally {
       setSaving(false);
     }
   };
 
   const removeInvite = async (inviteId: string) => {
-    const { error } = await supabase.from("staff_invites").delete().eq("id", inviteId);
+    const { error } = await supabase
+      .from("staff_invites")
+      .delete()
+      .eq("id", inviteId);
     if (!error) {
       setInvites((prev) => prev.filter((i) => i.id !== inviteId));
       toast.success("Invite removed");
@@ -123,20 +138,32 @@ export default function InviteTeamStep({ orgId, onNext, onBack }: Props) {
   return (
     <Card className="p-6">
       <h2 className="text-xl font-bold mb-4">Invite Team</h2>
+      <p className="text-sm text-muted-foreground mb-6">
+        Optional — You can invite team members later from People & Rostering
+      </p>
 
       {invites.length > 0 && (
         <div className="space-y-2 mb-6">
           <Label className="text-sm font-medium">Pending Invites</Label>
           {invites.map((invite) => (
-            <div key={invite.id} className="flex items-center justify-between p-3 border rounded-lg">
+            <div
+              key={invite.id}
+              className="flex items-center justify-between p-3 border rounded-lg"
+            >
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-muted-foreground" />
                 <div>
                   <span className="font-medium">{invite.sent_to_email}</span>
-                  <span className="text-sm text-muted-foreground ml-2 capitalize">{invite.role}</span>
+                  <span className="text-sm text-muted-foreground ml-2 capitalize">
+                    {invite.role}
+                  </span>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => removeInvite(invite.id)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => removeInvite(invite.id)}
+              >
                 <Trash2 className="w-4 h-4" />
               </Button>
             </div>
@@ -147,13 +174,27 @@ export default function InviteTeamStep({ orgId, onNext, onBack }: Props) {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
           <Label htmlFor="email">Email Address *</Label>
-          <Input id="email" type="email" placeholder="team@example.com" {...register("email")} />
-          {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
+          <Input
+            id="email"
+            type="email"
+            placeholder="team@example.com"
+            {...register("email")}
+          />
+          {errors.email && (
+            <p className="text-sm text-destructive mt-1">
+              {errors.email.message}
+            </p>
+          )}
         </div>
 
         <div>
           <Label>Role *</Label>
-          <Select value={selectedRole} onValueChange={(val) => setValue("role", val as InviteFormData["role"])}>
+          <Select
+            value={selectedRole}
+            onValueChange={(val) =>
+              setValue("role", val as InviteFormData["role"])
+            }
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -165,8 +206,17 @@ export default function InviteTeamStep({ orgId, onNext, onBack }: Props) {
           </Select>
         </div>
 
-        <Button type="submit" variant="outline" disabled={saving} className="w-full">
-          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+        <Button
+          type="submit"
+          variant="outline"
+          disabled={saving}
+          className="w-full"
+        >
+          {saving ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <UserPlus className="mr-2 h-4 w-4" />
+          )}
           Send Invite
         </Button>
       </form>

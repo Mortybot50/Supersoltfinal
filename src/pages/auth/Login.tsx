@@ -4,7 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 
@@ -31,7 +38,9 @@ export default function Login() {
       // Successful login - redirect to dashboard
       navigate("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred during login");
+      setError(
+        err instanceof Error ? err.message : "An error occurred during login",
+      );
     } finally {
       setLoading(false);
     }
@@ -45,7 +54,9 @@ export default function Login() {
             <div className="w-12 h-12 bg-brand rounded-xl flex items-center justify-center">
               <span className="text-gray-900 font-black text-2xl">S</span>
             </div>
-            <span className="text-3xl font-black tracking-tight uppercase">SuperSolt</span>
+            <span className="text-3xl font-black tracking-tight uppercase">
+              SuperSolt
+            </span>
           </div>
           <CardDescription>Sign in to your account</CardDescription>
         </CardHeader>

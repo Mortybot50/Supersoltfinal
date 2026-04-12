@@ -15,6 +15,7 @@ The codebase is in solid shape. All routes render valid components, data flows c
 ## Issues Found & Fixed
 
 ### 1. Broken navigation — active/inactive staff → 404
+
 **Severity:** HIGH
 **File:** `src/pages/People.tsx` (lines 363, 421)
 **Problem:** Active and inactive staff rows navigated to `/labour/staff/:id`, a route that was never registered in `App.tsx`. Users clicking any staff member in the Active or Inactive tabs got the NotFound page.
@@ -23,6 +24,7 @@ The codebase is in solid shape. All routes render valid components, data flows c
 ---
 
 ### 2. Missing `/workforce/qualifications` route
+
 **Severity:** HIGH
 **Files:** `src/App.tsx`, `src/components/Layout.tsx`
 **Problem:** The sidebar had a working link to `/workforce/qualifications`, but no route was registered. `src/pages/labour/Qualifications.tsx` (a full qualification management feature) was unreachable.
@@ -31,6 +33,7 @@ The codebase is in solid shape. All routes render valid components, data flows c
 ---
 
 ### 3. Wrong `StaffDetail` component on `/workforce/people/:id`
+
 **Severity:** MEDIUM
 **File:** `src/App.tsx`
 **Problem:** The route for `/workforce/people/:id` was wired to `src/pages/onboarding/StaffDetail.tsx` (the invitation/onboarding-flow variant). `src/pages/labour/StaffDetail.tsx` — a comprehensive 5-tab HR profile (Personal, Pay, Attendance, Leave, HR & Compliance) — existed but was unused.
@@ -39,14 +42,16 @@ The codebase is in solid shape. All routes render valid components, data flows c
 ---
 
 ### 4. Runtime error — undefined `msg` in dataStore PO error handler
+
 **Severity:** HIGH (silent runtime crash)
 **File:** `src/lib/store/dataStore.ts` (line 655)
-**Problem:** The error handler for `setPurchaseOrders` called `toast.error(\`PO save failed: ${msg}\`)` where `msg` was never defined in scope — it would throw a `ReferenceError` and swallow the original error.
-**Fix:** Added `const msg = dbError(error)` before the toast call, consistent with the pattern used throughout the rest of the store.
+**Problem:** The error handler for `setPurchaseOrders` called `toast.error(\`PO save failed: ${msg}\`)`where`msg`was never defined in scope — it would throw a`ReferenceError`and swallow the original error.
+**Fix:** Added`const msg = dbError(error)` before the toast call, consistent with the pattern used throughout the rest of the store.
 
 ---
 
 ### 5. Inconsistent `formatCurrency` imports — four files used the narrower `currency.ts` version
+
 **Severity:** LOW
 **Files:** `src/pages/People.tsx`, `src/pages/labour/StaffDetail.tsx`, `src/pages/admin/data-imports/InvoiceReviewModal.tsx`, `src/pages/admin/data-imports/InvoicesTab.tsx`
 **Problem:** Two implementations of `formatCurrency` existed: `src/lib/utils/formatters.ts` (null/undefined-safe, used by ~30 files) and `src/lib/currency.ts` (only accepts `number`). The four files above imported the non-null-safe version; any null/undefined value would throw instead of returning `$0.00`.
@@ -55,6 +60,7 @@ The codebase is in solid shape. All routes render valid components, data flows c
 ---
 
 ### 6. ESLint false-positive flood — legacy `SuperSoltMVP-main/` directory
+
 **Severity:** LOW (DX issue)
 **File:** `eslint.config.js`
 **Problem:** The `SuperSoltMVP-main/` directory (legacy reference code, not part of the deployed app) was included in the lint pass. It generated 200+ `@typescript-eslint/no-explicit-any` errors that masked real lint output.
@@ -69,6 +75,7 @@ The codebase is in solid shape. All routes render valid components, data flows c
 ## Section-by-Section Results
 
 ### 1. Routes & Navigation
+
 - **40+ routes registered** in `App.tsx` — all map to existing page files ✓
 - **Legacy redirects** in place: `/menu/ingredients`, `/settings`, `/integrations`, `/labour-reports`, `/labour/availability` ✓
 - **Sidebar links** all point to registered routes after fixes ✓
@@ -77,12 +84,14 @@ The codebase is in solid shape. All routes render valid components, data flows c
 - **`/inventory` and `/inventory/overview`** both render `InventoryOverview` (intentional dual path) ✓
 
 ### 2. Data Flow Integrity
+
 - **All 40+ Supabase tables** are queried via explicit load functions in `dataStore.ts` or custom hooks — no hardcoded or mock data found in production paths ✓
 - **Write pattern** (Supabase-first → Zustand update) is consistently followed across all create/update/delete operations ✓
 - **RealTime subscriptions** used correctly in `useRosterStore.ts` with proper cleanup ✓
 - **`useInvoiceIntakeStore.ts`** manages invoice upload workflow state with correct separation from the main store ✓
 
 ### 3. Cross-Section Consistency
+
 - **Recipes ↔ Ingredients:** `recipeService.ts` maps `recipe_ingredients` rows with live cost lookups from ingredients — consistent ✓
 - **Cost cascade:** `costCascade.ts` correctly propagates ingredient price changes to `recipe_ingredients` → `recipes` → `menu_items`. Writes to `ingredient_price_history` audit table ✓
 - **COGS ↔ Sales/Inventory:** `useCOGSMetrics.ts` pulls from purchase orders (delivered), waste logs, and live stock counts — formula is correct (Purchases − Waste as approximation for opening/closing stock) ✓
@@ -90,12 +99,14 @@ The codebase is in solid shape. All routes render valid components, data flows c
 - **Dashboard:** Aggregates from `useSalesMetrics`, `useLabourMetrics`, `useCOGSMetrics`, `useInventoryMetrics` — all hooks use live data, no hardcoding ✓
 
 ### 4. TypeScript Compliance
+
 - **`npx tsc --noEmit`** exits clean — zero type errors ✓
 - **Known `any` workarounds** (3 instances): `useRosterStore.ts` (DB row mapping), `labourService.ts` (Supabase type gap on newer tables), `useDemandForecast.ts` (same). All have inline `eslint-disable` comments acknowledging the workaround. Acceptable for MVP; tracked below as future work.
 - **All page-level components** are fully typed — no `any` in `src/pages/` ✓
 - **Type files:** `src/types/index.ts` (main), `src/types/cogs.types.ts`, `src/types/labour.types.ts` — comprehensive and consistent with DB schema ✓
 
 ### 5. Component & Import Audit
+
 - **All page component imports** in `App.tsx` resolve to existing files ✓
 - **All shared component exports** (`PageShell`, `PageToolbar`, `StatusBadge`, `EmptyState`, `MetricCard`, `PageSidebar`) correctly exported from `src/components/shared/index.ts` ✓
 - **`StatCards` and `SecondaryStats`** UI components exist and are correctly exported ✓
@@ -103,19 +114,21 @@ The codebase is in solid shape. All routes render valid components, data flows c
 - **No circular imports detected** ✓
 
 ### 6. Error Handling & Edge Cases
+
 All sampled pages handle three states correctly:
 
-| Page | Loading | Empty | Error |
-|------|---------|-------|-------|
-| Dashboard | Skeleton cards | "No POS data" / "Select venue" | Error boundary |
-| InventoryOverview | Hook isLoading flags | Empty alert cards | Error boundary |
-| Sales | useQuery isLoading | Empty table rows | Query error thrown |
-| Roster | useRosterStore.loading | Empty roster state | Venue/org guards |
-| Invoices | useEffect loader | Empty filtered list | toast.error |
-| Daybook | Async loader | Empty entries array | try/catch |
-| Compliance | useMemo calc | Zero staff guard | Safe iteration |
+| Page              | Loading                | Empty                          | Error              |
+| ----------------- | ---------------------- | ------------------------------ | ------------------ |
+| Dashboard         | Skeleton cards         | "No POS data" / "Select venue" | Error boundary     |
+| InventoryOverview | Hook isLoading flags   | Empty alert cards              | Error boundary     |
+| Sales             | useQuery isLoading     | Empty table rows               | Query error thrown |
+| Roster            | useRosterStore.loading | Empty roster state             | Venue/org guards   |
+| Invoices          | useEffect loader       | Empty filtered list            | toast.error        |
+| Daybook           | Async loader           | Empty entries array            | try/catch          |
+| Compliance        | useMemo calc           | Zero staff guard               | Safe iteration     |
 
 ### 7. RLS & Security
+
 - **All 4 new migrations** (Wave 3, qualifications, roster patterns, supplier enhancements) reviewed:
   - `qualification_types` and `staff_qualifications` tables: RLS enabled, all 4 CRUD policies use `get_user_org_ids()` ✓
   - `roster_patterns` table: RLS enabled, SELECT uses `get_user_org_ids()`, write uses `is_org_admin()` ✓
@@ -126,6 +139,7 @@ All sampled pages handle three states correctly:
 - **`sendDefaultPii: false`** confirmed in Sentry integration ✓
 
 ### 8. Code Quality
+
 - **Dead code removed:** `src/pages/Payroll.tsx` (superseded by `labour/PayrollExport.tsx`, had no routes or imports)
 - **Stubbed features** (not bugs, acceptable for MVP):
   - `ShiftContextMenu.tsx`: Leave creation pre-fill is stubbed (`// TODO: open leave dialog`)

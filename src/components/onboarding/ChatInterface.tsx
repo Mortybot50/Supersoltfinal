@@ -1,22 +1,29 @@
-import { useState, useRef, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import MessageBubble from './MessageBubble';
-import QuickActions from './QuickActions';
-import VoiceInput from './VoiceInput';
-import ProgressIndicator from './ProgressIndicator';
-import { Send } from 'lucide-react';
+import { useState, useRef, useEffect } from "react";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import MessageBubble from "./MessageBubble";
+import QuickActions from "./QuickActions";
+import VoiceInput from "./VoiceInput";
+import ProgressIndicator from "./ProgressIndicator";
+import { Send } from "lucide-react";
 
 interface ChatInterfaceProps {
-  onSendMessage: (message: string) => Promise<{ message: string; quickActions?: any[] }>;
+  onSendMessage: (
+    message: string,
+  ) => Promise<{ message: string; quickActions?: any[] }>;
   onQuickAction?: (action: string, value: string) => void;
 }
 
-export default function ChatInterface({ onSendMessage, onQuickAction }: ChatInterfaceProps) {
-  const [messages, setMessages] = useState<Array<{ role: string; content: string }>>([]);
-  const [input, setInput] = useState('');
+export default function ChatInterface({
+  onSendMessage,
+  onQuickAction,
+}: ChatInterfaceProps) {
+  const [messages, setMessages] = useState<
+    Array<{ role: string; content: string }>
+  >([]);
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [quickActions, setQuickActions] = useState([]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -32,22 +39,25 @@ export default function ChatInterface({ onSendMessage, onQuickAction }: ChatInte
     if (!input.trim() || loading) return;
 
     const userMessage = input;
-    setInput('');
+    setInput("");
     setLoading(true);
-    
+
     // Add user message
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
 
     try {
       const response = await onSendMessage(userMessage);
-      
+
       // Add assistant response
-      setMessages(prev => [...prev, { role: 'assistant', content: response.message }]);
-      
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: response.message },
+      ]);
+
       // Update quick actions
       setQuickActions(response.quickActions || []);
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error("Failed to send message:", error);
     } finally {
       setLoading(false);
     }
@@ -78,28 +88,21 @@ export default function ChatInterface({ onSendMessage, onQuickAction }: ChatInte
         <ScrollArea className="flex-1 p-4" ref={scrollRef}>
           <div className="space-y-4">
             {messages.map((message, index) => (
-              <MessageBubble 
+              <MessageBubble
                 key={index}
                 role={message.role}
                 content={message.content}
               />
             ))}
             {loading && (
-              <MessageBubble 
-                role="assistant"
-                content="Thinking..."
-                loading
-              />
+              <MessageBubble role="assistant" content="Thinking..." loading />
             )}
           </div>
         </ScrollArea>
 
         {quickActions.length > 0 && (
           <div className="p-4 border-t">
-            <QuickActions 
-              actions={quickActions}
-              onAction={handleQuickAction}
-            />
+            <QuickActions actions={quickActions} onAction={handleQuickAction} />
           </div>
         )}
 
@@ -108,14 +111,14 @@ export default function ChatInterface({ onSendMessage, onQuickAction }: ChatInte
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+              onKeyPress={(e) => e.key === "Enter" && handleSend()}
               placeholder="Type your message..."
               disabled={loading}
               className="flex-1"
             />
             <VoiceInput onTranscript={handleVoiceInput} />
-            <Button 
-              onClick={handleSend} 
+            <Button
+              onClick={handleSend}
               disabled={loading || !input.trim()}
               size="icon"
             >

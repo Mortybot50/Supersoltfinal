@@ -72,6 +72,7 @@ bun run scripts/render.ts --input diagram.mmd --output diagram --theme tokyo-nig
 ```
 
 Alternative runtimes:
+
 ```bash
 npx tsx scripts/render.ts --code "..." --output diagram
 deno run --allow-read --allow-write --allow-net scripts/render.ts --code "..." --output diagram
@@ -117,6 +118,7 @@ For even higher resolution on complex diagrams, increase the viewport further or
 After rendering, remove all intermediary files. Only the final `.svg` and `.png` should remain.
 
 Files to clean up:
+
 - The HTML wrapper file (e.g., `diagram.html`)
 - Any temporary `.mmd` files created to hold diagram code
 - Any other files created during the rendering process
@@ -130,6 +132,7 @@ If a temporary `.mmd` file was created, remove it as well.
 ## Output
 
 Both outputs are always produced:
+
 - **SVG**: Vector format, infinitely scalable, small file size
 - **PNG**: High-resolution raster, captured at 4K (3840×2160) viewport with minimum 1200px diagram width
 
@@ -137,20 +140,20 @@ Files are saved to the current working directory unless the user explicitly spec
 
 ## Theme Selection Guide
 
-| Theme | Background | Best For |
-|-------|------------|----------|
-| default | Light grey | General use |
-| dracula | Dark purple | Dark mode preference |
-| tokyo-night | Dark blue | Modern dark aesthetic |
-| tokyo-night-storm | Darker blue | Higher contrast |
-| nord | Dark arctic | Muted, calm visuals |
-| nord-light | Light arctic | Light mode with soft tones |
-| github-dark | GitHub dark | Matches GitHub UI |
-| github-light | GitHub light | Matches GitHub UI |
-| catppuccin-latte | Warm light | Soft pastel aesthetic |
-| solarized | Tan/cream | Solarized colour scheme |
-| one-dark | Atom dark | Atom editor aesthetic |
-| zinc-dark | Neutral dark | Minimal, no colour bias |
+| Theme             | Background   | Best For                   |
+| ----------------- | ------------ | -------------------------- |
+| default           | Light grey   | General use                |
+| dracula           | Dark purple  | Dark mode preference       |
+| tokyo-night       | Dark blue    | Modern dark aesthetic      |
+| tokyo-night-storm | Darker blue  | Higher contrast            |
+| nord              | Dark arctic  | Muted, calm visuals        |
+| nord-light        | Light arctic | Light mode with soft tones |
+| github-dark       | GitHub dark  | Matches GitHub UI          |
+| github-light      | GitHub light | Matches GitHub UI          |
+| catppuccin-latte  | Warm light   | Soft pastel aesthetic      |
+| solarized         | Tan/cream    | Solarized colour scheme    |
+| one-dark          | Atom dark    | Atom editor aesthetic      |
+| zinc-dark         | Neutral dark | Minimal, no colour bias    |
 
 ## Troubleshooting
 

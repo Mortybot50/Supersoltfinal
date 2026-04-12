@@ -5,7 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 
@@ -17,8 +24,7 @@ export default function Signup() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [orgName, setOrgName] = useState("");
-  const [venueName, setVenueName] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmationSent, setConfirmationSent] = useState(false);
@@ -65,12 +71,15 @@ export default function Signup() {
         // Email confirmation required — don't try DB writes without auth token
         // Org/venue/member creation will happen on first login after confirmation
         // Store signup metadata in localStorage so we can create org on first login
-        localStorage.setItem("pendingSignup", JSON.stringify({
-          firstName,
-          lastName,
-          orgName: orgName || `${firstName}'s Organization`,
-          venueName: venueName.trim() || `${orgName || firstName + "'s"} Venue`,
-        }));
+        localStorage.setItem(
+          "pendingSignup",
+          JSON.stringify({
+            firstName,
+            lastName,
+            orgName: `${firstName}'s Organization`,
+            venueName: `${firstName}'s Venue`,
+          }),
+        );
         setError(null);
         setLoading(false);
         navigate("/confirm-email", { state: { email } });
@@ -96,8 +105,7 @@ export default function Signup() {
       const { data: org, error: orgError } = await supabase
         .from("organizations")
         .insert({
-          name: orgName || `${firstName}'s Organization`,
-          created_by: authData.user.id,
+          name: `${firstName}'s Organization`,
         })
         .select()
         .single();
@@ -109,7 +117,7 @@ export default function Signup() {
         .from("venues")
         .insert({
           org_id: org.id,
-          name: venueName.trim() || `${orgName || firstName + "'s"} Venue`,
+          name: `${firstName}'s Venue`,
           venue_type: "restaurant",
           created_by: authData.user.id,
         })
@@ -119,15 +127,12 @@ export default function Signup() {
       if (venueError) throw venueError;
 
       // 5. Add user as org owner
-      const { error: memberError } = await supabase
-        .from("org_members")
-        .insert({
-          org_id: org.id,
-          user_id: authData.user.id,
-          role: "owner",
-          is_active: true,
-          joined_at: new Date().toISOString(),
-        });
+      const { error: memberError } = await supabase.from("org_members").insert({
+        org_id: org.id,
+        user_id: authData.user.id,
+        role: "owner",
+        is_active: true,
+      });
 
       if (memberError) throw memberError;
 
@@ -153,7 +158,9 @@ export default function Signup() {
       navigate("/setup");
     } catch (err) {
       console.error("Signup error:", err);
-      setError(err instanceof Error ? err.message : "An error occurred during signup");
+      setError(
+        err instanceof Error ? err.message : "An error occurred during signup",
+      );
     } finally {
       setLoading(false);
     }
@@ -168,11 +175,15 @@ export default function Signup() {
               <div className="w-12 h-12 bg-brand rounded-xl flex items-center justify-center">
                 <span className="text-gray-900 font-black text-2xl">S</span>
               </div>
-              <span className="text-3xl font-black tracking-tight uppercase">SuperSolt</span>
+              <span className="text-3xl font-black tracking-tight uppercase">
+                SuperSolt
+              </span>
             </div>
             <CardTitle>Check your email</CardTitle>
             <CardDescription>
-              We&apos;ve sent a confirmation link to <strong>{email}</strong>. Click the link to verify your account, then sign in to complete setup.
+              We&apos;ve sent a confirmation link to <strong>{email}</strong>.
+              Click the link to verify your account, then sign in to complete
+              setup.
             </CardDescription>
           </CardHeader>
           <CardFooter className="flex flex-col gap-4">
@@ -193,7 +204,9 @@ export default function Signup() {
             <div className="w-12 h-12 bg-brand rounded-xl flex items-center justify-center">
               <span className="text-gray-900 font-black text-2xl">S</span>
             </div>
-            <span className="text-3xl font-black tracking-tight uppercase">SuperSolt</span>
+            <span className="text-3xl font-black tracking-tight uppercase">
+              SuperSolt
+            </span>
           </div>
           <CardDescription>Create your account</CardDescription>
         </CardHeader>
@@ -230,32 +243,6 @@ export default function Signup() {
                   disabled={loading}
                 />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="orgName">Business Name</Label>
-              <Input
-                id="orgName"
-                type="text"
-                placeholder="My Restaurant"
-                value={orgName}
-                onChange={(e) => setOrgName(e.target.value)}
-                required
-                disabled={loading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="venueName">First Venue Name</Label>
-              <Input
-                id="venueName"
-                type="text"
-                placeholder="e.g. CBD Store, Main Kitchen"
-                value={venueName}
-                onChange={(e) => setVenueName(e.target.value)}
-                disabled={loading}
-              />
-              <p className="text-xs text-muted-foreground">Optional — you can add more venues later</p>
             </div>
 
             <div className="space-y-2">

@@ -2,15 +2,20 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { toast } from 'sonner'
-import { Building2, CheckCircle, Loader2, MapPin, ShoppingCart, Users } from "lucide-react";
+import { toast } from "sonner";
+import {
+  Building2,
+  CheckCircle,
+  Loader2,
+  MapPin,
+  ShoppingCart,
+  Users,
+} from "lucide-react";
 
 interface OrgDetails {
   name: string;
   abn: string;
   gst_registered: boolean;
-  contact_email: string;
-  contact_phone: string;
 }
 
 interface VenueSummary {
@@ -25,7 +30,6 @@ interface Props {
 }
 
 export default function ReviewStep({ orgId, onBack, onGoLive }: Props) {
-;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [orgDetails, setOrgDetails] = useState<OrgDetails | null>(null);
@@ -37,9 +41,22 @@ export default function ReviewStep({ orgId, onBack, onGoLive }: Props) {
     const loadSummary = async () => {
       const [orgRes, venueRes, posRes, inviteRes] = await Promise.all([
         supabase.from("organizations").select("*").eq("id", orgId).single(),
-        supabase.from("venues").select("id, name").eq("org_id", orgId).eq("is_active", true),
-        supabase.from("pos_connections").select("id").eq("org_id", orgId).eq("is_active", true).limit(1),
-        supabase.from("staff_invites").select("id").eq("org_id", orgId).is("completed_at", null),
+        supabase
+          .from("venues")
+          .select("id, name")
+          .eq("org_id", orgId)
+          .eq("is_active", true),
+        supabase
+          .from("pos_connections")
+          .select("id")
+          .eq("org_id", orgId)
+          .eq("is_active", true)
+          .limit(1),
+        supabase
+          .from("staff_invites")
+          .select("id")
+          .eq("org_id", orgId)
+          .is("completed_at", null),
       ]);
 
       if (orgRes.data) {
@@ -49,8 +66,6 @@ export default function ReviewStep({ orgId, onBack, onGoLive }: Props) {
           name: (orgData.name as string) ?? "",
           abn: (settings.abn as string) ?? "",
           gst_registered: (settings.gst_registered as boolean) ?? false,
-          contact_email: (settings.contact_email as string) ?? "",
-          contact_phone: (settings.contact_phone as string) ?? "",
         });
       }
 
@@ -72,7 +87,11 @@ export default function ReviewStep({ orgId, onBack, onGoLive }: Props) {
         .eq("id", orgId)
         .single();
 
-      const existingSettings = ((existing as Record<string, unknown>)?.settings as Record<string, unknown>) ?? {};
+      const existingSettings =
+        ((existing as Record<string, unknown>)?.settings as Record<
+          string,
+          unknown
+        >) ?? {};
 
       const { error } = await supabase
         .from("organizations")
@@ -90,8 +109,10 @@ export default function ReviewStep({ orgId, onBack, onGoLive }: Props) {
       toast.success("You're live! 🎉", { description: "Welcome to SuperSolt" });
       onGoLive();
     } catch (err) {
-      toast.error("Error", { description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive", });
+      toast.error("Error", {
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
     } finally {
       setSaving(false);
     }
@@ -118,11 +139,14 @@ export default function ReviewStep({ orgId, onBack, onGoLive }: Props) {
           </div>
           {orgDetails && (
             <div className="text-sm text-muted-foreground space-y-1">
-              <p><strong>{orgDetails.name}</strong></p>
+              <p>
+                <strong>{orgDetails.name}</strong>
+              </p>
               {orgDetails.abn && <p>ABN: {orgDetails.abn}</p>}
-              <p>GST: {orgDetails.gst_registered ? "Registered" : "Not registered"}</p>
-              {orgDetails.contact_email && <p>Email: {orgDetails.contact_email}</p>}
-              {orgDetails.contact_phone && <p>Phone: {orgDetails.contact_phone}</p>}
+              <p>
+                GST:{" "}
+                {orgDetails.gst_registered ? "Registered" : "Not registered"}
+              </p>
             </div>
           )}
         </div>
@@ -164,7 +188,9 @@ export default function ReviewStep({ orgId, onBack, onGoLive }: Props) {
             <h3 className="font-medium">Team Invites</h3>
           </div>
           <p className="text-sm text-muted-foreground">
-            {inviteCount > 0 ? `${inviteCount} invite${inviteCount > 1 ? "s" : ""} sent` : "No invites sent yet"}
+            {inviteCount > 0
+              ? `${inviteCount} invite${inviteCount > 1 ? "s" : ""} sent`
+              : "No invites sent yet"}
           </p>
         </div>
       </div>

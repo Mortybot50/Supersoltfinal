@@ -87,10 +87,10 @@ describe.skipIf(!integrationEnabled)("qualification_types RLS", () => {
 
 To run integration tests in CI, add these secrets to your CI environment:
 
-| Secret name             | Value                          |
-|-------------------------|--------------------------------|
-| `SUPABASE_TEST_URL`     | Test project URL               |
-| `SUPABASE_TEST_ANON_KEY`| Test project anon key          |
+| Secret name              | Value                 |
+| ------------------------ | --------------------- |
+| `SUPABASE_TEST_URL`      | Test project URL      |
+| `SUPABASE_TEST_ANON_KEY` | Test project anon key |
 
 Then set `RUN_INTEGRATION_TESTS=true` in the CI step that runs tests.
 

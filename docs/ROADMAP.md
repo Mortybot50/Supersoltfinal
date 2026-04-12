@@ -3,6 +3,7 @@
 ## Current Feature Status
 
 ### Fully Working (Production-Ready)
+
 - ✅ Auth (login, signup, invite, password reset, email confirmation)
 - ✅ Multi-org / multi-venue with RLS isolation
 - ✅ Ingredient management with cost cascade
@@ -29,11 +30,13 @@
 - ✅ Setup wizard for new orgs
 
 ### Partially Working
+
 - ⚠️ `staff_availability` — UI works but `specific_date`, `notes`, `is_recurring` columns missing from DB schema. Needs migration before single-day overrides work.
 - ⚠️ Email invoice ingestion — `processInboundEmail()` is a stub. The `/api/inbound-email/` endpoint receives emails but doesn't parse them.
 - ⚠️ Casual overtime (>10h/day) — applied for full-time staff but NOT for casuals. Missing penalty calculation.
 
 ### Known Limitations
+
 - No mobile responsive design (out of scope for MVP)
 - Square POS: live connection, OAuth credentials, webhook sync, order history backfill not yet configured for production
 - No automated testing (zero unit/integration tests)
@@ -44,6 +47,7 @@
 ## Technical Debt
 
 ### High Priority
+
 1. **`staff_availability` migration** — Add `specific_date` (date), `notes` (text), `is_recurring` (bool) columns. Service functions need rewriting to persist to DB (currently Zustand-only).
 
 2. **Casual overtime** — `rosterCalculations.ts` needs overtime logic for casuals (OT after 10h/day in hospitality). Currently only full-time OT is calculated.
@@ -51,6 +55,7 @@
 3. **Automated tests** — No test coverage. Critical paths to test first: cost cascade, penalty rate calculations, RLS isolation, auth flows.
 
 ### Medium Priority
+
 4. **Dead store methods** — `claimOpenShift`, `createOpenShift`, `copyPreviousWeekRoster`, `deleteLaborBudget` exist in `dataStore.ts` but are not connected to any UI. Either wire them up or remove.
 
 5. **Supplier edit page** — `SupplierDetail.tsx` is read-only. No dedicated supplier edit page exists. Workaround: edit from Suppliers list dialog. Cost cascade from supplier price changes works from Ingredients page and PO receiving, but not from a supplier-specific edit flow.
@@ -58,6 +63,7 @@
 6. **`dataStore.ts` size** — At ~2800 lines, the main Zustand store is large. Consider splitting into domain-specific stores (inventoryStore, menuStore, labourStore) as the app grows.
 
 ### Low Priority
+
 7. **`Payroll.tsx`** — Legacy page (`src/pages/Payroll.tsx`). The newer `PayrollExport.tsx` supersedes it. Evaluate if Payroll.tsx can be removed.
 
 8. **`xero_connections` types** — Not yet in auto-generated `types.ts` (migration just pushed). Regenerate types after next deployment to get proper TypeScript types for Xero tables.
@@ -69,6 +75,7 @@
 ### For the incoming developer:
 
 1. **Regenerate Supabase types** after the Xero migration has been applied to production:
+
    ```bash
    supabase gen types typescript --project-id vcfmouckydhsmvfoykms > src/integrations/supabase/types.ts
    ```
@@ -101,9 +108,9 @@
 
 ## Pilot Organisations
 
-| Org | ID | Venues |
-|-----|-----|--------|
-| Piccolo Panini Bar Hawthorn | `7062ac24-a551-458c-8c94-9d2c396024f9` | PPB Hawthorn |
+| Org                            | ID                                     | Venues          |
+| ------------------------------ | -------------------------------------- | --------------- |
+| Piccolo Panini Bar Hawthorn    | `7062ac24-a551-458c-8c94-9d2c396024f9` | PPB Hawthorn    |
 | Piccolo Panini Bar South Yarra | `c4f8a2e1-3b5d-4f9c-8e2a-7d6f1e4b3a8c` | PPB South Yarra |
 
 Both created in staging (`vcfmouckydhsmvfoykms`). Morty (user `a6943bd2...`) is admin of both.

@@ -7,25 +7,30 @@
  */
 
 // Minimal Supplier type for this stub (avoids @/ alias in Vercel API builds)
-interface Supplier { id: string; name: string; email?: string; invoice_email_domains?: string[] }
+interface Supplier {
+  id: string;
+  name: string;
+  email?: string;
+  invoice_email_domains?: string[];
+}
 
 // ── Inbound email shape (from webhook payload) ────────────────────────
 
 export interface InboundEmailAttachment {
-  filename: string
-  content_type: string
-  content_base64: string
-  size: number
+  filename: string;
+  content_type: string;
+  content_base64: string;
+  size: number;
 }
 
 export interface InboundEmail {
-  from: string
-  to: string
-  subject: string
-  text_body?: string
-  html_body?: string
-  attachments: InboundEmailAttachment[]
-  received_at: string
+  from: string;
+  to: string;
+  subject: string;
+  text_body?: string;
+  html_body?: string;
+  attachments: InboundEmailAttachment[];
+  received_at: string;
 }
 
 // ── Sender → supplier matching ────────────────────────────────────────
@@ -41,24 +46,26 @@ export function matchSenderToSupplier(
   senderEmail: string,
   suppliers: Supplier[],
 ): Supplier | null {
-  const lowerSender = senderEmail.toLowerCase()
+  const lowerSender = senderEmail.toLowerCase();
 
   for (const supplier of suppliers) {
-    const domains = (supplier as Supplier & { invoice_email_domains?: string[] }).invoice_email_domains
-    if (!domains || domains.length === 0) continue
+    const domains = (
+      supplier as Supplier & { invoice_email_domains?: string[] }
+    ).invoice_email_domains;
+    if (!domains || domains.length === 0) continue;
 
     for (const domain of domains) {
-      const lowerDomain = domain.toLowerCase()
+      const lowerDomain = domain.toLowerCase();
       // Match on @domain.com.au suffix or exact email
-      if (lowerDomain.startsWith('@')) {
-        if (lowerSender.endsWith(lowerDomain)) return supplier
+      if (lowerDomain.startsWith("@")) {
+        if (lowerSender.endsWith(lowerDomain)) return supplier;
       } else {
-        if (lowerSender === lowerDomain) return supplier
+        if (lowerSender === lowerDomain) return supplier;
       }
     }
   }
 
-  return null
+  return null;
 }
 
 // ── Main pipeline entry point (stub) ─────────────────────────────────
@@ -74,7 +81,7 @@ export function matchSenderToSupplier(
  *  5. Notify venue staff via real-time channel
  */
 export async function processInboundEmail(email: InboundEmail): Promise<void> {
-  void email // suppress unused param warning until implemented
+  void email; // suppress unused param warning until implemented
   // const supplier = matchSenderToSupplier(email.from, suppliers)
   // if (!supplier) { ... }
   // for (const attachment of email.attachments) { ... }

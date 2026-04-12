@@ -41,43 +41,50 @@ Every app in the monorepo imports from a shared package instead of creating its 
 
 ```typescript
 // packages/supabase/src/client.ts
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
-import type { Database } from './database.types'
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "./database.types";
 
-let client: SupabaseClient<Database> | null = null
+let client: SupabaseClient<Database> | null = null;
 
 export function getSupabaseClient(): SupabaseClient<Database> {
   if (!client) {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY
+    const url =
+      process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+    const key =
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+      process.env.SUPABASE_ANON_KEY;
     if (!url || !key) {
-      throw new Error('Missing SUPABASE_URL or SUPABASE_ANON_KEY environment variables')
+      throw new Error(
+        "Missing SUPABASE_URL or SUPABASE_ANON_KEY environment variables",
+      );
     }
-    client = createClient<Database>(url, key)
+    client = createClient<Database>(url, key);
   }
-  return client
+  return client;
 }
 
 // Reset for testing
 export function resetClient(): void {
-  client = null
+  client = null;
 }
 ```
 
 ```typescript
 // packages/supabase/src/admin.ts — Server-side only, never bundle in client code
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from './database.types'
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "./database.types";
 
 export function getSupabaseAdmin() {
-  const url = process.env.SUPABASE_URL
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const url = process.env.SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceKey) {
-    throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY — server-only')
+    throw new Error(
+      "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY — server-only",
+    );
   }
   return createClient<Database>(url, serviceKey, {
-    auth: { autoRefreshToken: false, persistSession: false }
-  })
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 }
 ```
 
@@ -154,6 +161,7 @@ $$ language plpgsql security definer;
 ```
 
 Key details for multi-tenant RLS:
+
 - `auth.jwt() ->> 'org_id'` reads a custom claim from the user's JWT — zero application code needed
 - Every tenant-scoped table must have an `org_id` column and RLS enabled
 - Tenant switching requires updating the JWT claim and re-authenticating
@@ -202,20 +210,20 @@ export default async function ProjectsPage() {
 
 ```typescript
 // app/lib/supabase-browser.ts — Client components use the anon key
-'use client'
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from '@my-platform/supabase'
+"use client";
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@my-platform/supabase";
 
-let browserClient: ReturnType<typeof createClient<Database>> | null = null
+let browserClient: ReturnType<typeof createClient<Database>> | null = null;
 
 export function getSupabaseBrowser() {
   if (!browserClient) {
     browserClient = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    );
   }
-  return browserClient
+  return browserClient;
 }
 ```
 
@@ -224,6 +232,7 @@ For SvelteKit integration and additional framework patterns, see [Examples](refe
 ## Output
 
 After applying these patterns you will have:
+
 - Monorepo with shared Supabase client, typed database access, and centralized migrations
 - Multi-tenant RLS isolation using `auth.jwt() ->> 'org_id'` — zero application-level filtering
 - Framework-specific integration for Next.js (server/client split) and SvelteKit (hooks)
@@ -231,13 +240,13 @@ After applying these patterns you will have:
 
 ## Error Handling
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `Missing SUPABASE_URL or SUPABASE_ANON_KEY` | Environment variables not set | Check `.env` file and ensure variables are loaded |
-| `new row violates row-level security policy` | RLS blocks the operation | Verify `org_id` JWT claim matches the row's `org_id` |
-| `Not a member of tenant` | User tried switching to unauthorized tenant | Check `tenant_members` table for the user-tenant pair |
-| `TypeError: Cannot read properties of null` | Client singleton not initialized | Ensure env vars are available before first `getSupabaseClient()` call |
-| `cron.schedule: permission denied` | `pg_cron` extension not enabled | Enable via dashboard: Database > Extensions > pg_cron |
+| Error                                        | Cause                                       | Solution                                                              |
+| -------------------------------------------- | ------------------------------------------- | --------------------------------------------------------------------- |
+| `Missing SUPABASE_URL or SUPABASE_ANON_KEY`  | Environment variables not set               | Check `.env` file and ensure variables are loaded                     |
+| `new row violates row-level security policy` | RLS blocks the operation                    | Verify `org_id` JWT claim matches the row's `org_id`                  |
+| `Not a member of tenant`                     | User tried switching to unauthorized tenant | Check `tenant_members` table for the user-tenant pair                 |
+| `TypeError: Cannot read properties of null`  | Client singleton not initialized            | Ensure env vars are available before first `getSupabaseClient()` call |
+| `cron.schedule: permission denied`           | `pg_cron` extension not enabled             | Enable via dashboard: Database > Extensions > pg_cron                 |
 
 For the full error reference including RLS debugging and cross-project troubleshooting, see [Error Handling Reference](references/errors.md).
 
@@ -246,36 +255,38 @@ For the full error reference including RLS debugging and cross-project troublesh
 ### Multi-Tenant Query Flow (TypeScript)
 
 ```typescript
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from './database.types'
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "./database.types";
 
 const supabase = createClient<Database>(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY!
-)
+  process.env.SUPABASE_ANON_KEY!,
+);
 
 // 1. Sign in
-const { data: { session } } = await supabase.auth.signInWithPassword({
-  email: 'user@example.com',
-  password: 'secure-password'
-})
+const {
+  data: { session },
+} = await supabase.auth.signInWithPassword({
+  email: "user@example.com",
+  password: "secure-password",
+});
 
 // 2. Switch tenant context
-const { error: claimError } = await supabase.rpc('set_tenant_claim', {
-  tenant_id: 'tenant-uuid-here'
-})
-if (claimError) throw claimError
+const { error: claimError } = await supabase.rpc("set_tenant_claim", {
+  tenant_id: "tenant-uuid-here",
+});
+if (claimError) throw claimError;
 
 // 3. Refresh session to pick up new JWT claims
-await supabase.auth.refreshSession()
+await supabase.auth.refreshSession();
 
 // 4. All subsequent queries are automatically scoped to this tenant
 const { data: projects } = await supabase
-  .from('projects')
-  .select('id, name, created_at')
-  .order('created_at', { ascending: false })
+  .from("projects")
+  .select("id, name, created_at")
+  .order("created_at", { ascending: false });
 
-console.log('Tenant projects:', projects)
+console.log("Tenant projects:", projects);
 // Only returns projects where org_id matches the JWT claim
 ```
 

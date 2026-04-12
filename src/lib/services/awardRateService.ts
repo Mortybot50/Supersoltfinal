@@ -21,50 +21,50 @@
  * - Apprentice rates
  */
 
-import { AU_HOSPITALITY_PENALTY_RATES } from '@/types'
-import { calculatePenaltyRate } from '@/lib/utils/rosterCalculations'
+import { AU_HOSPITALITY_PENALTY_RATES } from "@/types";
+import { calculatePenaltyRate } from "@/lib/utils/rosterCalculations";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export type EmploymentType = 'full-time' | 'part-time' | 'casual'
+export type EmploymentType = "full-time" | "part-time" | "casual";
 
 export interface AwardRateInput {
-  baseHourlyRateCents: number
-  employmentType: EmploymentType
-  shiftDate: Date
-  startTime: string
-  endTime: string
-  state?: string
+  baseHourlyRateCents: number;
+  employmentType: EmploymentType;
+  shiftDate: Date;
+  startTime: string;
+  endTime: string;
+  state?: string;
 }
 
 export interface AwardRateResult {
   /** The effective hourly rate in cents (base × multipliers) */
-  effectiveRateCents: number
+  effectiveRateCents: number;
   /** The base hourly rate in cents (before any loadings) */
-  baseRateCents: number
+  baseRateCents: number;
   /** Penalty multiplier applied (1.0 = no penalty) */
-  penaltyMultiplier: number
+  penaltyMultiplier: number;
   /** Human-readable list of loadings applied */
-  loadings: string[]
+  loadings: string[];
   /** Penalty type identifier */
-  penaltyType: string
+  penaltyType: string;
   /** Always true — this is an estimate, not a certified calculation */
-  isEstimate: true
+  isEstimate: true;
 }
 
 export interface ShiftCostEstimate {
   /** Total estimated cost in cents */
-  totalCostCents: number
+  totalCostCents: number;
   /** Base cost (hours × base rate) in cents */
-  baseCostCents: number
+  baseCostCents: number;
   /** Additional penalty cost in cents */
-  penaltyCostCents: number
+  penaltyCostCents: number;
   /** Effective hours (after break deduction) */
-  effectiveHours: number
+  effectiveHours: number;
   /** Award rate breakdown */
-  rate: AwardRateResult
+  rate: AwardRateResult;
   /** Always true */
-  isEstimate: true
+  isEstimate: true;
 }
 
 // ── Core Functions ───────────────────────────────────────────────────────────
@@ -82,11 +82,11 @@ export function calculateEffectiveRate(input: AwardRateInput): AwardRateResult {
     shiftDate,
     startTime,
     endTime,
-    state = 'VIC',
-  } = input
+    state = "VIC",
+  } = input;
 
-  const isCasual = employmentType === 'casual'
-  const loadings: string[] = []
+  const isCasual = employmentType === "casual";
+  const loadings: string[] = [];
 
   // Get penalty from existing engine
   const { penaltyType, penaltyMultiplier } = calculatePenaltyRate(
@@ -94,16 +94,16 @@ export function calculateEffectiveRate(input: AwardRateInput): AwardRateResult {
     startTime,
     endTime,
     state,
-    isCasual
-  )
+    isCasual,
+  );
 
   // Build loadings description
   if (isCasual) {
-    loadings.push('Casual loading +25%')
+    loadings.push("Casual loading +25%");
   }
 
-  if (penaltyType !== 'none' && penaltyMultiplier > 1) {
-    const pctExtra = Math.round((penaltyMultiplier - 1) * 100)
+  if (penaltyType !== "none" && penaltyMultiplier > 1) {
+    const pctExtra = Math.round((penaltyMultiplier - 1) * 100);
     const labels: Record<string, string> = {
       saturday: `Saturday penalty +${pctExtra}%`,
       sunday: `Sunday penalty +${pctExtra}%`,
@@ -111,22 +111,24 @@ export function calculateEffectiveRate(input: AwardRateInput): AwardRateResult {
       evening: `Evening penalty +${pctExtra}%`,
       early_morning: `Early morning penalty +${pctExtra}%`,
       late_night: `Late night penalty +${pctExtra}%`,
-    }
-    loadings.push(labels[penaltyType] || `Penalty +${pctExtra}%`)
+    };
+    loadings.push(labels[penaltyType] || `Penalty +${pctExtra}%`);
   }
 
   // For casuals: base rate already includes 25% loading in the award system
   // The penalty multiplier from calculatePenaltyRate already accounts for casual rates
   // (e.g. casual_sunday = 1.75 vs permanent sunday = 1.50)
-  let effectiveRateCents: number
+  let effectiveRateCents: number;
 
   if (isCasual) {
     // Casual base rate = base × 1.25 (casual loading)
     // Penalty applies on top of the loaded rate for Sunday/PH
-    const casualBase = Math.round(baseHourlyRateCents * AU_HOSPITALITY_PENALTY_RATES.casual_loading)
-    effectiveRateCents = Math.round(casualBase * penaltyMultiplier)
+    const casualBase = Math.round(
+      baseHourlyRateCents * AU_HOSPITALITY_PENALTY_RATES.casual_loading,
+    );
+    effectiveRateCents = Math.round(casualBase * penaltyMultiplier);
   } else {
-    effectiveRateCents = Math.round(baseHourlyRateCents * penaltyMultiplier)
+    effectiveRateCents = Math.round(baseHourlyRateCents * penaltyMultiplier);
   }
 
   return {
@@ -136,31 +138,31 @@ export function calculateEffectiveRate(input: AwardRateInput): AwardRateResult {
     loadings,
     penaltyType,
     isEstimate: true,
-  }
+  };
 }
 
 /**
  * Calculate the total estimated cost for a shift.
  */
 export function calculateShiftCostEstimate(
-  input: AwardRateInput & { breakMinutes: number }
+  input: AwardRateInput & { breakMinutes: number },
 ): ShiftCostEstimate {
-  const { startTime, endTime, breakMinutes } = input
+  const { startTime, endTime, breakMinutes } = input;
 
   // Calculate effective hours
-  const [startH, startM] = startTime.split(':').map(Number)
-  const [endH, endM] = endTime.split(':').map(Number)
-  let totalMinutes = (endH * 60 + endM) - (startH * 60 + startM)
-  if (totalMinutes < 0) totalMinutes += 24 * 60
-  const effectiveHours = Math.max(0, (totalMinutes - breakMinutes) / 60)
+  const [startH, startM] = startTime.split(":").map(Number);
+  const [endH, endM] = endTime.split(":").map(Number);
+  let totalMinutes = endH * 60 + endM - (startH * 60 + startM);
+  if (totalMinutes < 0) totalMinutes += 24 * 60;
+  const effectiveHours = Math.max(0, (totalMinutes - breakMinutes) / 60);
 
   // Get rate
-  const rate = calculateEffectiveRate(input)
+  const rate = calculateEffectiveRate(input);
 
   // Calculate costs
-  const baseCostCents = Math.round(effectiveHours * input.baseHourlyRateCents)
-  const totalCostCents = Math.round(effectiveHours * rate.effectiveRateCents)
-  const penaltyCostCents = totalCostCents - baseCostCents
+  const baseCostCents = Math.round(effectiveHours * input.baseHourlyRateCents);
+  const totalCostCents = Math.round(effectiveHours * rate.effectiveRateCents);
+  const penaltyCostCents = totalCostCents - baseCostCents;
 
   return {
     totalCostCents,
@@ -169,7 +171,7 @@ export function calculateShiftCostEstimate(
     effectiveHours,
     rate,
     isEstimate: true,
-  }
+  };
 }
 
 /**
@@ -178,16 +180,18 @@ export function calculateShiftCostEstimate(
  *
  * These are MINIMUM award rates — most venues pay above award.
  */
-export function getDefaultAwardRateCents(employmentType: EmploymentType): number {
+export function getDefaultAwardRateCents(
+  employmentType: EmploymentType,
+): number {
   // Level 1 (Food Services Employee Grade 1) minimum rates (approx)
   switch (employmentType) {
-    case 'full-time':
-    case 'part-time':
-      return 2418 // $24.18/hr base (permanent)
-    case 'casual':
-      return 2418 // $24.18/hr base (casual loading applied separately)
+    case "full-time":
+    case "part-time":
+      return 2418; // $24.18/hr base (permanent)
+    case "casual":
+      return 2418; // $24.18/hr base (casual loading applied separately)
     default:
-      return 2418
+      return 2418;
   }
 }
 
@@ -197,28 +201,32 @@ export function getDefaultAwardRateCents(employmentType: EmploymentType): number
 export function getDateLoadingSummary(
   date: Date,
   employmentType: EmploymentType,
-  state: string = 'VIC'
+  state: string = "VIC",
 ): string {
-  const isCasual = employmentType === 'casual'
+  const isCasual = employmentType === "casual";
   const { penaltyType, penaltyMultiplier } = calculatePenaltyRate(
-    date, '09:00', '17:00', state, isCasual
-  )
+    date,
+    "09:00",
+    "17:00",
+    state,
+    isCasual,
+  );
 
-  const parts: string[] = []
-  if (isCasual) parts.push('Casual +25%')
+  const parts: string[] = [];
+  if (isCasual) parts.push("Casual +25%");
 
   const labels: Record<string, string> = {
-    saturday: 'Saturday penalty',
-    sunday: 'Sunday penalty',
-    public_holiday: 'Public holiday',
-    evening: 'Evening penalty',
-    early_morning: 'Early morning',
+    saturday: "Saturday penalty",
+    sunday: "Sunday penalty",
+    public_holiday: "Public holiday",
+    evening: "Evening penalty",
+    early_morning: "Early morning",
+  };
+
+  if (penaltyType !== "none") {
+    const label = labels[penaltyType] || penaltyType;
+    parts.push(`${label} (${Math.round(penaltyMultiplier * 100)}%)`);
   }
 
-  if (penaltyType !== 'none') {
-    const label = labels[penaltyType] || penaltyType
-    parts.push(`${label} (${Math.round(penaltyMultiplier * 100)}%)`)
-  }
-
-  return parts.length > 0 ? parts.join(' + ') : 'Base rate'
+  return parts.length > 0 ? parts.join(" + ") : "Base rate";
 }

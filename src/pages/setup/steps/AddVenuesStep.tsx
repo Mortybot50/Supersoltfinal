@@ -7,9 +7,17 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from 'sonner'
-import { Loader2, Plus, Trash2, MapPin } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+import { Loader2, Plus, Trash2, MapPin, Building2 } from "lucide-react";
 import { fetchVenueTemplates, type VenueTemplate } from "@/lib/venueTemplates";
 
 const AU_TIMEZONES = [
@@ -22,13 +30,40 @@ const AU_TIMEZONES = [
   { value: "Australia/Hobart", label: "Hobart (AEST/AEDT)" },
 ] as const;
 
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
+const DAYS = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+] as const;
 
-const venueSchema = z.object({
-  name: z.string().min(1, "Venue name is required"),
-  address: z.string().optional(),
-  timezone: z.string().min(1, "Timezone is required"),
-});
+const venueSchema = z
+  .object({
+    name: z.string().min(1, "Venue name is required"),
+    address: z.string().optional(),
+    timezone: z.string().min(1, "Timezone is required"),
+    // New organization fields
+    createNewOrg: z.boolean().default(false),
+    newOrgName: z.string().optional(),
+    newOrgAbn: z.string().optional(),
+    newOrgGst: z.boolean().default(false),
+  })
+  .refine(
+    (data) => {
+      // If creating new org, org name is required
+      if (data.createNewOrg) {
+        return !!data.newOrgName && data.newOrgName.length > 0;
+      }
+      return true;
+    },
+    {
+      message: "Organization name is required when creating a new organization",
+      path: ["newOrgName"],
+    },
+  );
 
 type VenueFormData = z.infer<typeof venueSchema>;
 
@@ -37,6 +72,13 @@ interface ExistingVenue {
   name: string;
   address: string | null;
   timezone: string | null;
+  org_name?: string;
+}
+
+interface Organization {
+  id: string;
+  name: string;
+  abn?: string;
 }
 
 interface Props {
@@ -46,20 +88,18 @@ interface Props {
   onBack: () => void;
 }
 
-export default function AddVenuesStep({ orgId, userId, onNext, onBack }: Props) {
-;
+export default function AddVenuesStep({
+  orgId,
+  userId,
+  onNext,
+  onBack,
+}: Props) {
   const [saving, setSaving] = useState(false);
   const [venues, setVenues] = useState<ExistingVenue[]>([]);
+  const [userOrgs, setUserOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tradingHours, setTradingHours] = useState<Record<string, { open: string; close: string }>>(
-    Object.fromEntries(DAYS.map((d) => [d, { open: "09:00", close: "22:00" }]))
-  );
-
+  // Trading hours removed from signup - can be added later in venue settings
   const [templates, setTemplates] = useState<VenueTemplate[]>([]);
-
-  useEffect(() => {
-    fetchVenueTemplates(orgId).then(setTemplates).catch(console.error);
-  }, [orgId]);
 
   const {
     register,
@@ -70,56 +110,137 @@ export default function AddVenuesStep({ orgId, userId, onNext, onBack }: Props) 
     formState: { errors },
   } = useForm<VenueFormData>({
     resolver: zodResolver(venueSchema),
-    defaultValues: { name: "", address: "", timezone: "Australia/Melbourne" },
+    defaultValues: {
+      name: "",
+      address: "",
+      timezone: "Australia/Melbourne",
+      createNewOrg: false,
+      newOrgName: "",
+      newOrgAbn: "",
+      newOrgGst: false,
+    },
   });
 
   const selectedTimezone = watch("timezone");
+  const createNewOrg = watch("createNewOrg");
 
   useEffect(() => {
-    const loadVenues = async () => {
-      const { data } = await supabase
+    const loadData = async () => {
+      // Load user's organizations
+      const { data: orgs } = await supabase
+        .from("org_members")
+        .select("org_id, organizations(id, name, settings)")
+        .eq("user_id", userId);
+
+      if (orgs) {
+        const organizations = orgs.map((om) => {
+          const org = (om as any).organizations;
+          return {
+            id: org.id,
+            name: org.name,
+            abn: org.settings?.abn,
+          };
+        });
+        setUserOrgs(organizations);
+      }
+
+      // Load all venues for this user's organizations
+      const orgIds = orgs?.map((om) => om.org_id) || [orgId];
+      const { data: venueData } = await supabase
         .from("venues")
-        .select("*")
-        .eq("org_id", orgId)
+        .select("*, organizations(name)")
+        .in("org_id", orgIds)
         .eq("is_active", true);
 
-      if (data) {
+      if (venueData) {
         setVenues(
-          data.map((v) => {
+          venueData.map((v) => {
             const row = v as Record<string, unknown>;
+            const org = row.organizations as { name: string };
             return {
               id: row.id as string,
               name: row.name as string,
               address: (row.address as string) ?? null,
               timezone: (row.timezone as string) ?? null,
+              org_name: org?.name,
             };
-          })
+          }),
         );
       }
       setLoading(false);
     };
-    loadVenues();
-  }, [orgId]);
+
+    loadData();
+    fetchVenueTemplates(orgId).then(setTemplates).catch(console.error);
+  }, [orgId, userId]);
 
   const onSubmit = async (formData: VenueFormData) => {
     setSaving(true);
     try {
+      let targetOrgId = orgId;
+
+      // If creating new organization first
+      if (formData.createNewOrg) {
+        // Create the new organization
+        const { data: newOrg, error: orgError } = await supabase
+          .from("organizations")
+          .insert({
+            name: formData.newOrgName!,
+            settings: {
+              abn: formData.newOrgAbn || "",
+              gst_registered: formData.newOrgGst,
+            },
+          })
+          .select()
+          .single();
+
+        if (orgError) throw orgError;
+
+        // Add user as owner of new organization
+        const { error: memberError } = await supabase
+          .from("org_members")
+          .insert({
+            org_id: newOrg.id,
+            user_id: userId,
+            role: "owner",
+            is_active: true,
+          });
+
+        if (memberError) throw memberError;
+
+        targetOrgId = newOrg.id;
+
+        // Add to user's organizations list
+        setUserOrgs((prev) => [
+          ...prev,
+          {
+            id: newOrg.id,
+            name: formData.newOrgName!,
+            abn: formData.newOrgAbn,
+          },
+        ]);
+
+        toast.success(`New organization "${formData.newOrgName}" created`);
+      }
+
+      // Create the venue
       const { data, error } = await supabase
         .from("venues")
         .insert({
           name: formData.name,
-          org_id: orgId,
+          org_id: targetOrgId,
           address: formData.address ?? null,
           timezone: formData.timezone,
-          trading_hours: tradingHours,
+          trading_hours: null, // Trading hours can be added later in venue settings
           created_by: userId,
         } as Record<string, unknown>)
-        .select("*")
+        .select("*, organizations(name)")
         .single();
 
       if (error) throw error;
 
       const row = data as Record<string, unknown>;
+      const org = row.organizations as { name: string };
       setVenues((prev) => [
         ...prev,
         {
@@ -127,15 +248,25 @@ export default function AddVenuesStep({ orgId, userId, onNext, onBack }: Props) 
           name: row.name as string,
           address: (row.address as string) ?? null,
           timezone: (row.timezone as string) ?? null,
+          org_name: org?.name,
         },
       ]);
 
-      reset({ name: "", address: "", timezone: "Australia/Melbourne" });
-      setTradingHours(Object.fromEntries(DAYS.map((d) => [d, { open: "09:00", close: "22:00" }])));
+      reset({
+        name: "",
+        address: "",
+        timezone: "Australia/Melbourne",
+        createNewOrg: false,
+        newOrgName: "",
+        newOrgAbn: "",
+        newOrgGst: false,
+      });
+      // Trading hours removed from signup flow
       toast.success("Venue added");
     } catch (err) {
-      toast.success("Error adding venue", { description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive", });
+      toast.error("Error adding venue", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      });
     } finally {
       setSaving(false);
     }
@@ -169,17 +300,31 @@ export default function AddVenuesStep({ orgId, userId, onNext, onBack }: Props) 
         <div className="space-y-2 mb-6">
           <Label className="text-sm font-medium">Your Venues</Label>
           {venues.map((venue) => (
-            <div key={venue.id} className="flex items-center justify-between p-3 border rounded-lg">
+            <div
+              key={venue.id}
+              className="flex items-center justify-between p-3 border rounded-lg"
+            >
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-muted-foreground" />
                 <div>
                   <span className="font-medium">{venue.name}</span>
+                  {venue.org_name && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                      ({venue.org_name})
+                    </span>
+                  )}
                   {venue.address && (
-                    <span className="text-sm text-muted-foreground ml-2">{venue.address}</span>
+                    <span className="text-sm text-muted-foreground ml-2">
+                      {venue.address}
+                    </span>
                   )}
                 </div>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => removeVenue(venue.id)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => removeVenue(venue.id)}
+              >
                 <Trash2 className="w-4 h-4" />
               </Button>
             </div>
@@ -188,96 +333,124 @@ export default function AddVenuesStep({ orgId, userId, onNext, onBack }: Props) 
       )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {templates.length > 0 && (
+        {/* Toggle for new organization */}
+        <div className="flex items-center space-x-2 p-4 border rounded-lg bg-muted/20">
+          <Checkbox
+            id="createNewOrg"
+            checked={createNewOrg}
+            onCheckedChange={(checked) => setValue("createNewOrg", !!checked)}
+          />
+          <Label
+            htmlFor="createNewOrg"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+          >
+            Add this venue to a new organization (different ABN)
+          </Label>
+        </div>
+
+        {/* New Organization Fields */}
+        {createNewOrg && (
+          <div className="space-y-4 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
+            <div className="flex items-center gap-2 mb-2">
+              <Building2 className="w-4 h-4 text-primary" />
+              <Label className="text-base font-medium">
+                New Organization Details
+              </Label>
+            </div>
+
+            <div>
+              <Label htmlFor="newOrgName">Organization Name *</Label>
+              <Input
+                id="newOrgName"
+                placeholder="e.g. My Second Business Pty Ltd"
+                {...register("newOrgName")}
+              />
+              {errors.newOrgName && (
+                <p className="text-sm text-destructive mt-1">
+                  {errors.newOrgName.message}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="newOrgAbn">ABN</Label>
+              <Input
+                id="newOrgAbn"
+                placeholder="11-digit ABN"
+                {...register("newOrgAbn")}
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="newOrgGst"
+                checked={watch("newOrgGst")}
+                onCheckedChange={(checked) => setValue("newOrgGst", checked)}
+              />
+              <Label htmlFor="newOrgGst">GST Registered</Label>
+            </div>
+          </div>
+        )}
+
+        {/* Venue Details */}
+        <div className="space-y-4">
           <div>
-            <Label>Apply Template</Label>
+            <Label htmlFor="venueName">Venue Name *</Label>
+            <Input
+              id="venueName"
+              placeholder="e.g. Main Street Store"
+              {...register("name")}
+            />
+            {errors.name && (
+              <p className="text-sm text-destructive mt-1">
+                {errors.name.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <Label htmlFor="address">Address</Label>
+            <Input
+              id="address"
+              placeholder="123 Main St, Melbourne VIC 3000"
+              {...register("address")}
+            />
+          </div>
+
+          <div>
+            <Label>Timezone *</Label>
             <Select
-              value=""
-              onValueChange={(val) => {
-                const tmpl = templates.find((t) => t.id === val);
-                if (tmpl?.template_data) {
-                  if (tmpl.template_data.timezone) setValue("timezone", tmpl.template_data.timezone);
-                  if (tmpl.template_data.trading_hours) {
-                    setTradingHours(tmpl.template_data.trading_hours as Record<string, { open: string; close: string }>);
-                  }
-                }
-              }}
+              value={selectedTimezone}
+              onValueChange={(val) => setValue("timezone", val)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Choose a template..." />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {templates.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                {AU_TIMEZONES.map((tz) => (
+                  <SelectItem key={tz.value} value={tz.value}>
+                    {tz.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-        )}
-        <div>
-          <Label htmlFor="venueName">Venue Name *</Label>
-          <Input id="venueName" placeholder="e.g. Main Street Store" {...register("name")} />
-          {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
+
+
         </div>
 
-        <div>
-          <Label htmlFor="address">Address</Label>
-          <Input id="address" placeholder="123 Main St, Melbourne VIC 3000" {...register("address")} />
-        </div>
-
-        <div>
-          <Label>Timezone *</Label>
-          <Select value={selectedTimezone} onValueChange={(val) => setValue("timezone", val)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {AU_TIMEZONES.map((tz) => (
-                <SelectItem key={tz.value} value={tz.value}>
-                  {tz.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div>
-          <Label className="text-sm font-medium">Trading Hours</Label>
-          <div className="grid grid-cols-1 gap-2 mt-2">
-            {DAYS.map((day) => (
-              <div key={day} className="flex items-center gap-2">
-                <span className="w-24 text-sm">{day}</span>
-                <Input
-                  type="time"
-                  className="w-28"
-                  value={tradingHours[day]?.open ?? "09:00"}
-                  onChange={(e) =>
-                    setTradingHours((prev) => ({
-                      ...prev,
-                      [day]: { ...prev[day], open: e.target.value },
-                    }))
-                  }
-                />
-                <span className="text-sm text-muted-foreground">to</span>
-                <Input
-                  type="time"
-                  className="w-28"
-                  value={tradingHours[day]?.close ?? "22:00"}
-                  onChange={(e) =>
-                    setTradingHours((prev) => ({
-                      ...prev,
-                      [day]: { ...prev[day], close: e.target.value },
-                    }))
-                  }
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <Button type="submit" variant="outline" disabled={saving} className="w-full">
-          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-          Add Venue
+        <Button
+          type="submit"
+          variant="outline"
+          disabled={saving}
+          className="w-full"
+        >
+          {saving ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Plus className="mr-2 h-4 w-4" />
+          )}
+          {createNewOrg ? "Add Venue & Create Organization" : "Add Venue"}
         </Button>
       </form>
 

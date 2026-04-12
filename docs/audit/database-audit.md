@@ -1,4 +1,5 @@
 # Database Audit — SuperSolt
+
 **Date:** 2026-03-12
 **Branch:** fix/skill-audit-sweep
 **Skill used:** supabase-postgres-best-practices
@@ -7,19 +8,20 @@
 
 ## Summary
 
-| Severity | Count | Fixed | Documented Only |
-|----------|-------|-------|----------------|
-| Critical | 1     | 1     | 0              |
-| High     | 3     | 2     | 1              |
-| Medium   | 4     | 2     | 2              |
-| Low      | 5     | 0     | 5              |
-| **Total**| **13**| **5** | **8**          |
+| Severity  | Count  | Fixed | Documented Only |
+| --------- | ------ | ----- | --------------- |
+| Critical  | 1      | 1     | 0               |
+| High      | 3      | 2     | 1               |
+| Medium    | 4      | 2     | 2               |
+| Low       | 5      | 0     | 5               |
+| **Total** | **13** | **5** | **8**           |
 
 ---
 
 ## CRITICAL
 
 ### C1 — `ingredient_price_history` RLS: broken JOIN on non-existent column
+
 - **Table:** `ingredient_price_history`
 - **Fix:** Migration `20260312000002_audit_rls_and_index_fixes.sql`
 - **Root cause:** Policy uses `JOIN venues v ON v.id = i.venue_id` but `ingredients` table has `org_id`, not `venue_id`. This causes the subquery to return zero rows for every authenticated user — effectively blocking ALL access to price history data in the UI.
@@ -36,6 +38,7 @@
 ## HIGH
 
 ### H1 — `admin_data_jobs` and `admin_data_audit`: `USING(true)` global access
+
 - **Tables:** `admin_data_jobs`, `admin_data_audit`
 - **Fix:** Migration `20260312000002_audit_rls_and_index_fixes.sql`
 - **Root cause:** Created with `USING (true) WITH CHECK (true)` and comment "no auth implemented yet". Any authenticated user can read/write all admin job logs and audit entries across ALL organisations.
@@ -52,6 +55,7 @@
 - **Status:** ✅ Fixed in migration
 
 ### H2 — `staff_invites`: `USING(true)` SELECT allows any authenticated user to enumerate all invites
+
 - **Table:** `staff_invites`
 - **Severity:** High — but requires code change to fix properly
 - **Root cause:** Policy "Anyone can read invite by token" added with `USING(true)` to support token-based invite portal flow (user hasn't joined org yet, so can't scope by org membership).
@@ -61,6 +65,7 @@
 - **Status:** ⚠️ Documented — needs code change before RLS can be safely restricted
 
 ### H3 — `ingredient_price_history`: missing UPDATE/DELETE policies
+
 - **Table:** `ingredient_price_history`
 - **Fix:** Migration `20260312000002_audit_rls_and_index_fixes.sql`
 - **Root cause:** Only SELECT + INSERT policies existed. No UPDATE/DELETE policies. While the ledger is meant to be append-only, Supabase will fall back to default-deny for missing policies, so this is actually safe — but should be explicit.
@@ -72,6 +77,7 @@
 ## MEDIUM
 
 ### M1 — Missing indexes on `qualification_types` and `staff_qualifications`
+
 - **Tables:** `qualification_types`, `staff_qualifications`
 - **Fix:** Migration `20260312000002_audit_rls_and_index_fixes.sql`
 - **Root cause:** The qualifications migration (20260310000003) created tables but did not add indexes on `org_id` or `staff_id`.
@@ -80,6 +86,7 @@
 - **Status:** ✅ Fixed in migration
 
 ### M2 — `qualification_types` INSERT/UPDATE/DELETE not restricted to org admins
+
 - **Table:** `qualification_types`
 - **Severity:** Medium — any org member (including crew) can add/modify qualification types
 - **Root cause:** Policies use `org_id IN (SELECT get_user_org_ids())` without role check.
@@ -87,11 +94,13 @@
 - **Status:** ⚠️ Documented — intentional UX decision (Morty to confirm whether crew should be able to add quals). Not changed to avoid blocking workflow.
 
 ### M3 — `staff_availability` missing schema columns
+
 - **Table:** `staff_availability`
 - **Root cause:** Table missing `specific_date`, `notes`, `is_recurring` columns (tracked in project memory from prior audit).
 - **Status:** ⚠️ Known gap, tracked separately — needs dedicated migration + service function before fixing AvailabilityDialog.tsx
 
 ### M4 — `public_holidays` missing unique constraint on (date, state)
+
 - **Table:** `public_holidays`
 - **Root cause:** No unique constraint preventing duplicate date+state entries.
 - **Impact:** Duplicate imports/inserts possible. Minor data integrity issue.
@@ -103,27 +112,32 @@
 ## LOW
 
 ### L1 — Inefficient RLS JOINs in older policies
+
 - **Tables:** `staff_availability`, `leave_requests`, `staff_documents`
 - **Root cause:** Policies in 20260210000000 use multi-join subqueries: staff → org_members per row. The `get_user_org_ids()` helper is STABLE SECURITY DEFINER and is cached, so impact is reduced, but the JOINs are still less efficient than a direct `org_id` column check.
 - **Long-term fix:** Add `org_id` column to these tables and use direct `org_id IN (SELECT get_user_org_ids())`.
 - **Status:** ⚠️ Low priority — STABLE helper caching mitigates impact
 
 ### L2 — No composite index on `roster_shifts(org_id, shift_date, status)`
+
 - **Table:** `roster_shifts`
 - **Note:** `idx_roster_shifts_org_date` exists (org_id, shift_date) from prior migration but no status filter index. Low impact given existing index.
 - **Status:** ⚠️ Documented, deferred
 
 ### L3 — `admin_data_jobs` / `admin_data_audit` have no `org_id` column
+
 - **Tables:** `admin_data_jobs`, `admin_data_audit`
 - **Root cause:** These are system-level tables created before multi-tenancy was fully designed.
 - **Long-term fix:** Add `org_id` column to scope operations to specific orgs.
 - **Status:** ⚠️ Documented only
 
 ### L4 — Nullable `created_by` on `organizations`, `venues`, `suppliers`
+
 - **Root cause:** Audit trail columns are nullable. Not enforceable at DB level without auth context during seed/migration.
 - **Status:** ⚠️ Documented only
 
 ### L5 — `staff_invites` token enumeration via unauthenticated SELECT
+
 - See **H2** above for full details. Listed here as reminder that the mitigation (UUID tokens) reduces but does not eliminate risk.
 
 ---
@@ -133,12 +147,14 @@
 **File:** `supabase/migrations/20260312000002_audit_rls_and_index_fixes.sql`
 
 Fixes applied:
+
 - C1: `ingredient_price_history` RLS policies corrected (venue_id → org_id join)
 - H1: `admin_data_jobs` / `admin_data_audit` restricted to org admins
 - H3: `ingredient_price_history` explicit DELETE=false (append-only)
 - M1: Added 4 indexes on qualification tables
 
 Items NOT changed in this migration:
+
 - H2: `staff_invites` USING(true) — needs `/api/invites/verify` route first
 - M2: `qualification_types` write access — awaiting Morty's UX decision
 - M3: `staff_availability` schema — needs dedicated schema migration + AvailabilityDialog fix

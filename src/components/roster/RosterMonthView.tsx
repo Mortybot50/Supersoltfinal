@@ -1,18 +1,21 @@
-import { useMemo } from "react"
-import { Badge } from "@/components/ui/badge"
-import { RosterShift } from "@/types"
-import { isPublicHoliday, formatTimeCompact } from "@/lib/utils/rosterCalculations"
-import { format, startOfMonth, getDay } from "date-fns"
+import { useMemo } from "react";
+import { Badge } from "@/components/ui/badge";
+import { RosterShift } from "@/types";
+import {
+  isPublicHoliday,
+  formatTimeCompact,
+} from "@/lib/utils/rosterCalculations";
+import { format, startOfMonth, getDay } from "date-fns";
 
 interface RosterMonthViewProps {
-  monthDates: Date[]
-  shifts: RosterShift[]
-  getDayTotals: (date: Date) => { hours: number; cost: number; count: number }
-  onDayClick: (date: Date) => void
-  onAddShift: (date?: Date, staffId?: string) => void
+  monthDates: Date[];
+  shifts: RosterShift[];
+  getDayTotals: (date: Date) => { hours: number; cost: number; count: number };
+  onDayClick: (date: Date) => void;
+  onAddShift: (date?: Date, staffId?: string) => void;
 }
 
-const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export function RosterMonthView({
   monthDates,
@@ -22,59 +25,61 @@ export function RosterMonthView({
 }: RosterMonthViewProps) {
   // Build calendar grid (weeks × 7 days)
   const weeks = useMemo(() => {
-    if (monthDates.length === 0) return []
+    if (monthDates.length === 0) return [];
 
-    const firstDay = monthDates[0]
-    const monthNum = firstDay.getMonth()
+    const firstDay = monthDates[0];
+    const monthNum = firstDay.getMonth();
 
     // Get the Monday before or on the first of the month
-    const day = getDay(firstDay) // 0=Sun, 1=Mon, ...
-    const padBefore = day === 0 ? 6 : day - 1 // number of days to pad before
+    const day = getDay(firstDay); // 0=Sun, 1=Mon, ...
+    const padBefore = day === 0 ? 6 : day - 1; // number of days to pad before
 
-    const grid: Array<{ date: Date; inMonth: boolean }[]> = []
-    let currentWeek: Array<{ date: Date; inMonth: boolean }> = []
+    const grid: Array<{ date: Date; inMonth: boolean }[]> = [];
+    let currentWeek: Array<{ date: Date; inMonth: boolean }> = [];
 
     // Pad days before month
     for (let i = padBefore; i > 0; i--) {
-      const d = new Date(firstDay)
-      d.setDate(d.getDate() - i)
-      currentWeek.push({ date: d, inMonth: false })
+      const d = new Date(firstDay);
+      d.setDate(d.getDate() - i);
+      currentWeek.push({ date: d, inMonth: false });
     }
 
     // Month dates
     monthDates.forEach((date) => {
-      currentWeek.push({ date, inMonth: true })
+      currentWeek.push({ date, inMonth: true });
       if (currentWeek.length === 7) {
-        grid.push(currentWeek)
-        currentWeek = []
+        grid.push(currentWeek);
+        currentWeek = [];
       }
-    })
+    });
 
     // Pad days after month
     if (currentWeek.length > 0) {
-      const lastDate = monthDates[monthDates.length - 1]
-      let nextDay = 1
+      const lastDate = monthDates[monthDates.length - 1];
+      let nextDay = 1;
       while (currentWeek.length < 7) {
-        const d = new Date(lastDate)
-        d.setDate(d.getDate() + nextDay)
-        currentWeek.push({ date: d, inMonth: false })
-        nextDay++
+        const d = new Date(lastDate);
+        d.setDate(d.getDate() + nextDay);
+        currentWeek.push({ date: d, inMonth: false });
+        nextDay++;
       }
-      grid.push(currentWeek)
+      grid.push(currentWeek);
     }
 
-    return grid
-  }, [monthDates])
+    return grid;
+  }, [monthDates]);
 
   const getShiftsForDate = (date: Date) => {
-    const dateStr = date.toISOString().split("T")[0]
+    const dateStr = date.toISOString().split("T")[0];
     return shifts
       .filter((s) => {
-        const shiftDate = new Date(s.date).toISOString().split("T")[0]
-        return shiftDate === dateStr && s.status !== "cancelled" && !s.is_open_shift
+        const shiftDate = new Date(s.date).toISOString().split("T")[0];
+        return (
+          shiftDate === dateStr && s.status !== "cancelled" && !s.is_open_shift
+        );
       })
-      .sort((a, b) => a.start_time.localeCompare(b.start_time))
-  }
+      .sort((a, b) => a.start_time.localeCompare(b.start_time));
+  };
 
   return (
     <div className="flex-1 overflow-auto p-2">
@@ -95,12 +100,13 @@ export function RosterMonthView({
           {weeks.map((week, wi) => (
             <tr key={wi}>
               {week.map(({ date, inMonth }) => {
-                const dayShifts = getShiftsForDate(date)
-                const dayTotals = getDayTotals(date)
-                const isToday = new Date().toDateString() === date.toDateString()
-                const holiday = isPublicHoliday(date)
-                const isWeekend = date.getDay() === 0 || date.getDay() === 6
-                const maxVisible = 3
+                const dayShifts = getShiftsForDate(date);
+                const dayTotals = getDayTotals(date);
+                const isToday =
+                  new Date().toDateString() === date.toDateString();
+                const holiday = isPublicHoliday(date);
+                const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                const maxVisible = 3;
 
                 return (
                   <td
@@ -109,12 +115,12 @@ export function RosterMonthView({
                       !inMonth
                         ? "bg-gray-50/50 dark:bg-gray-900/50 opacity-50"
                         : isToday
-                        ? "bg-blue-50 dark:bg-blue-950/30"
-                        : holiday
-                        ? "bg-purple-50/30 dark:bg-purple-950/20"
-                        : isWeekend
-                        ? "bg-orange-50/20 dark:bg-orange-950/10"
-                        : ""
+                          ? "bg-blue-50 dark:bg-blue-950/30"
+                          : holiday
+                            ? "bg-purple-50/30 dark:bg-purple-950/20"
+                            : isWeekend
+                              ? "bg-orange-50/20 dark:bg-orange-950/10"
+                              : ""
                     }`}
                     onClick={() => onDayClick(date)}
                   >
@@ -124,8 +130,8 @@ export function RosterMonthView({
                           isToday
                             ? "bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center"
                             : !inMonth
-                            ? "text-muted-foreground"
-                            : ""
+                              ? "text-muted-foreground"
+                              : ""
                         }`}
                       >
                         {format(date, "d")}
@@ -143,7 +149,8 @@ export function RosterMonthView({
                           key={shift.id}
                           className="text-[9px] truncate px-1 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300"
                         >
-                          {formatTimeCompact(shift.start_time)}-{formatTimeCompact(shift.end_time)}
+                          {formatTimeCompact(shift.start_time)}-
+                          {formatTimeCompact(shift.end_time)}
                         </div>
                       ))}
 
@@ -160,12 +167,12 @@ export function RosterMonthView({
                       )}
                     </div>
                   </td>
-                )
+                );
               })}
             </tr>
           ))}
         </tbody>
       </table>
     </div>
-  )
+  );
 }

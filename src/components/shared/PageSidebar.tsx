@@ -1,36 +1,36 @@
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { AlertTriangle } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface SidebarMetric {
-  label: string
-  value: string | number
+  label: string;
+  value: string | number;
 }
 
 interface SidebarExtendedMetric {
-  label: string
-  value: string | number
-  color?: "green" | "orange" | "red" | "default"
-  icon?: React.ComponentType<{ className?: string }>
+  label: string;
+  value: string | number;
+  color?: "green" | "orange" | "red" | "default";
+  icon?: React.ComponentType<{ className?: string }>;
 }
 
 interface SidebarQuickAction {
-  label: string
-  icon: React.ComponentType<{ className?: string }>
-  onClick: () => void
-  badge?: number
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  onClick: () => void;
+  badge?: number;
 }
 
 interface PageSidebarProps {
-  title?: string
-  metrics?: SidebarMetric[]
-  extendedMetrics?: SidebarExtendedMetric[]
-  quickActions?: SidebarQuickAction[]
-  warnings?: string[]
-  children?: React.ReactNode
-  className?: string
+  title?: string;
+  metrics?: SidebarMetric[];
+  extendedMetrics?: SidebarExtendedMetric[];
+  quickActions?: SidebarQuickAction[];
+  warnings?: string[];
+  children?: React.ReactNode;
+  className?: string;
 }
 
 const COLOR_MAP = {
@@ -38,7 +38,7 @@ const COLOR_MAP = {
   orange: "text-orange-400",
   red: "text-red-400",
   default: "",
-} as const
+} as const;
 
 export function PageSidebar({
   title,
@@ -53,7 +53,7 @@ export function PageSidebar({
     <div
       className={cn(
         "hidden lg:flex w-[280px] bg-slate-900 dark:bg-slate-950 text-white flex-col print:hidden shrink-0",
-        className
+        className,
       )}
     >
       {/* Title */}
@@ -92,7 +92,7 @@ export function PageSidebar({
                 <span
                   className={cn(
                     "text-sm font-medium flex items-center gap-1",
-                    COLOR_MAP[metric.color || "default"]
+                    COLOR_MAP[metric.color || "default"],
                   )}
                 >
                   {metric.icon && <metric.icon className="h-3 w-3" />}
@@ -143,5 +143,5 @@ export function PageSidebar({
         </>
       )}
     </div>
-  )
+  );
 }

@@ -1,92 +1,115 @@
-import { useState, useMemo } from 'react'
-import { Card } from '@/components/ui/card'
-import { Loader2, Check, ChevronsUpDown, Info } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { toast } from 'sonner'
-import { AUSTRALIAN_SUPER_FUNDS } from '@/lib/data/superFunds'
-import { cn } from '@/lib/utils'
+import { useState, useMemo } from "react";
+import { Card } from "@/components/ui/card";
+import { Loader2, Check, ChevronsUpDown, Info } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
+import { AUSTRALIAN_SUPER_FUNDS } from "@/lib/data/superFunds";
+import { cn } from "@/lib/utils";
 
 interface SuperChoiceData {
-  super_choice_status: string
-  super_fund_name: string
-  super_fund_abn: string
-  super_fund_usi: string
-  super_member_number: string
+  super_choice_status: string;
+  super_fund_name: string;
+  super_fund_abn: string;
+  super_fund_usi: string;
+  super_member_number: string;
 }
 
 interface SuperChoiceStepProps {
-  staffId: string
-  initialData?: Partial<SuperChoiceData>
-  onComplete: (data: SuperChoiceData) => void
-  onBack?: () => void
+  staffId: string;
+  initialData?: Partial<SuperChoiceData>;
+  onComplete: (data: SuperChoiceData) => void;
+  onBack?: () => void;
 }
 
-export default function SuperChoiceStep({ staffId, initialData, onComplete, onBack }: SuperChoiceStepProps) {
-const [submitting, setSubmitting] = useState(false)
-  const [choiceStatus, setChoiceStatus] = useState(initialData?.super_choice_status || 'provided')
-  const [open, setOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
+export default function SuperChoiceStep({
+  staffId,
+  initialData,
+  onComplete,
+  onBack,
+}: SuperChoiceStepProps) {
+  const [submitting, setSubmitting] = useState(false);
+  const [choiceStatus, setChoiceStatus] = useState(
+    initialData?.super_choice_status || "provided",
+  );
+  const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState({
-    super_fund_name: initialData?.super_fund_name || '',
-    super_fund_abn: initialData?.super_fund_abn || '',
-    super_fund_usi: initialData?.super_fund_usi || '',
-    super_member_number: initialData?.super_member_number || ''
-  })
+    super_fund_name: initialData?.super_fund_name || "",
+    super_fund_abn: initialData?.super_fund_abn || "",
+    super_fund_usi: initialData?.super_fund_usi || "",
+    super_member_number: initialData?.super_member_number || "",
+  });
 
   const filteredFunds = useMemo(() => {
-    return AUSTRALIAN_SUPER_FUNDS.filter(fund =>
-      fund.fund_name.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-  }, [searchQuery])
+    return AUSTRALIAN_SUPER_FUNDS.filter((fund) =>
+      fund.fund_name.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+  }, [searchQuery]);
 
-  const handleFundSelect = (fund: typeof AUSTRALIAN_SUPER_FUNDS[0]) => {
+  const handleFundSelect = (fund: (typeof AUSTRALIAN_SUPER_FUNDS)[0]) => {
     setFormData({
       ...formData,
       super_fund_name: fund.fund_name,
       super_fund_abn: fund.abn,
-      super_fund_usi: fund.usi
-    })
-    setOpen(false)
-  }
+      super_fund_usi: fund.usi,
+    });
+    setOpen(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (choiceStatus === 'provided') {
+    e.preventDefault();
+
+    if (choiceStatus === "provided") {
       if (!formData.super_fund_name || !formData.super_member_number) {
-        toast.error('Missing Information', { description: 'Please select a super fund and provide your member number.' })
-        return
+        toast.error("Missing Information", {
+          description:
+            "Please select a super fund and provide your member number.",
+        });
+        return;
       }
     }
 
     onComplete({
       ...formData,
       super_choice_status: choiceStatus,
-      super_choice_signed_at: new Date()
-    })
-    
-    toast.success('Super choice saved', { description: 'Your superannuation selection has been recorded.' })
-  }
+      super_choice_signed_at: new Date(),
+    });
+
+    toast.success("Super choice saved", {
+      description: "Your superannuation selection has been recorded.",
+    });
+  };
 
   return (
     <Card className="p-6">
       <h2 className="text-2xl font-bold mb-4">Superannuation Choice</h2>
       <p className="text-muted-foreground mb-6">
-        Choose where your superannuation contributions will be paid (minimum 11.5% of your salary).
+        Choose where your superannuation contributions will be paid (minimum
+        11.5% of your salary).
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Alert>
           <Info className="w-4 h-4" />
           <AlertDescription>
-            If you don't choose a fund, we'll check for a stapled fund. If none exists, 
-            contributions will go to our default fund (Hostplus).
+            If you don't choose a fund, we'll check for a stapled fund. If none
+            exists, contributions will go to our default fund (Hostplus).
           </AlertDescription>
         </Alert>
 
@@ -95,20 +118,26 @@ const [submitting, setSubmitting] = useState(false)
           <RadioGroup value={choiceStatus} onValueChange={setChoiceStatus}>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="provided" id="choose_fund" />
-              <Label htmlFor="choose_fund" className="font-normal">I want to choose my super fund</Label>
+              <Label htmlFor="choose_fund" className="font-normal">
+                I want to choose my super fund
+              </Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="stapled" id="stapled" />
-              <Label htmlFor="stapled" className="font-normal">Use my stapled fund (ATO will provide)</Label>
+              <Label htmlFor="stapled" className="font-normal">
+                Use my stapled fund (ATO will provide)
+              </Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="not_provided" id="default_fund" />
-              <Label htmlFor="default_fund" className="font-normal">Use company default fund (Hostplus)</Label>
+              <Label htmlFor="default_fund" className="font-normal">
+                Use company default fund (Hostplus)
+              </Label>
             </div>
           </RadioGroup>
         </div>
 
-        {choiceStatus === 'provided' && (
+        {choiceStatus === "provided" && (
           <>
             <div>
               <Label>Select Super Fund *</Label>
@@ -126,8 +155,8 @@ const [submitting, setSubmitting] = useState(false)
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0">
                   <Command>
-                    <CommandInput 
-                      placeholder="Search super funds..." 
+                    <CommandInput
+                      placeholder="Search super funds..."
                       value={searchQuery}
                       onValueChange={setSearchQuery}
                     />
@@ -141,7 +170,9 @@ const [submitting, setSubmitting] = useState(false)
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              formData.super_fund_abn === fund.abn ? "opacity-100" : "opacity-0"
+                              formData.super_fund_abn === fund.abn
+                                ? "opacity-100"
+                                : "opacity-0",
                             )}
                           />
                           <div>
@@ -178,7 +209,12 @@ const [submitting, setSubmitting] = useState(false)
                     required
                     placeholder="Your member/account number"
                     value={formData.super_member_number}
-                    onChange={e => setFormData({ ...formData, super_member_number: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        super_member_number: e.target.value,
+                      })
+                    }
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     Find this on your super fund statements or member portal
@@ -189,21 +225,22 @@ const [submitting, setSubmitting] = useState(false)
           </>
         )}
 
-        {choiceStatus === 'stapled' && (
+        {choiceStatus === "stapled" && (
           <Alert>
             <AlertDescription>
-              We'll request your stapled super fund details from the ATO. 
-              This is a fund linked to you that moves with you between jobs.
+              We'll request your stapled super fund details from the ATO. This
+              is a fund linked to you that moves with you between jobs.
             </AlertDescription>
           </Alert>
         )}
 
-        {choiceStatus === 'not_provided' && (
+        {choiceStatus === "not_provided" && (
           <Alert>
             <AlertDescription>
-              <strong>Default Fund: Hostplus</strong><br />
-              ABN: 68901251351 | USI: HOS0001AU<br />
-              A new account will be created for you automatically.
+              <strong>Default Fund: Hostplus</strong>
+              <br />
+              ABN: 68901251351 | USI: HOS0001AU
+              <br />A new account will be created for you automatically.
             </AlertDescription>
           </Alert>
         )}
@@ -215,11 +252,11 @@ const [submitting, setSubmitting] = useState(false)
             </Button>
           )}
           <Button type="submit" disabled={submitting}>
-              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Save & Continue
-            </Button>
+            {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Save & Continue
+          </Button>
         </div>
       </form>
     </Card>
-  )
+  );
 }

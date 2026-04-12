@@ -15,24 +15,24 @@
  * - Stock variance threshold: AU industry standard ≈ 2-3% of COGS before investigation
  */
 
-import { supabase } from '@/integrations/supabase/client'
-import type { OrderRecommendation } from '@/types'
+import { supabase } from "@/integrations/supabase/client";
+import type { OrderRecommendation } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function getBaseUrl(): string {
-  if (typeof window !== 'undefined') return window.location.origin
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
-  return 'http://localhost:3000'
+  if (typeof window !== "undefined") return window.location.origin;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return "http://localhost:3000";
 }
 
 async function getAuthToken(): Promise<string | undefined> {
   const {
     data: { session },
-  } = await supabase.auth.getSession()
-  return session?.access_token
+  } = await supabase.auth.getSession();
+  return session?.access_token;
 }
 
 // ---------------------------------------------------------------------------
@@ -41,24 +41,24 @@ async function getAuthToken(): Promise<string | undefined> {
 
 export async function getOrderRecommendations(
   orgId: string,
-  venueId: string
+  venueId: string,
 ): Promise<OrderRecommendation[]> {
-  const token = await getAuthToken()
+  const token = await getAuthToken();
   const url =
     `${getBaseUrl()}/api/inventory?action=get-recommendations` +
     `&org_id=${encodeURIComponent(orgId)}` +
-    `&venue_id=${encodeURIComponent(venueId)}`
+    `&venue_id=${encodeURIComponent(venueId)}`;
 
   const res = await fetch(url, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
-  })
+  });
 
   if (!res.ok) {
-    const body = await res.text().catch(() => res.statusText)
-    throw new Error(`getOrderRecommendations failed (${res.status}): ${body}`)
+    const body = await res.text().catch(() => res.statusText);
+    throw new Error(`getOrderRecommendations failed (${res.status}): ${body}`);
   }
 
-  return res.json() as Promise<OrderRecommendation[]>
+  return res.json() as Promise<OrderRecommendation[]>;
 }
 
 // ---------------------------------------------------------------------------
@@ -70,28 +70,33 @@ export async function getOrderRecommendations(
 // ---------------------------------------------------------------------------
 
 export function calculateReorderPoint(params: {
-  avgDailyDemand: number
-  leadTimeDays: number
-  demandStdDev: number
-  serviceLevel?: number // 0.9 default
+  avgDailyDemand: number;
+  leadTimeDays: number;
+  demandStdDev: number;
+  serviceLevel?: number; // 0.9 default
 }): number {
-  const { avgDailyDemand, leadTimeDays, demandStdDev, serviceLevel = 0.9 } = params
+  const {
+    avgDailyDemand,
+    leadTimeDays,
+    demandStdDev,
+    serviceLevel = 0.9,
+  } = params;
 
-  const Z = serviceLevelToZ(serviceLevel)
-  const safetyStock = Z * demandStdDev * Math.sqrt(leadTimeDays)
-  const rop = avgDailyDemand * leadTimeDays + safetyStock
+  const Z = serviceLevelToZ(serviceLevel);
+  const safetyStock = Z * demandStdDev * Math.sqrt(leadTimeDays);
+  const rop = avgDailyDemand * leadTimeDays + safetyStock;
 
-  return Math.ceil(rop)
+  return Math.ceil(rop);
 }
 
 /** Map common service levels to Z-scores (standard normal). */
 function serviceLevelToZ(sl: number): number {
-  if (sl >= 0.975) return 1.96
-  if (sl >= 0.95) return 1.645
-  if (sl >= 0.9) return 1.28
-  if (sl >= 0.85) return 1.04
-  if (sl >= 0.80) return 0.84
-  return 0.67 // ~75%
+  if (sl >= 0.975) return 1.96;
+  if (sl >= 0.95) return 1.645;
+  if (sl >= 0.9) return 1.28;
+  if (sl >= 0.85) return 1.04;
+  if (sl >= 0.8) return 0.84;
+  return 0.67; // ~75%
 }
 
 // ---------------------------------------------------------------------------
@@ -101,14 +106,16 @@ function serviceLevelToZ(sl: number): number {
 // ---------------------------------------------------------------------------
 
 export function calculateEOQ(params: {
-  annualDemand: number
-  orderingCost: number       // cost to place a single order
-  holdingCostPerUnit: number // carrying cost per unit per year
+  annualDemand: number;
+  orderingCost: number; // cost to place a single order
+  holdingCostPerUnit: number; // carrying cost per unit per year
 }): number {
-  const { annualDemand, orderingCost, holdingCostPerUnit } = params
+  const { annualDemand, orderingCost, holdingCostPerUnit } = params;
 
-  if (holdingCostPerUnit <= 0) return 0
-  return Math.ceil(Math.sqrt((2 * annualDemand * orderingCost) / holdingCostPerUnit))
+  if (holdingCostPerUnit <= 0) return 0;
+  return Math.ceil(
+    Math.sqrt((2 * annualDemand * orderingCost) / holdingCostPerUnit),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -118,11 +125,11 @@ export function calculateEOQ(params: {
 
 export function calculateDaysRemaining(
   currentStock: number,
-  avgDailyUsage: number
+  avgDailyUsage: number,
 ): number | null {
-  if (avgDailyUsage <= 0) return null
-  if (currentStock <= 0) return 0
-  return Math.floor(currentStock / avgDailyUsage)
+  if (avgDailyUsage <= 0) return null;
+  if (currentStock <= 0) return 0;
+  return Math.floor(currentStock / avgDailyUsage);
 }
 
 // ---------------------------------------------------------------------------
@@ -137,12 +144,12 @@ export function calculateDaysRemaining(
 export function getStockStatus(
   currentStock: number,
   parLevel: number,
-  reorderPoint: number
-): 'healthy' | 'low' | 'critical' | 'out' {
-  if (currentStock <= 0) return 'out'
-  if (currentStock <= reorderPoint) return 'critical'
-  if (currentStock <= parLevel) return 'low'
-  return 'healthy'
+  reorderPoint: number,
+): "healthy" | "low" | "critical" | "out" {
+  if (currentStock <= 0) return "out";
+  if (currentStock <= reorderPoint) return "critical";
+  if (currentStock <= parLevel) return "low";
+  return "healthy";
 }
 
 // ---------------------------------------------------------------------------
@@ -156,26 +163,29 @@ export function getStockStatus(
 
 export async function getWeightedAverageCost(
   ingredientId: string,
-  venueId: string
+  venueId: string,
 ): Promise<number | null> {
   const { data, error } = await supabase
-    .from('stock_movements')
-    .select('quantity, unit_cost')
-    .eq('ingredient_id', ingredientId)
-    .eq('venue_id', venueId)
-    .eq('movement_type', 'purchase_receipt')
-    .gt('quantity', 0)
-    .not('unit_cost', 'is', null)
+    .from("stock_movements")
+    .select("quantity, unit_cost")
+    .eq("ingredient_id", ingredientId)
+    .eq("venue_id", venueId)
+    .eq("movement_type", "purchase_receipt")
+    .gt("quantity", 0)
+    .not("unit_cost", "is", null);
 
-  if (error) throw new Error(`Failed to fetch stock movements for WAC: ${error.message}`)
+  if (error)
+    throw new Error(
+      `Failed to fetch stock movements for WAC: ${error.message}`,
+    );
 
-  const rows = (data ?? []) as Array<{ quantity: number; unit_cost: number }>
+  const rows = (data ?? []) as Array<{ quantity: number; unit_cost: number }>;
 
-  if (rows.length === 0) return null
+  if (rows.length === 0) return null;
 
-  const totalQty = rows.reduce((s, r) => s + r.quantity, 0)
-  if (totalQty === 0) return null
+  const totalQty = rows.reduce((s, r) => s + r.quantity, 0);
+  if (totalQty === 0) return null;
 
-  const totalValue = rows.reduce((s, r) => s + r.quantity * r.unit_cost, 0)
-  return Math.round((totalValue / totalQty) * 10000) / 10000 // 4 decimal precision
+  const totalValue = rows.reduce((s, r) => s + r.quantity * r.unit_cost, 0);
+  return Math.round((totalValue / totalQty) * 10000) / 10000; // 4 decimal precision
 }

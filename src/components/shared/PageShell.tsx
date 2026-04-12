@@ -1,11 +1,11 @@
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 interface PageShellProps {
-  children: React.ReactNode
-  sidebar?: React.ReactNode
-  toolbar?: React.ReactNode
-  footer?: React.ReactNode
-  className?: string
+  children: React.ReactNode;
+  sidebar?: React.ReactNode;
+  toolbar?: React.ReactNode;
+  footer?: React.ReactNode;
+  className?: string;
 }
 
 export function PageShell({
@@ -26,7 +26,9 @@ export function PageShell({
         {toolbar}
 
         {/* Scrollable content with page-enter animation */}
-        <div className={cn("flex-1 overflow-auto animate-page-enter", className)}>
+        <div
+          className={cn("flex-1 overflow-auto animate-page-enter", className)}
+        >
           {children}
         </div>
 
@@ -34,5 +36,5 @@ export function PageShell({
         {footer}
       </div>
     </div>
-  )
+  );
 }

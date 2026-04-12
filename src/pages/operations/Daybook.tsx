@@ -1,20 +1,32 @@
-import { useState, useMemo, useEffect } from 'react'
-import { format, addDays, subDays, startOfDay, isToday } from 'date-fns'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { useDataStore } from '@/lib/store/dataStore'
-import { useAuth } from '@/contexts/AuthContext'
-import { toast } from 'sonner'
-import { PageShell, PageToolbar } from '@/components/shared'
-import { StatCards } from '@/components/ui/StatCards'
-import { SecondaryStats } from '@/components/ui/SecondaryStats'
+import { useState, useMemo, useEffect } from "react";
+import { format, addDays, subDays, startOfDay, isToday } from "date-fns";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useDataStore } from "@/lib/store/dataStore";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { PageShell, PageToolbar } from "@/components/shared";
+import { StatCards } from "@/components/ui/StatCards";
+import { SecondaryStats } from "@/components/ui/SecondaryStats";
 import {
   ChevronLeft,
   ChevronRight,
@@ -29,149 +41,196 @@ import {
   Users,
   Pencil,
   Trash2,
-} from 'lucide-react'
+} from "lucide-react";
 
 const ENTRY_CATEGORIES = [
-  { value: 'operations', label: 'Operations', icon: ClipboardList, color: 'bg-blue-100 text-blue-800' },
-  { value: 'maintenance', label: 'Maintenance', icon: Wrench, color: 'bg-orange-100 text-orange-800' },
-  { value: 'incident', label: 'Incident', icon: AlertTriangle, color: 'bg-red-100 text-red-800' },
-  { value: 'delivery', label: 'Delivery', icon: Package, color: 'bg-green-100 text-green-800' },
-  { value: 'staff', label: 'Staff', icon: Users, color: 'bg-purple-100 text-purple-800' },
-  { value: 'financial', label: 'Financial', icon: DollarSign, color: 'bg-yellow-100 text-yellow-800' },
-] as const
+  {
+    value: "operations",
+    label: "Operations",
+    icon: ClipboardList,
+    color: "bg-blue-100 text-blue-800",
+  },
+  {
+    value: "maintenance",
+    label: "Maintenance",
+    icon: Wrench,
+    color: "bg-orange-100 text-orange-800",
+  },
+  {
+    value: "incident",
+    label: "Incident",
+    icon: AlertTriangle,
+    color: "bg-red-100 text-red-800",
+  },
+  {
+    value: "delivery",
+    label: "Delivery",
+    icon: Package,
+    color: "bg-green-100 text-green-800",
+  },
+  {
+    value: "staff",
+    label: "Staff",
+    icon: Users,
+    color: "bg-purple-100 text-purple-800",
+  },
+  {
+    value: "financial",
+    label: "Financial",
+    icon: DollarSign,
+    color: "bg-yellow-100 text-yellow-800",
+  },
+] as const;
 
-type EntryCategory = typeof ENTRY_CATEGORIES[number]['value']
+type EntryCategory = (typeof ENTRY_CATEGORIES)[number]["value"];
 
 interface DaybookEntry {
-  id: string
-  date: string // ISO date
-  time: string // HH:mm
-  category: EntryCategory
-  title: string
-  notes: string
-  amount?: number // cents
-  created_at: Date
-  created_by: string
+  id: string;
+  date: string; // ISO date
+  time: string; // HH:mm
+  category: EntryCategory;
+  title: string;
+  notes: string;
+  amount?: number; // cents
+  created_at: Date;
+  created_by: string;
 }
 
 export default function Daybook() {
-  const { staff } = useDataStore()
-  const { currentOrg, currentVenue, user } = useAuth()
-  const [selectedDate, setSelectedDate] = useState(startOfDay(new Date()))
-  const [entries, setEntries] = useState<DaybookEntry[]>([])
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filterCategory, setFilterCategory] = useState<string>('all')
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingEntry, setEditingEntry] = useState<DaybookEntry | null>(null)
+  const { staff } = useDataStore();
+  const { currentOrg, currentVenue, user } = useAuth();
+  const [selectedDate, setSelectedDate] = useState(startOfDay(new Date()));
+  const [entries, setEntries] = useState<DaybookEntry[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<DaybookEntry | null>(null);
   const [form, setForm] = useState({
-    category: 'operations' as EntryCategory,
-    title: '',
-    notes: '',
-    amount: '',
-    time: format(new Date(), 'HH:mm'),
-  })
+    category: "operations" as EntryCategory,
+    title: "",
+    notes: "",
+    amount: "",
+    time: format(new Date(), "HH:mm"),
+  });
 
   // Load daybook entries from Supabase
   useEffect(() => {
     async function loadEntries() {
       try {
-        const { supabase } = await import('@/integrations/supabase/client')
+        const { supabase } = await import("@/integrations/supabase/client");
         const { data, error } = await supabase
-          .from('daybook_entries')
-          .select('*')
-          .order('entry_date', { ascending: false })
+          .from("daybook_entries")
+          .select("*")
+          .order("entry_date", { ascending: false });
 
-        if (error) throw error
+        if (error) throw error;
         if (data) {
-          const mapped: DaybookEntry[] = data.map(row => {
-            const createdAt = new Date(row.created_at)
+          const mapped: DaybookEntry[] = data.map((row) => {
+            const createdAt = new Date(row.created_at);
 
             // Try to parse structured notes (new format)
-            let parsed: { category?: string; title?: string; notes?: string; time?: string } | null = null
+            let parsed: {
+              category?: string;
+              title?: string;
+              notes?: string;
+              time?: string;
+            } | null = null;
             try {
-              if (row.notes?.startsWith('{')) {
-                parsed = JSON.parse(row.notes)
+              if (row.notes?.startsWith("{")) {
+                parsed = JSON.parse(row.notes);
               }
-            } catch { /* not JSON, treat as plain text */ }
+            } catch {
+              /* not JSON, treat as plain text */
+            }
 
             if (parsed) {
               // New structured entry
               return {
                 id: row.id,
                 date: row.entry_date,
-                time: parsed.time || format(createdAt, 'HH:mm'),
-                category: (parsed.category || row.status || 'operations') as EntryCategory,
-                title: parsed.title || 'Entry',
-                notes: parsed.notes || '',
+                time: parsed.time || format(createdAt, "HH:mm"),
+                category: (parsed.category ||
+                  row.status ||
+                  "operations") as EntryCategory,
+                title: parsed.title || "Entry",
+                notes: parsed.notes || "",
                 amount: row.pos_sales ? row.pos_sales : undefined,
                 created_at: createdAt,
-                created_by: row.created_by || 'system',
-              }
+                created_by: row.created_by || "system",
+              };
             }
 
             // Legacy format (financial reconciliation entries)
-            const totalAmount = (row.pos_sales ?? 0) + (row.cash_counted ?? 0) + (row.card_total ?? 0)
-            const notesParts = [row.notes, row.issues].filter(Boolean).join(' | ')
+            const totalAmount =
+              (row.pos_sales ?? 0) +
+              (row.cash_counted ?? 0) +
+              (row.card_total ?? 0);
+            const notesParts = [row.notes, row.issues]
+              .filter(Boolean)
+              .join(" | ");
             return {
               id: row.id,
               date: row.entry_date,
-              time: format(createdAt, 'HH:mm'),
-              category: 'financial' as EntryCategory,
-              title: row.status === 'approved' ? 'Daily Reconciliation (Approved)' : 'Daily Reconciliation',
+              time: format(createdAt, "HH:mm"),
+              category: "financial" as EntryCategory,
+              title:
+                row.status === "approved"
+                  ? "Daily Reconciliation (Approved)"
+                  : "Daily Reconciliation",
               notes: notesParts,
               amount: totalAmount > 0 ? totalAmount : undefined,
               created_at: createdAt,
-              created_by: row.created_by || 'system',
-            }
-          })
-          setEntries(prev => {
+              created_by: row.created_by || "system",
+            };
+          });
+          setEntries((prev) => {
             // Merge DB entries with any local-only entries
-            const dbIds = new Set(mapped.map(e => e.id))
-            const localOnly = prev.filter(e => !dbIds.has(e.id))
-            return [...mapped, ...localOnly]
-          })
+            const dbIds = new Set(mapped.map((e) => e.id));
+            const localOnly = prev.filter((e) => !dbIds.has(e.id));
+            return [...mapped, ...localOnly];
+          });
         }
       } catch (err) {
-        console.error('Failed to load daybook entries:', err)
+        console.error("Failed to load daybook entries:", err);
       }
     }
-    loadEntries()
-  }, [])
+    loadEntries();
+  }, []);
 
-  const dateKey = format(selectedDate, 'yyyy-MM-dd')
+  const dateKey = format(selectedDate, "yyyy-MM-dd");
 
   const filteredEntries = useMemo(() => {
     return entries
       .filter((e) => e.date === dateKey)
-      .filter((e) => filterCategory === 'all' || e.category === filterCategory)
+      .filter((e) => filterCategory === "all" || e.category === filterCategory)
       .filter((e) =>
         searchQuery
           ? e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             e.notes.toLowerCase().includes(searchQuery.toLowerCase())
-          : true
+          : true,
       )
-      .sort((a, b) => (a.time > b.time ? 1 : -1))
-  }, [entries, dateKey, filterCategory, searchQuery])
+      .sort((a, b) => (a.time > b.time ? 1 : -1));
+  }, [entries, dateKey, filterCategory, searchQuery]);
 
   const daySummary = useMemo(() => {
-    const dayEntries = entries.filter((e) => e.date === dateKey)
+    const dayEntries = entries.filter((e) => e.date === dateKey);
     const totalAmount = dayEntries
       .filter((e) => e.amount)
-      .reduce((sum, e) => sum + (e.amount || 0), 0)
+      .reduce((sum, e) => sum + (e.amount || 0), 0);
     const byCat = ENTRY_CATEGORIES.map((cat) => ({
       ...cat,
       count: dayEntries.filter((e) => e.category === cat.value).length,
-    }))
-    return { total: dayEntries.length, totalAmount, byCat }
-  }, [entries, dateKey])
+    }));
+    return { total: dayEntries.length, totalAmount, byCat };
+  }, [entries, dateKey]);
 
   const handleSubmit = async () => {
     if (!form.title.trim()) {
-      toast.error('Title is required')
-      return
+      toast.error("Title is required");
+      return;
     }
 
-    const entryId = editingEntry?.id || crypto.randomUUID()
+    const entryId = editingEntry?.id || crypto.randomUUID();
 
     const entry: DaybookEntry = {
       id: entryId,
@@ -180,29 +239,37 @@ export default function Daybook() {
       category: form.category,
       title: form.title.trim(),
       notes: form.notes.trim(),
-      amount: form.amount ? Math.round(parseFloat(form.amount) * 100) : undefined,
+      amount: form.amount
+        ? Math.round(parseFloat(form.amount) * 100)
+        : undefined,
       created_at: editingEntry?.created_at || new Date(),
-      created_by: user?.id || 'current-user',
-    }
+      created_by: user?.id || "current-user",
+    };
 
     // Optimistic update
     if (editingEntry) {
-      setEntries((prev) => prev.map((e) => (e.id === entry.id ? entry : e)))
+      setEntries((prev) => prev.map((e) => (e.id === entry.id ? entry : e)));
     } else {
-      setEntries((prev) => [...prev, entry])
+      setEntries((prev) => [...prev, entry]);
     }
 
-    setDialogOpen(false)
-    setEditingEntry(null)
-    setForm({ category: 'operations', title: '', notes: '', amount: '', time: format(new Date(), 'HH:mm') })
+    setDialogOpen(false);
+    setEditingEntry(null);
+    setForm({
+      category: "operations",
+      title: "",
+      notes: "",
+      amount: "",
+      time: format(new Date(), "HH:mm"),
+    });
 
     // Persist to Supabase
     try {
-      const { supabase } = await import('@/integrations/supabase/client')
+      const { supabase } = await import("@/integrations/supabase/client");
 
       if (!currentOrg?.id || !currentVenue?.id) {
-        toast.error('No venue selected')
-        return
+        toast.error("No venue selected");
+        return;
       }
 
       // Store structured entry data in notes as JSON
@@ -211,7 +278,7 @@ export default function Daybook() {
         title: form.title.trim(),
         notes: form.notes.trim(),
         time: form.time,
-      })
+      });
 
       const dbPayload = {
         id: entryId,
@@ -221,69 +288,83 @@ export default function Daybook() {
         notes: structuredNotes,
         status: form.category, // Use status field for category
         created_by: user?.id || null,
-        pos_sales: form.amount && form.category === 'financial'
-          ? Math.round(parseFloat(form.amount) * 100)
-          : null,
-      }
+        pos_sales:
+          form.amount && form.category === "financial"
+            ? Math.round(parseFloat(form.amount) * 100)
+            : null,
+      };
 
       const { error } = editingEntry
-        ? await supabase.from('daybook_entries').update(dbPayload).eq('id', entryId)
-        : await supabase.from('daybook_entries').insert(dbPayload)
+        ? await supabase
+            .from("daybook_entries")
+            .update(dbPayload)
+            .eq("id", entryId)
+        : await supabase.from("daybook_entries").insert(dbPayload);
 
       if (error) {
-        console.error('[Daybook] Failed to save entry:', error)
-        toast.error('Failed to save entry to database')
+        console.error("[Daybook] Failed to save entry:", error);
+        toast.error("Failed to save entry to database");
       } else {
-        toast.success(editingEntry ? 'Entry updated' : 'Entry added')
+        toast.success(editingEntry ? "Entry updated" : "Entry added");
       }
     } catch (err) {
-      console.error('[Daybook] Error saving entry:', err)
-      toast.error('Failed to save entry')
+      console.error("[Daybook] Error saving entry:", err);
+      toast.error("Failed to save entry");
     }
-  }
+  };
 
   const handleEdit = (entry: DaybookEntry) => {
-    setEditingEntry(entry)
+    setEditingEntry(entry);
     setForm({
       category: entry.category,
       title: entry.title,
       notes: entry.notes,
-      amount: entry.amount ? (entry.amount / 100).toFixed(2) : '',
+      amount: entry.amount ? (entry.amount / 100).toFixed(2) : "",
       time: entry.time,
-    })
-    setDialogOpen(true)
-  }
+    });
+    setDialogOpen(true);
+  };
 
   const handleDelete = async (id: string) => {
     try {
-      const { supabase } = await import('@/integrations/supabase/client')
-      const { error } = await supabase.from('daybook_entries').delete().eq('id', id)
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { error } = await supabase
+        .from("daybook_entries")
+        .delete()
+        .eq("id", id);
       if (error) {
-        console.error('[Daybook] Failed to delete entry:', error)
-        toast.error('Failed to delete entry')
-        return
+        console.error("[Daybook] Failed to delete entry:", error);
+        toast.error("Failed to delete entry");
+        return;
       }
-      setEntries((prev) => prev.filter((e) => e.id !== id))
-      toast.success('Entry deleted')
+      setEntries((prev) => prev.filter((e) => e.id !== id));
+      toast.success("Entry deleted");
     } catch (err) {
-      console.error('[Daybook] Error deleting entry:', err)
-      toast.error('Failed to delete entry')
+      console.error("[Daybook] Error deleting entry:", err);
+      toast.error("Failed to delete entry");
     }
-  }
+  };
 
   const openNewEntry = () => {
-    setEditingEntry(null)
-    setForm({ category: 'operations', title: '', notes: '', amount: '', time: format(new Date(), 'HH:mm') })
-    setDialogOpen(true)
-  }
+    setEditingEntry(null);
+    setForm({
+      category: "operations",
+      title: "",
+      notes: "",
+      amount: "",
+      time: format(new Date(), "HH:mm"),
+    });
+    setDialogOpen(true);
+  };
 
-  const getCategoryMeta = (cat: string) => ENTRY_CATEGORIES.find((c) => c.value === cat)!
+  const getCategoryMeta = (cat: string) =>
+    ENTRY_CATEGORIES.find((c) => c.value === cat)!;
 
   const toolbar = (
     <PageToolbar
       title="Daybook"
       dateNavigation={{
-        label: format(selectedDate, 'd MMM yyyy'),
+        label: format(selectedDate, "d MMM yyyy"),
         onBack: () => setSelectedDate((d) => subDays(d, 1)),
         onForward: () => setSelectedDate((d) => addDays(d, 1)),
       }}
@@ -305,201 +386,235 @@ export default function Daybook() {
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
               {ENTRY_CATEGORIES.map((cat) => (
-                <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                <SelectItem key={cat.value} value={cat.value}>
+                  {cat.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </>
       }
       primaryAction={{
-        label: 'Add Entry',
+        label: "Add Entry",
         icon: Plus,
         onClick: openNewEntry,
-        variant: 'primary',
+        variant: "primary",
       }}
     />
-  )
+  );
 
   return (
     <PageShell toolbar={toolbar}>
       <div className="px-6 pt-6 pb-2 space-y-3">
-        <StatCards stats={[
-          { label: 'Entries Today', value: daySummary.total },
-          ...(daySummary.totalAmount > 0
-            ? [{ label: 'Total Value', value: `$${(daySummary.totalAmount / 100).toFixed(2)}` }]
-            : []),
-        ]} columns={daySummary.totalAmount > 0 ? 2 : 1} />
-        {daySummary.byCat.filter(c => c.count > 0).length > 0 && (
-          <SecondaryStats stats={daySummary.byCat
-            .filter(c => c.count > 0)
-            .map(cat => ({ label: cat.label, value: cat.count }))} />
+        <StatCards
+          stats={[
+            { label: "Entries Today", value: daySummary.total },
+            ...(daySummary.totalAmount > 0
+              ? [
+                  {
+                    label: "Total Value",
+                    value: `$${(daySummary.totalAmount / 100).toFixed(2)}`,
+                  },
+                ]
+              : []),
+          ]}
+          columns={daySummary.totalAmount > 0 ? 2 : 1}
+        />
+        {daySummary.byCat.filter((c) => c.count > 0).length > 0 && (
+          <SecondaryStats
+            stats={daySummary.byCat
+              .filter((c) => c.count > 0)
+              .map((cat) => ({ label: cat.label, value: cat.count }))}
+          />
         )}
       </div>
       <div className="px-6 pb-6 space-y-6">
-
-      {/* Entries List */}
-      {filteredEntries.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/60 p-12 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-            <ClipboardList className="h-7 w-7 text-muted-foreground/50" />
+        {/* Entries List */}
+        {filteredEntries.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border/60 p-12 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+              <ClipboardList className="h-7 w-7 text-muted-foreground/50" />
+            </div>
+            <h3 className="text-base font-semibold tracking-tight mb-2">
+              No entries for this day
+            </h3>
+            <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
+              {searchQuery || filterCategory !== "all"
+                ? "Try adjusting your filters"
+                : "Add your first entry to start the daybook"}
+            </p>
+            {!searchQuery && filterCategory === "all" && (
+              <Button onClick={openNewEntry} className="btn-press">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Entry
+              </Button>
+            )}
           </div>
-          <h3 className="text-base font-semibold tracking-tight mb-2">No entries for this day</h3>
-          <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
-            {searchQuery || filterCategory !== 'all'
-              ? 'Try adjusting your filters'
-              : 'Add your first entry to start the daybook'}
-          </p>
-          {!searchQuery && filterCategory === 'all' && (
-            <Button onClick={openNewEntry} className="btn-press">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Entry
-            </Button>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filteredEntries.map((entry) => {
-            const catMeta = getCategoryMeta(entry.category)
-            const CatIcon = catMeta.icon
-            return (
-              <Card key={entry.id} className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className={`p-2 rounded-lg ${catMeta.color}`}>
-                    <CatIcon className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold">{entry.title}</span>
-                          <Badge variant="outline" className="text-xs">
-                            {catMeta.label}
-                          </Badge>
-                          {entry.amount && (
-                            <Badge variant="secondary" className="text-xs">
-                              ${(entry.amount / 100).toFixed(2)}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{entry.time}</div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Edit entry" onClick={() => handleEdit(entry)}>
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive"
-                          onClick={() => handleDelete(entry.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredEntries.map((entry) => {
+              const catMeta = getCategoryMeta(entry.category);
+              const CatIcon = catMeta.icon;
+              return (
+                <Card key={entry.id} className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-lg ${catMeta.color}`}>
+                      <CatIcon className="h-4 w-4" />
                     </div>
-                    {entry.notes && (
-                      <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{entry.notes}</p>
-                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">{entry.title}</span>
+                            <Badge variant="outline" className="text-xs">
+                              {catMeta.label}
+                            </Badge>
+                            {entry.amount && (
+                              <Badge variant="secondary" className="text-xs">
+                                ${(entry.amount / 100).toFixed(2)}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {entry.time}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            aria-label="Edit entry"
+                            onClick={() => handleEdit(entry)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive"
+                            onClick={() => handleDelete(entry.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      {entry.notes && (
+                        <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">
+                          {entry.notes}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Card>
-            )
-          })}
-        </div>
-      )}
-
-      {/* AI prep list suggestions — planned, see docs/TODO.md */}
-      <Card className="border-dashed border-2 border-muted bg-muted/20">
-        <CardContent className="flex flex-col items-center justify-center py-10 text-center">
-          <div className="text-muted-foreground/50 mb-3">
-            <ClipboardList className="h-10 w-10 mx-auto" />
+                </Card>
+              );
+            })}
           </div>
-          <h3 className="font-semibold text-muted-foreground">Prep Suggestions Coming Soon</h3>
-          <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-            Will recommend prep quantities based on sales forecast
-          </p>
-        </CardContent>
-      </Card>
+        )}
 
-      {/* Add/Edit Entry Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editingEntry ? 'Edit Entry' : 'New Daybook Entry'}</DialogTitle>
-          </DialogHeader>
+        {/* AI prep list suggestions — planned, see docs/TODO.md */}
+        <Card className="border-dashed border-2 border-muted bg-muted/20">
+          <CardContent className="flex flex-col items-center justify-center py-10 text-center">
+            <div className="text-muted-foreground/50 mb-3">
+              <ClipboardList className="h-10 w-10 mx-auto" />
+            </div>
+            <h3 className="font-semibold text-muted-foreground">
+              Prep Suggestions Coming Soon
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+              Will recommend prep quantities based on sales forecast
+            </p>
+          </CardContent>
+        </Card>
 
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="entry-category">Category</Label>
-                <Select value={form.category} onValueChange={(v: EntryCategory) => setForm({ ...form, category: v })}>
-                  <SelectTrigger id="entry-category">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ENTRY_CATEGORIES.map((cat) => (
-                      <SelectItem key={cat.value} value={cat.value}>
-                        {cat.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+        {/* Add/Edit Entry Dialog */}
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {editingEntry ? "Edit Entry" : "New Daybook Entry"}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="entry-category">Category</Label>
+                  <Select
+                    value={form.category}
+                    onValueChange={(v: EntryCategory) =>
+                      setForm({ ...form, category: v })
+                    }
+                  >
+                    <SelectTrigger id="entry-category">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ENTRY_CATEGORIES.map((cat) => (
+                        <SelectItem key={cat.value} value={cat.value}>
+                          {cat.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="entry-time">Time</Label>
+                  <Input
+                    id="entry-time"
+                    type="time"
+                    value={form.time}
+                    onChange={(e) => setForm({ ...form, time: e.target.value })}
+                  />
+                </div>
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="entry-time">Time</Label>
+                <Label htmlFor="entry-title">Title *</Label>
                 <Input
-                  id="entry-time"
-                  type="time"
-                  value={form.time}
-                  onChange={(e) => setForm({ ...form, time: e.target.value })}
+                  id="entry-title"
+                  placeholder="Brief description"
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="entry-notes">Notes</Label>
+                <Textarea
+                  id="entry-notes"
+                  placeholder="Additional details..."
+                  rows={3}
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="entry-amount">Amount ($, optional)</Label>
+                <Input
+                  id="entry-amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={form.amount}
+                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="entry-title">Title *</Label>
-              <Input
-                id="entry-title"
-                placeholder="Brief description"
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="entry-notes">Notes</Label>
-              <Textarea
-                id="entry-notes"
-                placeholder="Additional details..."
-                rows={3}
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="entry-amount">Amount ($, optional)</Label>
-              <Input
-                id="entry-amount"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit}>{editingEntry ? 'Update' : 'Add Entry'}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSubmit}>
+                {editingEntry ? "Update" : "Add Entry"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </PageShell>
-  )
+  );
 }

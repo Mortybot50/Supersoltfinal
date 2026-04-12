@@ -19,17 +19,17 @@ export function calculateTheoreticalStock(
   lastCountQty: number,
   receivedQty: number,
   usageQty: number,
-  wasteQty: number
+  wasteQty: number,
 ): number {
-  const theoretical = lastCountQty + receivedQty - usageQty - wasteQty
-  return Math.max(0, theoretical)
+  const theoretical = lastCountQty + receivedQty - usageQty - wasteQty;
+  return Math.max(0, theoretical);
 }
 
 /**
  * Calculate variance between actual counted quantity and expected quantity.
  */
 export function calculateVariance(actual: number, expected: number): number {
-  return actual - expected
+  return actual - expected;
 }
 
 /**
@@ -37,9 +37,12 @@ export function calculateVariance(actual: number, expected: number): number {
  * Returns 0 if expected is 0 and actual is also 0.
  * Returns 100 if expected is 0 but actual > 0.
  */
-export function calculateVariancePercent(actual: number, expected: number): number {
-  if (expected === 0) return actual > 0 ? 100 : 0
-  return ((actual - expected) / expected) * 100
+export function calculateVariancePercent(
+  actual: number,
+  expected: number,
+): number {
+  if (expected === 0) return actual > 0 ? 100 : 0;
+  return ((actual - expected) / expected) * 100;
 }
 
 /**
@@ -48,9 +51,9 @@ export function calculateVariancePercent(actual: number, expected: number): numb
 export function calculateVarianceValue(
   actual: number,
   expected: number,
-  costPerUnit: number
+  costPerUnit: number,
 ): number {
-  return (actual - expected) * costPerUnit
+  return (actual - expected) * costPerUnit;
 }
 
 /**
@@ -64,11 +67,13 @@ export function isLargeVariance(
   expected: number,
   costPerUnit: number,
   percentThreshold = 10,
-  valueThreshold = 5000 // $50 in cents
+  valueThreshold = 5000, // $50 in cents
 ): boolean {
-  const varPct = Math.abs(calculateVariancePercent(actual, expected))
-  const varVal = Math.abs(calculateVarianceValue(actual, expected, costPerUnit))
-  return (varPct > percentThreshold && expected > 0) || varVal > valueThreshold
+  const varPct = Math.abs(calculateVariancePercent(actual, expected));
+  const varVal = Math.abs(
+    calculateVarianceValue(actual, expected, costPerUnit),
+  );
+  return (varPct > percentThreshold && expected > 0) || varVal > valueThreshold;
 }
 
 /**
@@ -82,22 +87,22 @@ export function isLargeVariance(
 export function convertUnit(
   value: number,
   factor: number,
-  toBase: boolean
+  toBase: boolean,
 ): number {
-  if (factor <= 0) return value
-  return toBase ? value * factor : value / factor
+  if (factor <= 0) return value;
+  return toBase ? value * factor : value / factor;
 }
 
 /**
  * Generate a stock count number in format SC-YYYYMMDD-NNN
  */
 export function generateCountNumber(existingCountsToday: number): string {
-  const today = new Date()
-  const yyyy = today.getFullYear()
-  const mm = String(today.getMonth() + 1).padStart(2, '0')
-  const dd = String(today.getDate()).padStart(2, '0')
-  const seq = String(existingCountsToday + 1).padStart(3, '0')
-  return `SC-${yyyy}${mm}${dd}-${seq}`
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const dd = String(today.getDate()).padStart(2, "0");
+  const seq = String(existingCountsToday + 1).padStart(3, "0");
+  return `SC-${yyyy}${mm}${dd}-${seq}`;
 }
 
 /**
@@ -105,16 +110,16 @@ export function generateCountNumber(existingCountsToday: number): string {
  */
 export function aggregateVarianceByCategory(
   items: Array<{
-    ingredientCategory: string
-    varianceValue: number
-  }>
+    ingredientCategory: string;
+    varianceValue: number;
+  }>,
 ): Array<{ category: string; variance: number }> {
-  const map = new Map<string, number>()
+  const map = new Map<string, number>();
   for (const item of items) {
-    const cat = item.ingredientCategory || 'Other'
-    map.set(cat, (map.get(cat) ?? 0) + item.varianceValue)
+    const cat = item.ingredientCategory || "Other";
+    map.set(cat, (map.get(cat) ?? 0) + item.varianceValue);
   }
   return Array.from(map.entries())
     .map(([category, variance]) => ({ category, variance }))
-    .sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance))
+    .sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance));
 }

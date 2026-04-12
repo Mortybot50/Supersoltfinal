@@ -3,100 +3,111 @@
  * to configure shift details before creation.
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
-import { Clock, X } from 'lucide-react'
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Clock, X } from "lucide-react";
 
 interface PendingShiftInfo {
-  staffId: string
-  staffName: string
-  date: Date
-  defaultRole: string
-  venueId: string
-  employmentType: 'full-time' | 'part-time' | 'casual'
-  hourlyRateCents: number
+  staffId: string;
+  staffName: string;
+  date: Date;
+  defaultRole: string;
+  venueId: string;
+  employmentType: "full-time" | "part-time" | "casual";
+  hourlyRateCents: number;
 }
 
 interface ShiftConfig {
-  startTime: string
-  endTime: string
-  role: string
-  breakMinutes: number
+  startTime: string;
+  endTime: string;
+  role: string;
+  breakMinutes: number;
 }
 
 interface ShiftCreateDialogProps {
-  pendingShift: PendingShiftInfo | null
-  onConfirm: (config: ShiftConfig) => void
-  onCancel: () => void
+  pendingShift: PendingShiftInfo | null;
+  onConfirm: (config: ShiftConfig) => void;
+  onCancel: () => void;
 }
 
 const PRESETS: { label: string; start: string; end: string }[] = [
-  { label: 'Open', start: '06:00', end: '14:00' },
-  { label: 'Mid', start: '10:00', end: '18:00' },
-  { label: 'Close', start: '14:00', end: '22:00' },
-]
+  { label: "Open", start: "06:00", end: "14:00" },
+  { label: "Mid", start: "10:00", end: "18:00" },
+  { label: "Close", start: "14:00", end: "22:00" },
+];
 
 const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
-  const h = Math.floor(i / 2)
-  const m = i % 2 === 0 ? '00' : '30'
-  return `${h.toString().padStart(2, '0')}:${m}`
-})
+  const h = Math.floor(i / 2);
+  const m = i % 2 === 0 ? "00" : "30";
+  return `${h.toString().padStart(2, "0")}:${m}`;
+});
 
-const ROLES = ['kitchen', 'bar', 'foh', 'management'] as const
+const ROLES = ["kitchen", "bar", "foh", "management"] as const;
 
-const BREAK_OPTIONS = [0, 15, 30, 45, 60] as const
+const BREAK_OPTIONS = [0, 15, 30, 45, 60] as const;
 
-export function ShiftCreateDialog({ pendingShift, onConfirm, onCancel }: ShiftCreateDialogProps) {
-  const [startTime, setStartTime] = useState('09:00')
-  const [endTime, setEndTime] = useState('17:00')
-  const [role, setRole] = useState(pendingShift?.defaultRole || 'foh')
-  const [breakMinutes, setBreakMinutes] = useState(30)
+export function ShiftCreateDialog({
+  pendingShift,
+  onConfirm,
+  onCancel,
+}: ShiftCreateDialogProps) {
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("17:00");
+  const [role, setRole] = useState(pendingShift?.defaultRole || "foh");
+  const [breakMinutes, setBreakMinutes] = useState(30);
 
   // Reset state when a new pending shift opens
-  const [lastStaffId, setLastStaffId] = useState<string | null>(null)
+  const [lastStaffId, setLastStaffId] = useState<string | null>(null);
   if (pendingShift && pendingShift.staffId !== lastStaffId) {
-    setStartTime('09:00')
-    setEndTime('17:00')
-    setRole(pendingShift.defaultRole || 'foh')
-    setBreakMinutes(30)
-    setLastStaffId(pendingShift.staffId)
+    setStartTime("09:00");
+    setEndTime("17:00");
+    setRole(pendingShift.defaultRole || "foh");
+    setBreakMinutes(30);
+    setLastStaffId(pendingShift.staffId);
   }
 
   const applyPreset = useCallback((start: string, end: string) => {
-    setStartTime(start)
-    setEndTime(end)
-  }, [])
+    setStartTime(start);
+    setEndTime(end);
+  }, []);
 
   const handleConfirm = useCallback(() => {
-    onConfirm({ startTime, endTime, role, breakMinutes })
-  }, [startTime, endTime, role, breakMinutes, onConfirm])
+    onConfirm({ startTime, endTime, role, breakMinutes });
+  }, [startTime, endTime, role, breakMinutes, onConfirm]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleConfirm()
-    }
-  }, [handleConfirm])
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleConfirm();
+      }
+    },
+    [handleConfirm],
+  );
 
   const formatDateLabel = (d: Date) => {
-    const safe = d instanceof Date ? d : new Date(d)
-    return safe.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
-  }
+    const safe = d instanceof Date ? d : new Date(d);
+    return safe.toLocaleDateString("en-AU", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
+  };
 
   return (
     <Dialog open={!!pendingShift} onOpenChange={(open) => !open && onCancel()}>
@@ -125,7 +136,7 @@ export function ShiftCreateDialog({ pendingShift, onConfirm, onCancel }: ShiftCr
             >
               {p.label}
               <span className="ml-1 text-muted-foreground">
-                {p.start.replace(':00', '')}-{p.end.replace(':00', '')}
+                {p.start.replace(":00", "")}-{p.end.replace(":00", "")}
               </span>
             </Button>
           ))}
@@ -135,27 +146,35 @@ export function ShiftCreateDialog({ pendingShift, onConfirm, onCancel }: ShiftCr
           {/* Start / End times */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label htmlFor="shift-start" className="text-xs">Start</Label>
+              <Label htmlFor="shift-start" className="text-xs">
+                Start
+              </Label>
               <Select value={startTime} onValueChange={setStartTime}>
                 <SelectTrigger id="shift-start" className="h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {TIME_OPTIONS.map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
-              <Label htmlFor="shift-end" className="text-xs">End</Label>
+              <Label htmlFor="shift-end" className="text-xs">
+                End
+              </Label>
               <Select value={endTime} onValueChange={setEndTime}>
                 <SelectTrigger id="shift-end" className="h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {TIME_OPTIONS.map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -164,14 +183,18 @@ export function ShiftCreateDialog({ pendingShift, onConfirm, onCancel }: ShiftCr
 
           {/* Role */}
           <div className="space-y-1">
-            <Label htmlFor="shift-role" className="text-xs">Role</Label>
+            <Label htmlFor="shift-role" className="text-xs">
+              Role
+            </Label>
             <Select value={role} onValueChange={setRole}>
               <SelectTrigger id="shift-role" className="h-9">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {ROLES.map((r) => (
-                  <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>
+                  <SelectItem key={r} value={r} className="capitalize">
+                    {r}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -179,15 +202,20 @@ export function ShiftCreateDialog({ pendingShift, onConfirm, onCancel }: ShiftCr
 
           {/* Break duration */}
           <div className="space-y-1">
-            <Label htmlFor="shift-break" className="text-xs">Break</Label>
-            <Select value={String(breakMinutes)} onValueChange={(v) => setBreakMinutes(Number(v))}>
+            <Label htmlFor="shift-break" className="text-xs">
+              Break
+            </Label>
+            <Select
+              value={String(breakMinutes)}
+              onValueChange={(v) => setBreakMinutes(Number(v))}
+            >
               <SelectTrigger id="shift-break" className="h-9">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {BREAK_OPTIONS.map((b) => (
                   <SelectItem key={b} value={String(b)}>
-                    {b === 0 ? 'No break' : `${b} min`}
+                    {b === 0 ? "No break" : `${b} min`}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -205,7 +233,7 @@ export function ShiftCreateDialog({ pendingShift, onConfirm, onCancel }: ShiftCr
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
-export type { PendingShiftInfo, ShiftConfig }
+export type { PendingShiftInfo, ShiftConfig };

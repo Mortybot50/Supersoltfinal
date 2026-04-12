@@ -1,6 +1,7 @@
 # SuperSolt — Setup Guide
 
 ## Prerequisites
+
 - Node.js 18+
 - npm (included with Node)
 - Supabase CLI (`npm install -g supabase`)
@@ -37,21 +38,22 @@ VITE_SUPABASE_PUBLISHABLE_KEY=eyJ...  # anon/public key
 
 Set these in Vercel Dashboard > Project > Settings > Environment Variables:
 
-| Variable | Description | Required for |
-|----------|-------------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Same as VITE_SUPABASE_URL | All API functions |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (secret!) | All API functions |
-| `ENCRYPTION_KEY` | 64-char hex string for AES-256-GCM | Square + Xero tokens |
-| `SQUARE_APP_ID` | Square Developer App ID | Square OAuth |
-| `SQUARE_APP_SECRET` | Square Developer App Secret | Square OAuth |
-| `SQUARE_ENVIRONMENT` | `sandbox` or `production` | Square OAuth |
-| `XERO_CLIENT_ID` | Xero Developer App Client ID | Xero OAuth |
-| `XERO_CLIENT_SECRET` | Xero Developer App Secret | Xero OAuth |
-| `XERO_REDIRECT_URI` | `https://your-domain.vercel.app/api/xero/callback` | Xero OAuth |
-| `APP_URL` | `https://your-domain.vercel.app` | OAuth callbacks |
-| `ANTHROPIC_API_KEY` | Anthropic API key | Invoice parsing |
+| Variable                    | Description                                        | Required for         |
+| --------------------------- | -------------------------------------------------- | -------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`  | Same as VITE_SUPABASE_URL                          | All API functions    |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (secret!)                         | All API functions    |
+| `ENCRYPTION_KEY`            | 64-char hex string for AES-256-GCM                 | Square + Xero tokens |
+| `SQUARE_APP_ID`             | Square Developer App ID                            | Square OAuth         |
+| `SQUARE_APP_SECRET`         | Square Developer App Secret                        | Square OAuth         |
+| `SQUARE_ENVIRONMENT`        | `sandbox` or `production`                          | Square OAuth         |
+| `XERO_CLIENT_ID`            | Xero Developer App Client ID                       | Xero OAuth           |
+| `XERO_CLIENT_SECRET`        | Xero Developer App Secret                          | Xero OAuth           |
+| `XERO_REDIRECT_URI`         | `https://your-domain.vercel.app/api/xero/callback` | Xero OAuth           |
+| `APP_URL`                   | `https://your-domain.vercel.app`                   | OAuth callbacks      |
+| `ANTHROPIC_API_KEY`         | Anthropic API key                                  | Invoice parsing      |
 
 Generate ENCRYPTION_KEY:
+
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
@@ -73,22 +75,26 @@ Opens at `http://localhost:8080`.
 ## Supabase Setup
 
 ### Link to existing project
+
 ```bash
 supabase login
 supabase link --project-ref vcfmouckydhsmvfoykms
 ```
 
 ### Push migrations to remote
+
 ```bash
 supabase db push --linked
 ```
 
 ### Pull latest schema changes
+
 ```bash
 supabase db pull
 ```
 
 ### Regenerate TypeScript types
+
 ```bash
 supabase gen types typescript --project-id vcfmouckydhsmvfoykms > src/integrations/supabase/types.ts
 ```
@@ -123,16 +129,19 @@ Build output goes to `dist/`. Build time: ~3.5 seconds.
 The project deploys automatically to Vercel on push to `main`.
 
 ### Manual deploy
+
 ```bash
 npx vercel --prod
 ```
 
 ### Preview deploy (any branch)
+
 ```bash
 npx vercel
 ```
 
 ### Deploy configuration
+
 - Framework: Vite
 - Build command: `npm run build`
 - Output directory: `dist`
@@ -150,6 +159,7 @@ psql "postgresql://postgres:PASSWORD@db.PROJECT_ID.supabase.co:5432/postgres" -f
 ```
 
 Or create it as a migration and push:
+
 ```bash
 cp supabase/org-setup.sql supabase/migrations/YYYYMMDDHHMMSS_seed.sql
 supabase db push --linked

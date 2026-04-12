@@ -1,6 +1,6 @@
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import {
   AlertTriangle,
   MapPin,
@@ -9,30 +9,30 @@ import {
   MessageSquare,
   Wrench,
   TrendingUp,
-} from "lucide-react"
-import { formatLabourCost, formatHours } from "@/lib/utils/rosterCalculations"
-import { DayStats, ShiftTemplate } from "@/types"
-import { QuickBuildPopover } from "./QuickBuildPopover"
+} from "lucide-react";
+import { formatLabourCost, formatHours } from "@/lib/utils/rosterCalculations";
+import { DayStats, ShiftTemplate } from "@/types";
+import { QuickBuildPopover } from "./QuickBuildPopover";
 
 interface RosterSidebarProps {
   metrics: {
-    totalHours: number
-    totalCost: number
-    shiftCount: number
-    staffCount: number
-    avgHourlyRate: number
-    baseCost: number
-    penaltyCost: number
-  }
-  allWarnings: Array<{ type: string }>
-  pendingSwapCount: number
-  salesForecast?: number
-  dayStats?: DayStats
-  shiftTemplates: ShiftTemplate[]
-  onCopyPreviousWeek: () => void
-  onApplyTemplate: (template: ShiftTemplate) => void
-  onEventsComments: () => void
-  onTools: () => void
+    totalHours: number;
+    totalCost: number;
+    shiftCount: number;
+    staffCount: number;
+    avgHourlyRate: number;
+    baseCost: number;
+    penaltyCost: number;
+  };
+  allWarnings: Array<{ type: string }>;
+  pendingSwapCount: number;
+  salesForecast?: number;
+  dayStats?: DayStats;
+  shiftTemplates: ShiftTemplate[];
+  onCopyPreviousWeek: () => void;
+  onApplyTemplate: (template: ShiftTemplate) => void;
+  onEventsComments: () => void;
+  onTools: () => void;
 }
 
 export function RosterSidebar({
@@ -63,18 +63,26 @@ export function RosterSidebar({
         shiftCount: metrics.shiftCount,
         avgHourlyRate: metrics.avgHourlyRate,
         salesForecast: salesForecast ?? 500000,
-        sph: metrics.totalHours > 0 ? Math.round((salesForecast ?? 500000) / metrics.totalHours) : 0,
+        sph:
+          metrics.totalHours > 0
+            ? Math.round((salesForecast ?? 500000) / metrics.totalHours)
+            : 0,
         wagePercentRevenue:
           (salesForecast ?? 500000) > 0
-            ? Math.round((metrics.totalCost / (salesForecast ?? 500000)) * 10000) / 100
+            ? Math.round(
+                (metrics.totalCost / (salesForecast ?? 500000)) * 10000,
+              ) / 100
             : 0,
-      }
+      };
 
   return (
     <div className="w-48 bg-slate-800 text-white flex flex-col print:hidden shrink-0">
       {/* Location Selector */}
       <div className="p-4 border-b border-slate-700">
-        <Button variant="ghost" className="w-full justify-start text-white hover:bg-slate-700 p-2">
+        <Button
+          variant="ghost"
+          className="w-full justify-start text-white hover:bg-slate-700 p-2"
+        >
           <MapPin className="h-4 w-4 mr-2" />
           <span className="font-medium">VENUE</span>
           <ChevronRight className="h-4 w-4 ml-auto" />
@@ -88,11 +96,15 @@ export function RosterSidebar({
         </div>
 
         <div>
-          <div className="text-2xl font-bold">{formatHours(displayMetrics.totalHours)}</div>
+          <div className="text-2xl font-bold">
+            {formatHours(displayMetrics.totalHours)}
+          </div>
           <div className="text-xs text-slate-400">Total Hours</div>
         </div>
         <div>
-          <div className="text-2xl font-bold">{formatLabourCost(displayMetrics.totalCost)}</div>
+          <div className="text-2xl font-bold">
+            {formatLabourCost(displayMetrics.totalCost)}
+          </div>
           <div className="text-xs text-slate-400">Total Cost</div>
         </div>
         <div>
@@ -131,8 +143,8 @@ export function RosterSidebar({
               displayMetrics.wagePercentRevenue > 35
                 ? "text-red-400"
                 : displayMetrics.wagePercentRevenue > 30
-                ? "text-orange-400"
-                : "text-green-400"
+                  ? "text-orange-400"
+                  : "text-green-400"
             }`}
           >
             {displayMetrics.wagePercentRevenue.toFixed(1)}%
@@ -191,5 +203,5 @@ export function RosterSidebar({
         </>
       )}
     </div>
-  )
+  );
 }

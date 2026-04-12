@@ -19,13 +19,22 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+      "react-refresh/only-export-components": [
+        "warn",
+        { allowConstantExport: true },
+      ],
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
   // shadcn/ui generated components routinely co-export variants and utilities alongside components
   {
-    files: ["src/components/ui/**/*.{ts,tsx}", "src/contexts/**/*.{ts,tsx}", "src/components/roster/DayPartBands.tsx", "src/components/roster/RosterCell.tsx", "src/components/inventory/DeliveryScheduleGrid.tsx"],
+    files: [
+      "src/components/ui/**/*.{ts,tsx}",
+      "src/contexts/**/*.{ts,tsx}",
+      "src/components/roster/DayPartBands.tsx",
+      "src/components/roster/RosterCell.tsx",
+      "src/components/inventory/DeliveryScheduleGrid.tsx",
+    ],
     rules: {
       "react-refresh/only-export-components": "off",
     },

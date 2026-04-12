@@ -1,6 +1,7 @@
 # SuperSolt Deployment Checklist
 
 ## Supabase Setup
+
 - [ ] Create production Supabase project
 - [ ] Run all migrations in order:
   - `20250203000000_mvp_schema.sql` — base schema (53 tables)
@@ -13,10 +14,12 @@
 - [ ] Set up email templates (password reset, invite)
 
 ## Environment
+
 - [ ] Set VITE_SUPABASE_URL in hosting environment
 - [ ] Set VITE_SUPABASE_PUBLISHABLE_KEY in hosting environment
 
 ## First Run
+
 - [ ] Create owner account via signup
 - [ ] Set up organisation details
 - [ ] Configure venue settings (trading hours, targets, timezone)
@@ -28,6 +31,7 @@
 - [ ] Run first stock count
 
 ## Smoke Test
+
 - [ ] Login works
 - [ ] Dashboard shows imported data
 - [ ] Can create/edit/delete ingredient

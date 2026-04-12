@@ -6,19 +6,30 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Building2, Loader2, Sparkles } from "lucide-react";
+import { Building2, Loader2 } from "lucide-react";
 import BusinessDetailsStep from "./steps/BusinessDetailsStep";
 import AddVenuesStep from "./steps/AddVenuesStep";
 import ConnectPosStep from "./steps/ConnectPosStep";
 import InviteTeamStep from "./steps/InviteTeamStep";
 import ReviewStep from "./steps/ReviewStep";
-import { seedDemoData } from "@/lib/demo-seed";
 
 const STEPS = [
-  { number: 1, title: "Business Details", description: "Your organisation info" },
+  {
+    number: 1,
+    title: "Business Details",
+    description: "Your organisation info",
+  },
   { number: 2, title: "Add Venues", description: "Set up your locations" },
-  { number: 3, title: "Connect POS", description: "Link your point of sale" },
-  { number: 4, title: "Invite Team", description: "Bring your team on board" },
+  {
+    number: 3,
+    title: "Connect POS (Optional)",
+    description: "Link your point of sale",
+  },
+  {
+    number: 4,
+    title: "Invite Team (Optional)",
+    description: "Bring your team on board",
+  },
   { number: 5, title: "Review & Go Live", description: "Confirm and launch" },
 ] as const;
 
@@ -28,8 +39,6 @@ export default function SetupWizard() {
   const [currentStep, setCurrentStep] = useState(1);
   const [checking, setChecking] = useState(true);
 
-  const [seedingDemo, setSeedingDemo] = useState(false);
-
   useEffect(() => {
     // 🚨 TESTING MODE: Skip auth check - REMOVE BEFORE PRODUCTION!
     if (!user) {
@@ -37,7 +46,7 @@ export default function SetupWizard() {
       setChecking(false);
       return;
     }
-    
+
     if (authLoading) return;
     // currentOrg may be null briefly after signup — wait briefly, then show wizard anyway
     if (!currentOrg) {
@@ -92,27 +101,6 @@ export default function SetupWizard() {
     navigate("/dashboard", { replace: true });
   }, [navigate]);
 
-  const handleSkipToDemo = useCallback(async () => {
-    // For testing: use a fake user ID if no user
-    const userId = user?.id || 'test-user-' + Date.now();
-    
-    setSeedingDemo(true);
-    try {
-      // Use the client-side seed function directly
-      await seedDemoData(supabase, userId);
-      
-      // Refresh the page to reload with new demo org
-      window.location.href = '/dashboard';
-    } catch (error) {
-      console.error('Demo seed error:', error);
-      setSeedingDemo(false);
-      
-      // If there's an error, show it to the user
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create demo organization';
-      alert(`Error creating demo data: ${errorMessage}`);
-    }
-  }, [user]);
-
   if (authLoading || checking) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -134,13 +122,19 @@ export default function SetupWizard() {
             <Building2 className="w-8 h-8 text-primary" />
             <h1 className="text-3xl font-bold">SuperSolt</h1>
           </div>
-          <p className="text-muted-foreground">Let&apos;s get your business set up</p>
+          <p className="text-muted-foreground">
+            Let&apos;s get your business set up
+          </p>
         </div>
 
         <Card className="p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Step {currentStep} of {STEPS.length}</span>
-            <span className="text-sm text-muted-foreground">{STEPS[currentStep - 1].title}</span>
+            <span className="text-sm font-medium">
+              Step {currentStep} of {STEPS.length}
+            </span>
+            <span className="text-sm text-muted-foreground">
+              {STEPS[currentStep - 1].title}
+            </span>
           </div>
           <Progress value={progress} className="h-2 mb-4" />
           <div className="flex justify-between">
@@ -151,8 +145,8 @@ export default function SetupWizard() {
                   step.number === currentStep
                     ? "text-primary font-medium"
                     : step.number < currentStep
-                    ? "text-green-600"
-                    : "text-muted-foreground"
+                      ? "text-green-600"
+                      : "text-muted-foreground"
                 }`}
               >
                 <div
@@ -160,8 +154,8 @@ export default function SetupWizard() {
                     step.number === currentStep
                       ? "bg-primary text-primary-foreground"
                       : step.number < currentStep
-                      ? "bg-green-600 text-white"
-                      : "bg-muted text-muted-foreground"
+                        ? "bg-green-600 text-white"
+                        : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {step.number < currentStep ? "✓" : step.number}
@@ -172,56 +166,40 @@ export default function SetupWizard() {
           </div>
         </Card>
 
-        {/* Demo Mode Button - Show on step 1 */}
         {currentStep === 1 && (
-          <Card className="p-4 border-amber-200 bg-amber-50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Sparkles className="h-5 w-5 text-amber-600" />
-                <div>
-                  <p className="font-medium text-amber-900">Try Demo Mode</p>
-                  <p className="text-sm text-amber-700">
-                    Skip setup with sample data - creates a demo restaurant with staff, menu, and sales
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="default"
-                size="default"
-                onClick={handleSkipToDemo}
-                disabled={seedingDemo}
-                className="bg-amber-600 hover:bg-amber-700 text-white"
-              >
-                {seedingDemo ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating Demo...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Load Demo Data
-                  </>
-                )}
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {currentStep === 1 && (
-          <BusinessDetailsStep orgId={currentOrg?.id ?? ""} onNext={handleNext} />
+          <BusinessDetailsStep
+            orgId={currentOrg?.id ?? ""}
+            onNext={handleNext}
+          />
         )}
         {currentStep === 2 && currentOrg && (
-          <AddVenuesStep orgId={currentOrg.id} userId={user?.id ?? ""} onNext={handleNext} onBack={handleBack} />
+          <AddVenuesStep
+            orgId={currentOrg.id}
+            userId={user?.id ?? ""}
+            onNext={handleNext}
+            onBack={handleBack}
+          />
         )}
         {currentStep === 3 && currentOrg && (
-          <ConnectPosStep orgId={currentOrg.id} onNext={handleNext} onBack={handleBack} />
+          <ConnectPosStep
+            orgId={currentOrg.id}
+            onNext={handleNext}
+            onBack={handleBack}
+          />
         )}
         {currentStep === 4 && currentOrg && (
-          <InviteTeamStep orgId={currentOrg.id} onNext={handleNext} onBack={handleBack} />
+          <InviteTeamStep
+            orgId={currentOrg.id}
+            onNext={handleNext}
+            onBack={handleBack}
+          />
         )}
         {currentStep === 5 && currentOrg && (
-          <ReviewStep orgId={currentOrg.id} onBack={handleBack} onGoLive={handleGoLive} />
+          <ReviewStep
+            orgId={currentOrg.id}
+            onBack={handleBack}
+            onGoLive={handleGoLive}
+          />
         )}
       </div>
     </div>

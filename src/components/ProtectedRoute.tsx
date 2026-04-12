@@ -14,7 +14,10 @@ const ROLE_HIERARCHY: Record<string, number> = {
   staff: 1,
 };
 
-export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
+export default function ProtectedRoute({
+  children,
+  requiredRole,
+}: ProtectedRouteProps) {
   const { user, loading, orgMember } = useAuth();
   const location = useLocation();
 

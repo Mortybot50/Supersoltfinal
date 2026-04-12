@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
-import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   useDashboardMetrics,
   useInventoryAlerts,
@@ -9,16 +9,16 @@ import {
   useRecentActivity,
   useFoodCostTrend,
   type AlertItem,
-} from '@/lib/hooks/useInventoryDashboard'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
+} from "@/lib/hooks/useInventoryDashboard";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from '@/components/ui/collapsible'
+} from "@/components/ui/collapsible";
 import {
   DollarSign,
   AlertTriangle,
@@ -33,7 +33,7 @@ import {
   Clock,
   BarChart3,
   Info,
-} from 'lucide-react'
+} from "lucide-react";
 import {
   PieChart,
   Pie,
@@ -47,24 +47,32 @@ import {
   CartesianGrid,
   ReferenceLine,
   Legend,
-} from 'recharts'
+} from "recharts";
 
 // ─── Colors ──────────────────────────────────────────────────
 
 const CHART_COLORS = [
-  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
-  '#06b6d4', '#f97316', '#ec4899', '#84cc16', '#6366f1',
-]
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#06b6d4",
+  "#f97316",
+  "#ec4899",
+  "#84cc16",
+  "#6366f1",
+];
 
 // ─── Currency formatter ──────────────────────────────────────
 
 function fmtCurrency(value: number): string {
-  return new Intl.NumberFormat('en-AU', {
-    style: 'currency',
-    currency: 'AUD',
+  return new Intl.NumberFormat("en-AU", {
+    style: "currency",
+    currency: "AUD",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(value)
+  }).format(value);
 }
 
 // ─── Metric Card ─────────────────────────────────────────────
@@ -77,12 +85,12 @@ function MetricCard({
   badgeVariant,
   isLoading,
 }: {
-  title: string
-  value: string
-  icon: React.ElementType
-  badge?: string
-  badgeVariant?: 'default' | 'destructive' | 'secondary' | 'outline'
-  isLoading: boolean
+  title: string;
+  value: string;
+  icon: React.ElementType;
+  badge?: string;
+  badgeVariant?: "default" | "destructive" | "secondary" | "outline";
+  isLoading: boolean;
 }) {
   if (isLoading) {
     return (
@@ -95,7 +103,7 @@ function MetricCard({
           <Skeleton className="h-8 w-32" />
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -110,12 +118,12 @@ function MetricCard({
         <div className="flex items-center gap-2">
           <div className="text-2xl font-bold">{value}</div>
           {badge && (
-            <Badge variant={badgeVariant ?? 'secondary'}>{badge}</Badge>
+            <Badge variant={badgeVariant ?? "secondary"}>{badge}</Badge>
           )}
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 // ─── Alerts Section ──────────────────────────────────────────
@@ -124,32 +132,48 @@ function AlertsSection({
   alerts,
   isLoading,
 }: {
-  alerts: AlertItem[]
-  isLoading: boolean
+  alerts: AlertItem[];
+  isLoading: boolean;
 }) {
-  const [open, setOpen] = useState(true)
-  const navigate = useNavigate()
+  const [open, setOpen] = useState(true);
+  const navigate = useNavigate();
 
   const grouped = useMemo(() => {
-    const groups: Record<AlertItem['type'], AlertItem[]> = {
-      'below-par': [],
-      'overdue-po': [],
-      'high-variance': [],
-      'no-recent-purchase': [],
-    }
-    for (const a of alerts) groups[a.type].push(a)
-    return groups
-  }, [alerts])
+    const groups: Record<AlertItem["type"], AlertItem[]> = {
+      "below-par": [],
+      "overdue-po": [],
+      "high-variance": [],
+      "no-recent-purchase": [],
+    };
+    for (const a of alerts) groups[a.type].push(a);
+    return groups;
+  }, [alerts]);
 
   const alertTypeConfig: Record<
-    AlertItem['type'],
+    AlertItem["type"],
     { label: string; icon: React.ElementType; color: string }
   > = {
-    'below-par': { label: 'Below Par Level', icon: AlertTriangle, color: 'text-red-500' },
-    'overdue-po': { label: 'Overdue Purchase Orders', icon: Clock, color: 'text-orange-500' },
-    'high-variance': { label: 'High Variance (Last Count)', icon: TrendingDown, color: 'text-amber-500' },
-    'no-recent-purchase': { label: 'No Recent Purchase (30d)', icon: ShoppingCart, color: 'text-blue-500' },
-  }
+    "below-par": {
+      label: "Below Par Level",
+      icon: AlertTriangle,
+      color: "text-red-500",
+    },
+    "overdue-po": {
+      label: "Overdue Purchase Orders",
+      icon: Clock,
+      color: "text-orange-500",
+    },
+    "high-variance": {
+      label: "High Variance (Last Count)",
+      icon: TrendingDown,
+      color: "text-amber-500",
+    },
+    "no-recent-purchase": {
+      label: "No Recent Purchase (30d)",
+      icon: ShoppingCart,
+      color: "text-blue-500",
+    },
+  };
 
   if (isLoading) {
     return (
@@ -163,7 +187,7 @@ function AlertsSection({
           ))}
         </CardContent>
       </Card>
-    )
+    );
   }
 
   if (alerts.length === 0) {
@@ -176,10 +200,12 @@ function AlertsSection({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">No alerts — all clear! ✅</p>
+          <p className="text-sm text-muted-foreground">
+            No alerts — all clear! ✅
+          </p>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -205,14 +231,16 @@ function AlertsSection({
         </CardHeader>
         <CollapsibleContent>
           <CardContent className="pt-0 space-y-4">
-            {(Object.keys(grouped) as AlertItem['type'][]).map((type) => {
-              const items = grouped[type]
-              if (items.length === 0) return null
-              const config = alertTypeConfig[type]
-              const TypeIcon = config.icon
+            {(Object.keys(grouped) as AlertItem["type"][]).map((type) => {
+              const items = grouped[type];
+              if (items.length === 0) return null;
+              const config = alertTypeConfig[type];
+              const TypeIcon = config.icon;
               return (
                 <div key={type}>
-                  <div className={`flex items-center gap-1.5 mb-2 text-sm font-medium ${config.color}`}>
+                  <div
+                    className={`flex items-center gap-1.5 mb-2 text-sm font-medium ${config.color}`}
+                  >
                     <TypeIcon className="h-3.5 w-3.5" />
                     {config.label} ({items.length})
                   </div>
@@ -224,7 +252,9 @@ function AlertsSection({
                       >
                         <div className="min-w-0 flex-1">
                           <span className="font-medium">{alert.name}</span>
-                          <span className="text-muted-foreground ml-2">{alert.detail}</span>
+                          <span className="text-muted-foreground ml-2">
+                            {alert.detail}
+                          </span>
                         </div>
                         {alert.actionLabel && alert.actionUrl && (
                           <Button
@@ -245,13 +275,13 @@ function AlertsSection({
                     )}
                   </div>
                 </div>
-              )
+              );
             })}
           </CardContent>
         </CollapsibleContent>
       </Card>
     </Collapsible>
-  )
+  );
 }
 
 // ─── Category Pie Chart ──────────────────────────────────────
@@ -260,8 +290,8 @@ function CategoryPieChart({
   categories,
   isLoading,
 }: {
-  categories: { category: string; value: number }[]
-  isLoading: boolean
+  categories: { category: string; value: number }[];
+  isLoading: boolean;
 }) {
   if (isLoading) {
     return (
@@ -273,7 +303,7 @@ function CategoryPieChart({
           <Skeleton className="h-[250px] w-full rounded-lg" />
         </CardContent>
       </Card>
-    )
+    );
   }
 
   if (categories.length === 0) {
@@ -286,10 +316,12 @@ function CategoryPieChart({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">No ingredient data yet.</p>
+          <p className="text-sm text-muted-foreground">
+            No ingredient data yet.
+          </p>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -324,14 +356,12 @@ function CategoryPieChart({
                 />
               ))}
             </Pie>
-            <Tooltip
-              formatter={(value: number) => fmtCurrency(value)}
-            />
+            <Tooltip formatter={(value: number) => fmtCurrency(value)} />
           </PieChart>
         </ResponsiveContainer>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 // ─── Activity Feed ───────────────────────────────────────────
@@ -339,16 +369,21 @@ function CategoryPieChart({
 const activityIcons: Record<string, React.ElementType> = {
   count: ClipboardCheck,
   waste: Trash2,
-  'po-received': Package,
-  'po-created': FileText,
-}
+  "po-received": Package,
+  "po-created": FileText,
+};
 
 function ActivityFeed({
   events,
   isLoading,
 }: {
-  events: { id: string; type: string; description: string; timestamp: string }[]
-  isLoading: boolean
+  events: {
+    id: string;
+    type: string;
+    description: string;
+    timestamp: string;
+  }[];
+  isLoading: boolean;
 }) {
   if (isLoading) {
     return (
@@ -368,7 +403,7 @@ function ActivityFeed({
           ))}
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -382,7 +417,7 @@ function ActivityFeed({
         ) : (
           <div className="space-y-3">
             {events.map((event) => {
-              const Icon = activityIcons[event.type] ?? FileText
+              const Icon = activityIcons[event.type] ?? FileText;
               return (
                 <div key={event.id} className="flex gap-3 items-start">
                   <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
@@ -391,22 +426,22 @@ function ActivityFeed({
                   <div className="min-w-0 flex-1">
                     <p className="text-sm leading-tight">{event.description}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {new Date(event.timestamp).toLocaleString('en-AU', {
-                        day: 'numeric',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
+                      {new Date(event.timestamp).toLocaleString("en-AU", {
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
                       })}
                     </p>
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         )}
       </CardContent>
     </Card>
-  )
+  );
 }
 
 // ─── Food Cost Trend ─────────────────────────────────────────
@@ -416,9 +451,9 @@ function FoodCostTrendChart({
   hasData,
   isLoading,
 }: {
-  weeks: { weekLabel: string; foodCostPct: number | null; target: number }[]
-  hasData: boolean
-  isLoading: boolean
+  weeks: { weekLabel: string; foodCostPct: number | null; target: number }[];
+  hasData: boolean;
+  isLoading: boolean;
 }) {
   if (isLoading) {
     return (
@@ -430,7 +465,7 @@ function FoodCostTrendChart({
           <Skeleton className="h-[250px] w-full rounded-lg" />
         </CardContent>
       </Card>
-    )
+    );
   }
 
   if (!hasData) {
@@ -454,7 +489,7 @@ function FoodCostTrendChart({
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -472,12 +507,12 @@ function FoodCostTrendChart({
             <XAxis dataKey="weekLabel" tick={{ fontSize: 12 }} />
             <YAxis
               tick={{ fontSize: 12 }}
-              domain={[0, 'auto']}
+              domain={[0, "auto"]}
               tickFormatter={(v) => `${v}%`}
             />
             <Tooltip
               formatter={(value: number | null) =>
-                value !== null ? `${value}%` : 'N/A'
+                value !== null ? `${value}%` : "N/A"
               }
             />
             <Legend />
@@ -485,7 +520,12 @@ function FoodCostTrendChart({
               y={30}
               stroke="#ef4444"
               strokeDasharray="4 4"
-              label={{ value: 'Target 30%', position: 'right', fontSize: 11, fill: '#ef4444' }}
+              label={{
+                value: "Target 30%",
+                position: "right",
+                fontSize: 11,
+                fill: "#ef4444",
+              }}
             />
             <Line
               type="monotone"
@@ -500,26 +540,28 @@ function FoodCostTrendChart({
         </ResponsiveContainer>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 // ─── Main Dashboard ──────────────────────────────────────────
 
 function InventoryDashboardContent() {
-  const { currentVenue } = useAuth()
-  const venueId = currentVenue?.id
+  const { currentVenue } = useAuth();
+  const venueId = currentVenue?.id;
 
-  const { metrics, isLoading: metricsLoading } = useDashboardMetrics(venueId)
-  const { alerts, isLoading: alertsLoading } = useInventoryAlerts(venueId)
-  const { categories, isLoading: catLoading } = useCategoryStockValue(venueId)
-  const { events, isLoading: activityLoading } = useRecentActivity(venueId)
-  const { weeks, hasData, isLoading: trendLoading } = useFoodCostTrend(venueId)
+  const { metrics, isLoading: metricsLoading } = useDashboardMetrics(venueId);
+  const { alerts, isLoading: alertsLoading } = useInventoryAlerts(venueId);
+  const { categories, isLoading: catLoading } = useCategoryStockValue(venueId);
+  const { events, isLoading: activityLoading } = useRecentActivity(venueId);
+  const { weeks, hasData, isLoading: trendLoading } = useFoodCostTrend(venueId);
 
   return (
     <div className="px-6 py-6 space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Inventory Overview</h1>
+        <h1 className="text-2xl font-bold tracking-tight">
+          Inventory Overview
+        </h1>
         <p className="text-muted-foreground text-sm mt-1">
           Real-time snapshot of stock, costs, and alerts
         </p>
@@ -529,13 +571,13 @@ function InventoryDashboardContent() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           title="Total Stock Value"
-          value={metrics ? fmtCurrency(metrics.totalStockValue) : '$0'}
+          value={metrics ? fmtCurrency(metrics.totalStockValue) : "$0"}
           icon={DollarSign}
           isLoading={metricsLoading}
         />
         <MetricCard
           title="Items Below Par"
-          value={metrics ? String(metrics.itemsBelowPar) : '0'}
+          value={metrics ? String(metrics.itemsBelowPar) : "0"}
           icon={AlertTriangle}
           badge={
             metrics && metrics.itemsBelowPar > 0
@@ -547,13 +589,13 @@ function InventoryDashboardContent() {
         />
         <MetricCard
           title="Pending POs"
-          value={metrics ? String(metrics.pendingPOs) : '0'}
+          value={metrics ? String(metrics.pendingPOs) : "0"}
           icon={FileText}
           isLoading={metricsLoading}
         />
         <MetricCard
           title="Waste This Week"
-          value={metrics ? fmtCurrency(metrics.wasteThisWeek) : '$0'}
+          value={metrics ? fmtCurrency(metrics.wasteThisWeek) : "$0"}
           icon={Trash2}
           isLoading={metricsLoading}
         />
@@ -578,7 +620,7 @@ function InventoryDashboardContent() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 export default function InventoryOverview() {
@@ -586,5 +628,5 @@ export default function InventoryOverview() {
     <ErrorBoundary>
       <InventoryDashboardContent />
     </ErrorBoundary>
-  )
+  );
 }

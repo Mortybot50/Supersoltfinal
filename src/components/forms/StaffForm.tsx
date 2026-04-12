@@ -1,53 +1,68 @@
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import * as Types from '@/types'
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import * as Types from "@/types";
 
 const staffFormSchema = z.object({
   name: z.string().min(1, "Required"),
   email: z.string().email("Invalid email"),
   phone: z.string().optional(),
-  role: z.enum(['manager', 'supervisor', 'crew']),
+  role: z.enum(["manager", "supervisor", "crew"]),
   hourly_rate: z.number().positive("Must be positive"),
   start_date: z.string(),
-})
+});
 
-type StaffFormValues = z.infer<typeof staffFormSchema>
+type StaffFormValues = z.infer<typeof staffFormSchema>;
 
 interface StaffFormProps {
-  onSubmit: (data: Partial<Types.Staff>) => void
-  onCancel: () => void
-  initialData?: Partial<Types.Staff>
+  onSubmit: (data: Partial<Types.Staff>) => void;
+  onCancel: () => void;
+  initialData?: Partial<Types.Staff>;
 }
 
 export function StaffForm({ onSubmit, onCancel, initialData }: StaffFormProps) {
   const form = useForm<StaffFormValues>({
     resolver: zodResolver(staffFormSchema),
     defaultValues: {
-      name: initialData?.name || '',
-      email: initialData?.email || '',
-      phone: initialData?.phone || '',
-      role: initialData?.role || 'crew',
+      name: initialData?.name || "",
+      email: initialData?.email || "",
+      phone: initialData?.phone || "",
+      role: initialData?.role || "crew",
       hourly_rate: initialData?.hourly_rate ? initialData.hourly_rate / 100 : 0,
-      start_date: initialData?.start_date ? new Date(initialData.start_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-    }
-  })
-  
+      start_date: initialData?.start_date
+        ? new Date(initialData.start_date).toISOString().split("T")[0]
+        : new Date().toISOString().split("T")[0],
+    },
+  });
+
   const handleSubmit = (data: StaffFormValues) => {
     // Convert to cents and proper dates
     const staffData = {
       ...data,
       hourly_rate: Math.round(data.hourly_rate * 100),
       start_date: new Date(data.start_date),
-    }
-    onSubmit(staffData as Partial<Types.Staff>)
-  }
-  
+    };
+    onSubmit(staffData as Partial<Types.Staff>);
+  };
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -64,7 +79,7 @@ export function StaffForm({ onSubmit, onCancel, initialData }: StaffFormProps) {
             </FormItem>
           )}
         />
-        
+
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -79,7 +94,7 @@ export function StaffForm({ onSubmit, onCancel, initialData }: StaffFormProps) {
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="phone"
@@ -94,7 +109,7 @@ export function StaffForm({ onSubmit, onCancel, initialData }: StaffFormProps) {
             )}
           />
         </div>
-        
+
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -102,7 +117,10 @@ export function StaffForm({ onSubmit, onCancel, initialData }: StaffFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Role *</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue />
@@ -118,7 +136,7 @@ export function StaffForm({ onSubmit, onCancel, initialData }: StaffFormProps) {
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="hourly_rate"
@@ -126,11 +144,13 @@ export function StaffForm({ onSubmit, onCancel, initialData }: StaffFormProps) {
               <FormItem>
                 <FormLabel>Hourly Rate ($) *</FormLabel>
                 <FormControl>
-                  <Input 
-                    {...field} 
-                    type="number" 
+                  <Input
+                    {...field}
+                    type="number"
                     step="0.01"
-                    onChange={e => field.onChange(parseFloat(e.target.value) || 0)}
+                    onChange={(e) =>
+                      field.onChange(parseFloat(e.target.value) || 0)
+                    }
                   />
                 </FormControl>
                 <FormMessage />
@@ -138,7 +158,7 @@ export function StaffForm({ onSubmit, onCancel, initialData }: StaffFormProps) {
             )}
           />
         </div>
-        
+
         <FormField
           control={form.control}
           name="start_date"
@@ -152,17 +172,19 @@ export function StaffForm({ onSubmit, onCancel, initialData }: StaffFormProps) {
             </FormItem>
           )}
         />
-        
+
         <div className="flex gap-2 pt-4">
           <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Save
-            </Button>
+            {form.formState.isSubmitting && (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            )}
+            Save
+          </Button>
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
         </div>
       </form>
     </Form>
-  )
+  );
 }

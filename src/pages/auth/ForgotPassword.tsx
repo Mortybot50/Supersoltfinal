@@ -4,7 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, ArrowLeft, Mail } from "lucide-react";
 
@@ -26,7 +33,9 @@ export default function ForgotPassword() {
       if (error) throw error;
       setSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send reset email");
+      setError(
+        err instanceof Error ? err.message : "Failed to send reset email",
+      );
     } finally {
       setLoading(false);
     }
@@ -40,7 +49,9 @@ export default function ForgotPassword() {
             <div className="w-12 h-12 bg-brand rounded-xl flex items-center justify-center">
               <span className="text-gray-900 font-black text-2xl">S</span>
             </div>
-            <span className="text-3xl font-black tracking-tight uppercase">SuperSolt</span>
+            <span className="text-3xl font-black tracking-tight uppercase">
+              SuperSolt
+            </span>
           </div>
           <CardDescription>
             {sent ? "Check your email" : "Reset your password"}
@@ -54,7 +65,8 @@ export default function ForgotPassword() {
                 <Mail className="h-6 w-6 text-green-600" />
               </div>
               <p className="text-sm text-muted-foreground">
-                We've sent a password reset link to <strong>{email}</strong>. Check your inbox and click the link to set a new password.
+                We've sent a password reset link to <strong>{email}</strong>.
+                Check your inbox and click the link to set a new password.
               </p>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
@@ -75,7 +87,8 @@ export default function ForgotPassword() {
                 </Alert>
               )}
               <p className="text-sm text-muted-foreground">
-                Enter the email address associated with your account and we'll send you a link to reset your password.
+                Enter the email address associated with your account and we'll
+                send you a link to reset your password.
               </p>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>

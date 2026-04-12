@@ -3,17 +3,20 @@
  * Drag a StaffCard onto a RosterCell to create a shift for that day.
  */
 
-import { useMemo } from 'react'
-import { useRosterStore } from '@/stores/useRosterStore'
-import { StaffCard } from './StaffCard'
-import { Input } from '@/components/ui/input'
-import { Search, X } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { isSameDay } from 'date-fns'
-import { getWeekDates, getFortnightDates } from '@/lib/utils/rosterCalculations'
+import { useMemo } from "react";
+import { useRosterStore } from "@/stores/useRosterStore";
+import { StaffCard } from "./StaffCard";
+import { Input } from "@/components/ui/input";
+import { Search, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { isSameDay } from "date-fns";
+import {
+  getWeekDates,
+  getFortnightDates,
+} from "@/lib/utils/rosterCalculations";
 
 interface StaffSidebarProps {
-  className?: string
+  className?: string;
 }
 
 export function StaffSidebar({ className }: StaffSidebarProps) {
@@ -22,50 +25,52 @@ export function StaffSidebar({ className }: StaffSidebarProps) {
     shifts,
     view,
     selectedDate,
-    searchQuery, setSearchQuery,
+    searchQuery,
+    setSearchQuery,
     roleFilter,
     sidebarOpen,
     setSidebarOpen,
-  } = useRosterStore()
+  } = useRosterStore();
 
   const activeStaff = useMemo(() => {
-    let s = staff.filter(m => m.status === 'active')
-    if (roleFilter) s = s.filter(m => m.role.toLowerCase() === roleFilter.toLowerCase())
+    let s = staff.filter((m) => m.status === "active");
+    if (roleFilter)
+      s = s.filter((m) => m.role.toLowerCase() === roleFilter.toLowerCase());
     if (searchQuery) {
-      const q = searchQuery.toLowerCase()
-      s = s.filter(m => m.name.toLowerCase().includes(q))
+      const q = searchQuery.toLowerCase();
+      s = s.filter((m) => m.name.toLowerCase().includes(q));
     }
-    return s
-  }, [staff, roleFilter, searchQuery])
+    return s;
+  }, [staff, roleFilter, searchQuery]);
 
   const dates = useMemo(() => {
-    if (view === 'fortnight') return getFortnightDates(selectedDate)
-    if (view === 'day') return [selectedDate]
-    return getWeekDates(selectedDate)
-  }, [view, selectedDate])
+    if (view === "fortnight") return getFortnightDates(selectedDate);
+    if (view === "day") return [selectedDate];
+    return getWeekDates(selectedDate);
+  }, [view, selectedDate]);
 
   // Stats per staff member for the visible date range
   const staffStats = useMemo(() => {
-    const map: Record<string, { hours: number; count: number }> = {}
+    const map: Record<string, { hours: number; count: number }> = {};
     shifts
-      .filter(s => s.status !== 'cancelled' && !s.is_open_shift)
-      .forEach(s => {
-        const d = s.date instanceof Date ? s.date : new Date(s.date)
-        const inRange = dates.some(date => isSameDay(d, date))
-        if (!inRange) return
-        if (!map[s.staff_id]) map[s.staff_id] = { hours: 0, count: 0 }
-        map[s.staff_id].hours += s.total_hours
-        map[s.staff_id].count += 1
-      })
-    return map
-  }, [shifts, dates])
+      .filter((s) => s.status !== "cancelled" && !s.is_open_shift)
+      .forEach((s) => {
+        const d = s.date instanceof Date ? s.date : new Date(s.date);
+        const inRange = dates.some((date) => isSameDay(d, date));
+        if (!inRange) return;
+        if (!map[s.staff_id]) map[s.staff_id] = { hours: 0, count: 0 };
+        map[s.staff_id].hours += s.total_hours;
+        map[s.staff_id].count += 1;
+      });
+    return map;
+  }, [shifts, dates]);
 
-  if (!sidebarOpen) return null
+  if (!sidebarOpen) return null;
 
   return (
     <aside
       className={cn(
-        'w-56 shrink-0 bg-gray-50 border-r flex flex-col overflow-hidden',
+        "w-56 shrink-0 bg-gray-50 border-r flex flex-col overflow-hidden",
         className,
       )}
     >
@@ -87,7 +92,7 @@ export function StaffSidebar({ className }: StaffSidebarProps) {
           <Input
             placeholder="Filter staff…"
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="h-7 pl-7 text-xs"
           />
         </div>
@@ -103,9 +108,11 @@ export function StaffSidebar({ className }: StaffSidebarProps) {
       {/* Staff list */}
       <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
         {activeStaff.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-4">No staff found</p>
+          <p className="text-xs text-gray-400 text-center py-4">
+            No staff found
+          </p>
         ) : (
-          activeStaff.map(member => (
+          activeStaff.map((member) => (
             <StaffCard
               key={member.id}
               staff={member}
@@ -121,5 +128,5 @@ export function StaffSidebar({ className }: StaffSidebarProps) {
         {activeStaff.length} active staff
       </div>
     </aside>
-  )
+  );
 }

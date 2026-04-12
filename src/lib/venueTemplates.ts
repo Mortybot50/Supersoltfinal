@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from "@/integrations/supabase/client";
 
 export interface VenueTemplateData {
   timezone?: string;
@@ -15,12 +15,14 @@ export interface VenueTemplate {
   created_by: string | null;
 }
 
-export async function fetchVenueTemplates(orgId: string): Promise<VenueTemplate[]> {
+export async function fetchVenueTemplates(
+  orgId: string,
+): Promise<VenueTemplate[]> {
   const { data, error } = await supabase
-    .from('venue_templates' as 'venues')
-    .select('*')
-    .eq('org_id', orgId)
-    .order('created_at', { ascending: false });
+    .from("venue_templates" as "venues")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("created_at", { ascending: false });
 
   if (error) throw error;
   return (data ?? []) as unknown as VenueTemplate[];
@@ -33,14 +35,14 @@ export async function createVenueTemplate(params: {
   createdBy: string;
 }): Promise<VenueTemplate> {
   const { data, error } = await supabase
-    .from('venue_templates' as 'venues')
+    .from("venue_templates" as "venues")
     .insert({
       org_id: params.orgId,
       name: params.name,
       template_data: params.templateData,
       created_by: params.createdBy,
     } as Record<string, unknown>)
-    .select('*')
+    .select("*")
     .single();
 
   if (error) throw error;
@@ -49,9 +51,9 @@ export async function createVenueTemplate(params: {
 
 export async function deleteVenueTemplate(id: string): Promise<void> {
   const { error } = await supabase
-    .from('venue_templates' as 'venues')
+    .from("venue_templates" as "venues")
     .delete()
-    .eq('id', id);
+    .eq("id", id);
 
   if (error) throw error;
 }

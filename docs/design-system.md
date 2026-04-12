@@ -24,16 +24,19 @@ export default function MyPage() {
 ```
 
 ### Content Padding
+
 - Standard content area: `p-6 space-y-6`
 - Never use full-bleed content without padding
 - All pages must have consistent left/right padding
 
 ### PageToolbar
+
 - Use for page title, date navigation, filters, and primary actions
 - Sticks to top of content area (non-scrolling)
 - Props: `title`, `dateNavigation`, `filters`, `actions`, `primaryAction`
 
 ### PageSidebar (optional)
+
 - Dark sidebar (`bg-slate-900`) on the left, 280px wide
 - Use for stats, quick actions, warnings
 - Hidden on mobile (`hidden lg:flex`)
@@ -43,6 +46,7 @@ export default function MyPage() {
 Use `DateRangeSelector` from `@/components/DateRangeSelector.tsx` on ALL pages that display time-series data.
 
 Features required:
+
 - Period tabs: Day / Week / Month
 - Navigation: Prev / Today / Next buttons
 - Custom date range picker with calendar dialog
@@ -59,12 +63,13 @@ Integrate into `PageToolbar` filters slot or place above content area consistent
 - Collapsed mode: flyout tooltips on hover
 
 ### Nav Group Structure
+
 ```ts
 type NavGroup = {
-  title: string
-  icon: LucideIcon
-  items: { title: string; url: string }[]
-}
+  title: string;
+  icon: LucideIcon;
+  items: { title: string; url: string }[];
+};
 ```
 
 ## Component Library
@@ -91,9 +96,7 @@ type NavGroup = {
     <CardTitle>Title</CardTitle>
     <CardDescription>Optional subtitle</CardDescription>
   </CardHeader>
-  <CardContent>
-    {/* Content */}
-  </CardContent>
+  <CardContent>{/* Content */}</CardContent>
 </Card>
 ```
 
@@ -117,6 +120,7 @@ type NavGroup = {
 ## Tables
 
 Use shadcn Table components. For data-heavy tables, use TanStack Table.
+
 - Always include empty states
 - Sortable columns where applicable
 - Pagination for lists > 20 items
@@ -124,6 +128,7 @@ Use shadcn Table components. For data-heavy tables, use TanStack Table.
 ## Empty States
 
 Every page/section that depends on data must have an empty state:
+
 ```tsx
 <div className="text-center py-12">
   <Icon className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -147,10 +152,15 @@ Every page/section that depends on data must have an empty state:
 ## Toast Notifications
 
 Use shadcn `toast` for success/error feedback:
+
 ```tsx
-import { toast } from "@/hooks/use-toast"
-toast({ title: "Success", description: "Item saved" })
-toast({ title: "Error", description: "Failed to save", variant: "destructive" })
+import { toast } from "@/hooks/use-toast";
+toast({ title: "Success", description: "Item saved" });
+toast({
+  title: "Error",
+  description: "Failed to save",
+  variant: "destructive",
+});
 ```
 
 ## Responsive Breakpoints
@@ -172,6 +182,7 @@ toast({ title: "Error", description: "Failed to save", variant: "destructive" })
 ## Hiding MVP-Deferred Features
 
 When hiding a feature for MVP, do NOT delete the code. Instead:
+
 1. Remove the sidebar nav link from `Layout.tsx` nav config
 2. Add comment: `{/* Hidden for MVP */}` where the link was
 3. Keep route definition (lazy-loaded) in router

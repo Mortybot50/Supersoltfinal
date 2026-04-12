@@ -1,5 +1,5 @@
-import { useMemo } from "react"
-import { useDataStore } from "@/lib/store/dataStore"
+import { useMemo } from "react";
+import { useDataStore } from "@/lib/store/dataStore";
 import {
   getWeekStart,
   getShiftsForWeek,
@@ -9,8 +9,8 @@ import {
   detectBreakWarnings,
   calculateBudgetVariance,
   formatLabourCost,
-} from "@/lib/utils/rosterCalculations"
-import { RosterShift } from "@/types"
+} from "@/lib/utils/rosterCalculations";
+import { RosterShift } from "@/types";
 
 export function useRosterMetrics() {
   const {
@@ -19,105 +19,103 @@ export function useRosterMetrics() {
     timesheets,
     laborBudgets,
     getLaborBudgetForWeek,
-  } = useDataStore()
+  } = useDataStore();
 
-  const currentWeekStart = useMemo(() => getWeekStart(new Date()), [])
+  const currentWeekStart = useMemo(() => getWeekStart(new Date()), []);
 
   const weekShifts = useMemo(
     () => getShiftsForWeek(rosterShifts, currentWeekStart),
-    [rosterShifts, currentWeekStart]
-  )
+    [rosterShifts, currentWeekStart],
+  );
 
   const metrics = useMemo(
     () => calculateWeeklyRosterMetrics(weekShifts),
-    [weekShifts]
-  )
+    [weekShifts],
+  );
 
   const currentBudget = useMemo(
     () => getLaborBudgetForWeek(currentWeekStart),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [currentWeekStart, laborBudgets] // getLaborBudgetForWeek is a stable Zustand selector
-  )
+    [currentWeekStart, laborBudgets], // getLaborBudgetForWeek is a stable Zustand selector
+  );
 
   const budgetVariance = useMemo(
     () => calculateBudgetVariance(currentBudget, metrics.totalCost),
-    [currentBudget, metrics.totalCost]
-  )
+    [currentBudget, metrics.totalCost],
+  );
 
   const overtimeWarnings = useMemo(
     () => detectOvertimeWarnings(weekShifts),
-    [weekShifts]
-  )
+    [weekShifts],
+  );
   const restGapWarnings = useMemo(
     () => detectRestGapWarnings(weekShifts),
-    [weekShifts]
-  )
+    [weekShifts],
+  );
   const breakWarnings = useMemo(
     () => detectBreakWarnings(weekShifts),
-    [weekShifts]
-  )
+    [weekShifts],
+  );
 
   const allWarningsCount = useMemo(
-    () => overtimeWarnings.length + restGapWarnings.length + breakWarnings.length,
-    [overtimeWarnings, restGapWarnings, breakWarnings]
-  )
+    () =>
+      overtimeWarnings.length + restGapWarnings.length + breakWarnings.length,
+    [overtimeWarnings, restGapWarnings, breakWarnings],
+  );
 
   const draftShiftCount = useMemo(
     () => weekShifts.filter((s) => s.status === "scheduled").length,
-    [weekShifts]
-  )
+    [weekShifts],
+  );
 
   const confirmedShiftCount = useMemo(
     () => weekShifts.filter((s) => s.status === "confirmed").length,
-    [weekShifts]
-  )
+    [weekShifts],
+  );
 
   const pendingTimesheetCount = useMemo(
     () => timesheets.filter((t) => t.status === "pending").length,
-    [timesheets]
-  )
+    [timesheets],
+  );
 
   const approvedTimesheetHours = useMemo(
     () =>
       timesheets
         .filter((t) => t.status === "approved")
         .reduce((sum, t) => sum + t.total_hours, 0),
-    [timesheets]
-  )
+    [timesheets],
+  );
 
   const getUpcomingShiftsForStaff = (staffId: string): RosterShift[] => {
-    const today = new Date().toISOString().split("T")[0]
+    const today = new Date().toISOString().split("T")[0];
     return rosterShifts
       .filter((s) => {
-        const shiftDate = new Date(s.date).toISOString().split("T")[0]
+        const shiftDate = new Date(s.date).toISOString().split("T")[0];
         return (
           s.staff_id === staffId &&
           shiftDate >= today &&
           s.status !== "cancelled"
-        )
+        );
       })
-      .sort(
-        (a, b) =>
-          new Date(a.date).getTime() - new Date(b.date).getTime()
-      )
-  }
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  };
 
   const getRosteredShiftForStaffOnDate = (
     staffId: string,
-    date: Date
+    date: Date,
   ): RosterShift | null => {
-    const dateStr = date.toISOString().split("T")[0]
+    const dateStr = date.toISOString().split("T")[0];
     return (
       rosterShifts.find((s) => {
-        const shiftDate = new Date(s.date).toISOString().split("T")[0]
+        const shiftDate = new Date(s.date).toISOString().split("T")[0];
         return (
           s.staff_id === staffId &&
           shiftDate === dateStr &&
           s.status !== "cancelled"
-        )
+        );
       }) || null
-    )
-  }
+    );
+  };
 
   return {
     currentWeekStart,
@@ -133,5 +131,5 @@ export function useRosterMetrics() {
     getUpcomingShiftsForStaff,
     getRosteredShiftForStaffOnDate,
     formatLabourCost,
-  }
+  };
 }

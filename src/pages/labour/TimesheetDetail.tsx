@@ -1,11 +1,24 @@
-import { useState, useMemo } from "react"
-import { useParams, useNavigate } from "react-router-dom"
-import { format, parseISO, eachDayOfInterval, addDays, startOfDay } from "date-fns"
-import { ArrowLeft, CheckCircle, XCircle, Edit3, Loader2 } from "lucide-react"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { useState, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+  format,
+  parseISO,
+  eachDayOfInterval,
+  addDays,
+  startOfDay,
+} from "date-fns";
+import { ArrowLeft, CheckCircle, XCircle, Edit3, Loader2 } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -13,16 +26,19 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
-import { PageShell, PageToolbar, StatusBadge } from "@/components/shared"
-import { StatCards } from "@/components/ui/StatCards"
-import { useDataStore } from "@/lib/store/dataStore"
-import { useAuth } from "@/contexts/AuthContext"
-import { toast } from "sonner"
-import { formatCurrency } from "@/lib/utils/formatters"
-import { adjustTimesheet, approveTimesheet } from "@/lib/services/timesheetService"
-import type { Timesheet } from "@/types"
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { PageShell, PageToolbar, StatusBadge } from "@/components/shared";
+import { StatCards } from "@/components/ui/StatCards";
+import { useDataStore } from "@/lib/store/dataStore";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { formatCurrency } from "@/lib/utils/formatters";
+import {
+  adjustTimesheet,
+  approveTimesheet,
+} from "@/lib/services/timesheetService";
+import type { Timesheet } from "@/types";
 
 const REASON_CODES = [
   "Early finish — manager approved",
@@ -31,158 +47,191 @@ const REASON_CODES = [
   "System error — manual correction",
   "No-show partial attendance",
   "Other",
-]
+];
 
 function formatTime(d: Date | string | undefined): string {
-  if (!d) return "—"
-  const date = typeof d === "string" ? new Date(d) : d
-  return format(date, "h:mm a")
+  if (!d) return "—";
+  const date = typeof d === "string" ? new Date(d) : d;
+  return format(date, "h:mm a");
 }
 
 export default function TimesheetDetail() {
-  const { staffId, periodStart } = useParams<{ staffId: string; periodStart: string }>()
-  const navigate = useNavigate()
-  const { timesheets, rosterShifts, staff, approveTimesheet: storeApprove, rejectTimesheet: storeReject, updateTimesheet: storeUpdate } = useDataStore()
-  const { profile } = useAuth()
+  const { staffId, periodStart } = useParams<{
+    staffId: string;
+    periodStart: string;
+  }>();
+  const navigate = useNavigate();
+  const {
+    timesheets,
+    rosterShifts,
+    staff,
+    approveTimesheet: storeApprove,
+    rejectTimesheet: storeReject,
+    updateTimesheet: storeUpdate,
+  } = useDataStore();
+  const { profile } = useAuth();
 
   // Adjust dialog
-  const [adjustOpen, setAdjustOpen] = useState(false)
-  const [adjustTarget, setAdjustTarget] = useState<Timesheet | null>(null)
-  const [adjustHours, setAdjustHours] = useState("")
-  const [adjustReason, setAdjustReason] = useState("")
-  const [adjustLoading, setAdjustLoading] = useState(false)
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustTarget, setAdjustTarget] = useState<Timesheet | null>(null);
+  const [adjustHours, setAdjustHours] = useState("");
+  const [adjustReason, setAdjustReason] = useState("");
+  const [adjustLoading, setAdjustLoading] = useState(false);
 
   // Approve/reject note dialog
-  const [noteOpen, setNoteOpen] = useState(false)
-  const [noteAction, setNoteAction] = useState<"approve" | "reject">("approve")
-  const [noteText, setNoteText] = useState("")
-  const [noteTarget, setNoteTarget] = useState<string | null>(null)
-  const [noteLoading, setNoteLoading] = useState(false)
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [noteAction, setNoteAction] = useState<"approve" | "reject">("approve");
+  const [noteText, setNoteText] = useState("");
+  const [noteTarget, setNoteTarget] = useState<string | null>(null);
+  const [noteLoading, setNoteLoading] = useState(false);
 
   const periodStartDate = useMemo(() => {
     try {
-      return periodStart ? parseISO(periodStart) : new Date()
+      return periodStart ? parseISO(periodStart) : new Date();
     } catch {
-      return new Date()
+      return new Date();
     }
-  }, [periodStart])
+  }, [periodStart]);
 
-  const periodEndDate = useMemo(() => addDays(periodStartDate, 6), [periodStartDate])
+  const periodEndDate = useMemo(
+    () => addDays(periodStartDate, 6),
+    [periodStartDate],
+  );
 
   const staffMember = useMemo(
     () => staff.find((s) => s.id === staffId),
     [staff, staffId],
-  )
+  );
 
   const periodDays = useMemo(
     () => eachDayOfInterval({ start: periodStartDate, end: periodEndDate }),
     [periodStartDate, periodEndDate],
-  )
+  );
 
   // Map day → timesheet & rostered shift
   const dayRows = useMemo(() => {
     return periodDays.map((day) => {
-      const dateStr = format(day, "yyyy-MM-dd")
+      const dateStr = format(day, "yyyy-MM-dd");
 
       const ts = timesheets.find((t) => {
-        const d = new Date(t.date).toISOString().split("T")[0]
-        return t.staff_id === staffId && d === dateStr
-      })
+        const d = new Date(t.date).toISOString().split("T")[0];
+        return t.staff_id === staffId && d === dateStr;
+      });
 
       const shift = rosterShifts.find((s) => {
-        const d = new Date(s.date).toISOString().split("T")[0]
-        return s.staff_id === staffId && d === dateStr && s.status !== "cancelled"
-      })
+        const d = new Date(s.date).toISOString().split("T")[0];
+        return (
+          s.staff_id === staffId && d === dateStr && s.status !== "cancelled"
+        );
+      });
 
-      const variance = ts && shift ? ts.total_hours - shift.total_hours : null
+      const variance = ts && shift ? ts.total_hours - shift.total_hours : null;
 
-      return { day, dateStr, ts, shift, variance }
-    })
-  }, [periodDays, timesheets, rosterShifts, staffId])
+      return { day, dateStr, ts, shift, variance };
+    });
+  }, [periodDays, timesheets, rosterShifts, staffId]);
 
   const metrics = useMemo(() => {
-    const entries = dayRows.filter((r) => r.ts)
-    const totalHours = entries.reduce((sum, r) => sum + (r.ts?.total_hours ?? 0), 0)
-    const totalPay = entries.reduce((sum, r) => sum + (r.ts?.gross_pay ?? 0), 0)
-    const pendingCount = entries.filter((r) => r.ts?.status === "pending").length
-    const approvedCount = entries.filter((r) => r.ts?.status === "approved").length
-    const rosteredHours = dayRows.reduce((sum, r) => sum + (r.shift?.total_hours ?? 0), 0)
-    return { totalHours, totalPay, pendingCount, approvedCount, rosteredHours }
-  }, [dayRows])
+    const entries = dayRows.filter((r) => r.ts);
+    const totalHours = entries.reduce(
+      (sum, r) => sum + (r.ts?.total_hours ?? 0),
+      0,
+    );
+    const totalPay = entries.reduce(
+      (sum, r) => sum + (r.ts?.gross_pay ?? 0),
+      0,
+    );
+    const pendingCount = entries.filter(
+      (r) => r.ts?.status === "pending",
+    ).length;
+    const approvedCount = entries.filter(
+      (r) => r.ts?.status === "approved",
+    ).length;
+    const rosteredHours = dayRows.reduce(
+      (sum, r) => sum + (r.shift?.total_hours ?? 0),
+      0,
+    );
+    return { totalHours, totalPay, pendingCount, approvedCount, rosteredHours };
+  }, [dayRows]);
 
   // ── Adjust ───────────────────────────────────────────────────────────────
 
   const openAdjust = (ts: Timesheet) => {
-    setAdjustTarget(ts)
-    setAdjustHours(ts.total_hours.toFixed(2))
-    setAdjustReason("")
-    setAdjustOpen(true)
-  }
+    setAdjustTarget(ts);
+    setAdjustHours(ts.total_hours.toFixed(2));
+    setAdjustReason("");
+    setAdjustOpen(true);
+  };
 
   const handleSaveAdjustment = async () => {
     if (!adjustTarget || !adjustReason.trim()) {
-      toast.error("Please provide a reason for the adjustment")
-      return
+      toast.error("Please provide a reason for the adjustment");
+      return;
     }
-    const newHours = parseFloat(adjustHours)
+    const newHours = parseFloat(adjustHours);
     if (isNaN(newHours) || newHours < 0) {
-      toast.error("Please enter valid hours")
-      return
+      toast.error("Please enter valid hours");
+      return;
     }
-    setAdjustLoading(true)
+    setAdjustLoading(true);
     const payPerHour =
       adjustTarget.total_hours > 0
         ? adjustTarget.gross_pay / adjustTarget.total_hours
-        : (staffMember?.hourly_rate ?? 0)
-    const newPay = Math.round(newHours * payPerHour)
-    const prevNote = adjustTarget.notes ? `${adjustTarget.notes} | ` : ""
-    const fullNote = `${prevNote}Adjusted: ${adjustReason} (was ${adjustTarget.total_hours.toFixed(2)}h)`
+        : (staffMember?.hourly_rate ?? 0);
+    const newPay = Math.round(newHours * payPerHour);
+    const prevNote = adjustTarget.notes ? `${adjustTarget.notes} | ` : "";
+    const fullNote = `${prevNote}Adjusted: ${adjustReason} (was ${adjustTarget.total_hours.toFixed(2)}h)`;
 
     const ok = await adjustTimesheet(
       adjustTarget.id,
       { total_hours: newHours, gross_pay: newPay, notes: fullNote },
       adjustReason,
       profile?.id ?? "unknown",
-    )
+    );
     if (ok) {
-      storeUpdate(adjustTarget.id, { total_hours: newHours, gross_pay: newPay, notes: fullNote })
-      toast.success(`Hours adjusted to ${newHours.toFixed(2)}h`)
+      storeUpdate(adjustTarget.id, {
+        total_hours: newHours,
+        gross_pay: newPay,
+        notes: fullNote,
+      });
+      toast.success(`Hours adjusted to ${newHours.toFixed(2)}h`);
     }
-    setAdjustLoading(false)
-    setAdjustOpen(false)
-    setAdjustTarget(null)
-  }
+    setAdjustLoading(false);
+    setAdjustOpen(false);
+    setAdjustTarget(null);
+  };
 
   // ── Approve / reject with note ────────────────────────────────────────────
 
   const openNote = (id: string, action: "approve" | "reject") => {
-    setNoteTarget(id)
-    setNoteAction(action)
-    setNoteText("")
-    setNoteOpen(true)
-  }
+    setNoteTarget(id);
+    setNoteAction(action);
+    setNoteText("");
+    setNoteOpen(true);
+  };
 
   const handleNoteConfirm = async () => {
-    if (!noteTarget) return
-    setNoteLoading(true)
+    if (!noteTarget) return;
+    setNoteLoading(true);
 
     if (noteAction === "approve") {
-      const ok = await approveTimesheet(noteTarget, profile?.id ?? "unknown")
+      const ok = await approveTimesheet(noteTarget, profile?.id ?? "unknown");
       if (ok) {
-        storeApprove(noteTarget)
-        if (noteText.trim()) storeUpdate(noteTarget, { notes: noteText.trim() })
-        toast.success("Timesheet approved")
+        storeApprove(noteTarget);
+        if (noteText.trim())
+          storeUpdate(noteTarget, { notes: noteText.trim() });
+        toast.success("Timesheet approved");
       }
     } else {
-      storeReject(noteTarget)
-      if (noteText.trim()) storeUpdate(noteTarget, { notes: noteText.trim() })
-      toast.success("Timesheet rejected")
+      storeReject(noteTarget);
+      if (noteText.trim()) storeUpdate(noteTarget, { notes: noteText.trim() });
+      toast.success("Timesheet rejected");
     }
 
-    setNoteLoading(false)
-    setNoteOpen(false)
-    setNoteTarget(null)
-  }
+    setNoteLoading(false);
+    setNoteOpen(false);
+    setNoteTarget(null);
+  };
 
   const toolbar = (
     <PageToolbar
@@ -203,35 +252,43 @@ export default function TimesheetDetail() {
           ? {
               label: `Approve All (${metrics.pendingCount})`,
               onClick: async () => {
-                const pending = dayRows.filter((r) => r.ts?.status === "pending")
-                let count = 0
+                const pending = dayRows.filter(
+                  (r) => r.ts?.status === "pending",
+                );
+                let count = 0;
                 for (const row of pending) {
-                  if (!row.ts) continue
-                  const ok = await approveTimesheet(row.ts.id, profile?.id ?? "unknown")
-                  if (ok) { storeApprove(row.ts.id); count++ }
+                  if (!row.ts) continue;
+                  const ok = await approveTimesheet(
+                    row.ts.id,
+                    profile?.id ?? "unknown",
+                  );
+                  if (ok) {
+                    storeApprove(row.ts.id);
+                    count++;
+                  }
                 }
-                toast.success(`${count} timesheets approved`)
+                toast.success(`${count} timesheets approved`);
               },
               variant: "primary",
             }
           : undefined
       }
     />
-  )
+  );
 
   return (
     <PageShell toolbar={toolbar}>
       {/* Subtitle */}
       <div className="px-4 py-2 border-b bg-muted/30">
         <p className="text-sm text-muted-foreground">
-          {format(periodStartDate, "d MMM")} – {format(periodEndDate, "d MMM yyyy")}
+          {format(periodStartDate, "d MMM")} –{" "}
+          {format(periodEndDate, "d MMM yyyy")}
           {staffMember && (
             <>
               {" · "}
               <Badge variant="outline" className="text-xs capitalize">
                 {staffMember.employment_type}
-              </Badge>
-              {" "}
+              </Badge>{" "}
               <Badge variant="outline" className="text-xs capitalize">
                 {staffMember.role}
               </Badge>
@@ -243,7 +300,10 @@ export default function TimesheetDetail() {
       <div className="px-4 pt-4 pb-2">
         <StatCards
           stats={[
-            { label: "Rostered", value: `${metrics.rosteredHours.toFixed(1)}h` },
+            {
+              label: "Rostered",
+              value: `${metrics.rosteredHours.toFixed(1)}h`,
+            },
             { label: "Worked", value: `${metrics.totalHours.toFixed(1)}h` },
             { label: "Gross Pay", value: formatCurrency(metrics.totalPay) },
             { label: "Pending", value: metrics.pendingCount },
@@ -270,7 +330,7 @@ export default function TimesheetDetail() {
           </TableHeader>
           <TableBody>
             {dayRows.map(({ day, ts, shift, variance }) => {
-              const isWeekend = day.getDay() === 0 || day.getDay() === 6
+              const isWeekend = day.getDay() === 0 || day.getDay() === 6;
               return (
                 <TableRow
                   key={format(day, "yyyy-MM-dd")}
@@ -297,8 +357,8 @@ export default function TimesheetDetail() {
                           Math.abs(variance) <= 0.5
                             ? "text-green-600"
                             : Math.abs(variance) <= 1
-                            ? "text-orange-500"
-                            : "text-red-500"
+                              ? "text-orange-500"
+                              : "text-red-500"
                         }`}
                       >
                         {variance >= 0 ? "+" : ""}
@@ -312,7 +372,13 @@ export default function TimesheetDetail() {
                     {ts ? formatCurrency(ts.gross_pay) : "—"}
                   </TableCell>
                   <TableCell>
-                    {ts ? <StatusBadge status={ts.status} size="sm" /> : <span className="text-xs text-muted-foreground">No entry</span>}
+                    {ts ? (
+                      <StatusBadge status={ts.status} size="sm" />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        No entry
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>
                     {ts ? (
@@ -352,7 +418,7 @@ export default function TimesheetDetail() {
                     ) : null}
                   </TableCell>
                 </TableRow>
-              )
+              );
             })}
           </TableBody>
         </Table>
@@ -361,11 +427,16 @@ export default function TimesheetDetail() {
       {/* Notes column if any adjustments exist */}
       {dayRows.some((r) => r.ts?.notes) && (
         <div className="px-4 pb-4 space-y-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Adjustment Notes</p>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Adjustment Notes
+          </p>
           {dayRows
             .filter((r) => r.ts?.notes)
             .map(({ day, ts }) => (
-              <div key={format(day, "yyyy-MM-dd")} className="text-xs bg-muted/40 rounded px-3 py-2">
+              <div
+                key={format(day, "yyyy-MM-dd")}
+                className="text-xs bg-muted/40 rounded px-3 py-2"
+              >
                 <span className="font-medium">{format(day, "EEE d")}: </span>
                 {ts?.notes}
               </div>
@@ -405,7 +476,9 @@ export default function TimesheetDetail() {
               >
                 <option value="">Select reason…</option>
                 {REASON_CODES.map((r) => (
-                  <option key={r} value={r}>{r}</option>
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
                 ))}
               </select>
             </div>
@@ -418,7 +491,9 @@ export default function TimesheetDetail() {
               onClick={handleSaveAdjustment}
               disabled={!adjustReason || adjustLoading}
             >
-              {adjustLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {adjustLoading && (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
               Save Adjustment
             </Button>
           </DialogFooter>
@@ -430,11 +505,11 @@ export default function TimesheetDetail() {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>
-              {noteAction === "approve" ? "Approve Timesheet" : "Reject Timesheet"}
+              {noteAction === "approve"
+                ? "Approve Timesheet"
+                : "Reject Timesheet"}
             </DialogTitle>
-            <DialogDescription>
-              Optional note for the record
-            </DialogDescription>
+            <DialogDescription>Optional note for the record</DialogDescription>
           </DialogHeader>
           <div>
             <Textarea
@@ -464,5 +539,5 @@ export default function TimesheetDetail() {
         </DialogContent>
       </Dialog>
     </PageShell>
-  )
+  );
 }

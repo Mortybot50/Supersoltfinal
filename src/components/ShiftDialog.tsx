@@ -1,16 +1,16 @@
-import { useAuth } from "@/contexts/AuthContext"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
-import { useEffect, useMemo } from "react"
-import { format } from "date-fns"
+import { useAuth } from "@/contexts/AuthContext";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useEffect, useMemo } from "react";
+import { format } from "date-fns";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -18,23 +18,28 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { RosterShift, Staff, StaffAvailability } from "@/types"
-import { useDataStore } from "@/lib/store/dataStore"
-import { calculateShiftHoursAndCost, hasShiftConflict, getRoleColor, formatLabourCost } from "@/lib/utils/rosterCalculations"
-import { toast } from 'sonner'
-import { AlertCircle, AlertTriangle, UserX } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { RosterShift, Staff, StaffAvailability } from "@/types";
+import { useDataStore } from "@/lib/store/dataStore";
+import {
+  calculateShiftHoursAndCost,
+  hasShiftConflict,
+  getRoleColor,
+  formatLabourCost,
+} from "@/lib/utils/rosterCalculations";
+import { toast } from "sonner";
+import { AlertCircle, AlertTriangle, UserX } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 const shiftSchema = z.object({
   staff_id: z.string().min(1, "Staff member is required"),
@@ -44,22 +49,28 @@ const shiftSchema = z.object({
   break_minutes: z.string(),
   role: z.enum(["manager", "supervisor", "crew"]),
   notes: z.string().optional(),
-})
+});
 
-type ShiftFormValues = z.infer<typeof shiftSchema>
+type ShiftFormValues = z.infer<typeof shiftSchema>;
 
 interface ShiftDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  shift?: RosterShift
-  defaultDate?: Date
-  onSave: (shift: RosterShift) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  shift?: RosterShift;
+  defaultDate?: Date;
+  onSave: (shift: RosterShift) => void;
 }
 
-export function ShiftDialog({ open, onOpenChange, shift, defaultDate, onSave }: ShiftDialogProps) {
-  const { currentVenue } = useAuth()
-  const { staff, rosterShifts, staffAvailability } = useDataStore()
-  const activeStaff = staff.filter((s) => s.status === "active")
+export function ShiftDialog({
+  open,
+  onOpenChange,
+  shift,
+  defaultDate,
+  onSave,
+}: ShiftDialogProps) {
+  const { currentVenue } = useAuth();
+  const { staff, rosterShifts, staffAvailability } = useDataStore();
+  const activeStaff = staff.filter((s) => s.status === "active");
 
   const form = useForm<ShiftFormValues>({
     resolver: zodResolver(shiftSchema),
@@ -72,22 +83,23 @@ export function ShiftDialog({ open, onOpenChange, shift, defaultDate, onSave }: 
       role: "crew",
       notes: "",
     },
-  })
+  });
 
   // Reset form when shift or defaultDate changes
   useEffect(() => {
     if (shift) {
       form.reset({
         staff_id: shift.staff_id,
-        date: typeof shift.date === "string"
-          ? shift.date
-          : new Date(shift.date).toISOString().split("T")[0],
+        date:
+          typeof shift.date === "string"
+            ? shift.date
+            : new Date(shift.date).toISOString().split("T")[0],
         start_time: shift.start_time,
         end_time: shift.end_time,
         break_minutes: shift.break_minutes.toString(),
         role: shift.role as "manager" | "supervisor" | "crew",
         notes: shift.notes || "",
-      })
+      });
     } else {
       form.reset({
         staff_id: "",
@@ -99,34 +111,57 @@ export function ShiftDialog({ open, onOpenChange, shift, defaultDate, onSave }: 
         break_minutes: "30",
         role: "crew",
         notes: "",
-      })
+      });
     }
-  }, [shift, defaultDate, form])
+  }, [shift, defaultDate, form]);
 
   // Watch form values for live calculation
-  const watchedValues = form.watch()
-  const selectedStaff = activeStaff.find((s) => s.id === watchedValues.staff_id)
+  const watchedValues = form.watch();
+  const selectedStaff = activeStaff.find(
+    (s) => s.id === watchedValues.staff_id,
+  );
 
   // Calculate hours and cost in real-time (with penalty rates)
   const calculation = useMemo(() => {
     if (!watchedValues.start_time || !watchedValues.end_time) {
-      return { hours: 0, cost: 0, baseCost: 0, penaltyCost: 0, penaltyType: 'none', penaltyMultiplier: 1, warnings: [] as string[] }
+      return {
+        hours: 0,
+        cost: 0,
+        baseCost: 0,
+        penaltyCost: 0,
+        penaltyType: "none",
+        penaltyMultiplier: 1,
+        warnings: [] as string[],
+      };
     }
-    const hourlyRate = selectedStaff?.hourly_rate || 0
-    const shiftDate = watchedValues.date ? new Date(watchedValues.date) : undefined
+    const hourlyRate = selectedStaff?.hourly_rate || 0;
+    const shiftDate = watchedValues.date
+      ? new Date(watchedValues.date)
+      : undefined;
     return calculateShiftHoursAndCost(
       watchedValues.start_time,
       watchedValues.end_time,
       parseInt(watchedValues.break_minutes) || 0,
       hourlyRate,
-      shiftDate
-    )
-  }, [watchedValues.start_time, watchedValues.end_time, watchedValues.break_minutes, watchedValues.date, selectedStaff])
+      shiftDate,
+    );
+  }, [
+    watchedValues.start_time,
+    watchedValues.end_time,
+    watchedValues.break_minutes,
+    watchedValues.date,
+    selectedStaff,
+  ]);
 
   // Check for conflicts
   const hasConflict = useMemo(() => {
-    if (!watchedValues.staff_id || !watchedValues.date || !watchedValues.start_time || !watchedValues.end_time) {
-      return false
+    if (
+      !watchedValues.staff_id ||
+      !watchedValues.date ||
+      !watchedValues.start_time ||
+      !watchedValues.end_time
+    ) {
+      return false;
     }
     return hasShiftConflict(
       rosterShifts,
@@ -134,102 +169,135 @@ export function ShiftDialog({ open, onOpenChange, shift, defaultDate, onSave }: 
       new Date(watchedValues.date),
       watchedValues.start_time,
       watchedValues.end_time,
-      shift?.id
-    )
-  }, [watchedValues.staff_id, watchedValues.date, watchedValues.start_time, watchedValues.end_time, rosterShifts, shift])
+      shift?.id,
+    );
+  }, [
+    watchedValues.staff_id,
+    watchedValues.date,
+    watchedValues.start_time,
+    watchedValues.end_time,
+    rosterShifts,
+    shift,
+  ]);
 
   // Check staff availability for selected date/time
   const availabilityWarning = useMemo(() => {
-    if (!watchedValues.staff_id || !watchedValues.date) return null
+    if (!watchedValues.staff_id || !watchedValues.date) return null;
 
-    const shiftDate = new Date(watchedValues.date)
-    const dayOfWeek = shiftDate.getDay() // 0=Sun, 6=Sat
-    const dateStr = shiftDate.toISOString().split("T")[0]
+    const shiftDate = new Date(watchedValues.date);
+    const dayOfWeek = shiftDate.getDay(); // 0=Sun, 6=Sat
+    const dateStr = shiftDate.toISOString().split("T")[0];
 
-    const staffAvail = staffAvailability.filter((a) => a.staff_id === watchedValues.staff_id)
-    if (staffAvail.length === 0) return null
+    const staffAvail = staffAvailability.filter(
+      (a) => a.staff_id === watchedValues.staff_id,
+    );
+    if (staffAvail.length === 0) return null;
 
     for (const avail of staffAvail) {
-      if (avail.type !== "unavailable") continue
+      if (avail.type !== "unavailable") continue;
 
       // Check if this unavailability applies to this date
-      let applies = false
+      let applies = false;
       if (avail.is_recurring && avail.day_of_week === dayOfWeek) {
-        applies = true
+        applies = true;
       } else if (avail.specific_date) {
-        const availDateStr = new Date(avail.specific_date).toISOString().split("T")[0]
-        if (availDateStr === dateStr) applies = true
+        const availDateStr = new Date(avail.specific_date)
+          .toISOString()
+          .split("T")[0];
+        if (availDateStr === dateStr) applies = true;
       }
 
-      if (!applies) continue
+      if (!applies) continue;
 
       // If all-day unavailability
       if (!avail.start_time && !avail.end_time) {
         return {
           message: `${selectedStaff?.name || "Staff"} is marked unavailable on ${avail.is_recurring ? ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][dayOfWeek] + "s" : format(shiftDate, "MMM d")}`,
           notes: avail.notes,
-        }
+        };
       }
 
       // Time-range unavailability — check overlap with shift times
-      if (avail.start_time && avail.end_time && watchedValues.start_time && watchedValues.end_time) {
-        const shiftStart = watchedValues.start_time
-        const shiftEnd = watchedValues.end_time
-        const unavailStart = avail.start_time
-        const unavailEnd = avail.end_time
+      if (
+        avail.start_time &&
+        avail.end_time &&
+        watchedValues.start_time &&
+        watchedValues.end_time
+      ) {
+        const shiftStart = watchedValues.start_time;
+        const shiftEnd = watchedValues.end_time;
+        const unavailStart = avail.start_time;
+        const unavailEnd = avail.end_time;
 
         // Simple overlap check: shift overlaps unavailability if shiftStart < unavailEnd && shiftEnd > unavailStart
         if (shiftStart < unavailEnd && shiftEnd > unavailStart) {
           return {
             message: `${selectedStaff?.name || "Staff"} is unavailable ${unavailStart}-${unavailEnd}${avail.is_recurring ? " (recurring)" : ""}`,
             notes: avail.notes,
-          }
+          };
         }
       }
     }
 
     // Check for "preferred" times (softer warning)
     for (const avail of staffAvail) {
-      if (avail.type !== "preferred") continue
-      if (avail.is_recurring && avail.day_of_week === dayOfWeek && avail.start_time && avail.end_time) {
-        const shiftStart = watchedValues.start_time
-        const shiftEnd = watchedValues.end_time
+      if (avail.type !== "preferred") continue;
+      if (
+        avail.is_recurring &&
+        avail.day_of_week === dayOfWeek &&
+        avail.start_time &&
+        avail.end_time
+      ) {
+        const shiftStart = watchedValues.start_time;
+        const shiftEnd = watchedValues.end_time;
         // If shift is outside preferred window
         if (shiftStart < avail.start_time || shiftEnd > avail.end_time) {
           return {
             message: `${selectedStaff?.name || "Staff"} prefers ${avail.start_time}-${avail.end_time} on ${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][dayOfWeek]}s`,
             notes: avail.notes,
             isPreference: true,
-          }
+          };
         }
       }
     }
 
-    return null
-  }, [watchedValues.staff_id, watchedValues.date, watchedValues.start_time, watchedValues.end_time, staffAvailability, selectedStaff])
+    return null;
+  }, [
+    watchedValues.staff_id,
+    watchedValues.date,
+    watchedValues.start_time,
+    watchedValues.end_time,
+    staffAvailability,
+    selectedStaff,
+  ]);
 
   const onSubmit = (values: ShiftFormValues) => {
-    const staffMember = activeStaff.find((s) => s.id === values.staff_id)
+    const staffMember = activeStaff.find((s) => s.id === values.staff_id);
     if (!staffMember) {
-      toast.error("Error", { description: "Selected staff member not found",
-        variant: "destructive", })
-      return
+      toast.error("Error", {
+        description: "Selected staff member not found",
+        variant: "destructive",
+      });
+      return;
     }
 
     if (hasConflict) {
-      toast.success("Shift Conflict", { description: "This shift overlaps with an existing shift for this staff member",
-        variant: "destructive", })
-      return
+      toast.success("Shift Conflict", {
+        description:
+          "This shift overlaps with an existing shift for this staff member",
+        variant: "destructive",
+      });
+      return;
     }
 
-    const shiftDate = new Date(values.date)
+    const shiftDate = new Date(values.date);
     const calc = calculateShiftHoursAndCost(
       values.start_time,
       values.end_time,
       parseInt(values.break_minutes) || 0,
       staffMember.hourly_rate,
-      shiftDate
-    )
+      shiftDate,
+    );
 
     const shiftData: RosterShift = {
       id: shift?.id || `shift-${Date.now()}`,
@@ -242,23 +310,25 @@ export function ShiftDialog({ open, onOpenChange, shift, defaultDate, onSave }: 
       break_minutes: parseInt(values.break_minutes) || 0,
       role: values.role,
       notes: values.notes,
-      status: 'scheduled',
+      status: "scheduled",
       total_hours: calc.hours,
       base_cost: calc.baseCost,
       penalty_cost: calc.penaltyCost,
       total_cost: calc.cost,
-      penalty_type: calc.penaltyType as RosterShift['penalty_type'],
+      penalty_type: calc.penaltyType as RosterShift["penalty_type"],
       penalty_multiplier: calc.penaltyMultiplier,
       warnings: calc.warnings,
-    }
+    };
 
-    onSave(shiftData)
+    onSave(shiftData);
 
-    toast.success(shift ? "Shift updated" : "Shift added", { description: `${staffMember.name}'s shift on ${values.date} has been ${shift ? "updated" : "added"}.`, })
+    toast.success(shift ? "Shift updated" : "Shift added", {
+      description: `${staffMember.name}'s shift on ${values.date} has been ${shift ? "updated" : "added"}.`,
+    });
 
-    form.reset()
-    onOpenChange(false)
-  }
+    form.reset();
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -266,7 +336,9 @@ export function ShiftDialog({ open, onOpenChange, shift, defaultDate, onSave }: 
         <DialogHeader>
           <DialogTitle>{shift ? "Edit Shift" : "Add Shift"}</DialogTitle>
           <DialogDescription>
-            {shift ? "Update shift details" : "Schedule a new shift for a team member"}
+            {shift
+              ? "Update shift details"
+              : "Schedule a new shift for a team member"}
           </DialogDescription>
         </DialogHeader>
 
@@ -390,23 +462,30 @@ export function ShiftDialog({ open, onOpenChange, shift, defaultDate, onSave }: 
             <div className="rounded-lg bg-muted p-3 space-y-1">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Total Hours:</span>
-                <span className="font-medium">{calculation.hours.toFixed(2)}h</span>
+                <span className="font-medium">
+                  {calculation.hours.toFixed(2)}h
+                </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Base Cost:</span>
-                <span className="font-medium">{formatLabourCost(calculation.baseCost)}</span>
+                <span className="font-medium">
+                  {formatLabourCost(calculation.baseCost)}
+                </span>
               </div>
               {calculation.penaltyCost > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-orange-600">Penalty Loading:</span>
                   <span className="text-orange-600 font-medium">
-                    +{formatLabourCost(calculation.penaltyCost)} ({Math.round(calculation.penaltyMultiplier * 100)}%)
+                    +{formatLabourCost(calculation.penaltyCost)} (
+                    {Math.round(calculation.penaltyMultiplier * 100)}%)
                   </span>
                 </div>
               )}
               <div className="flex justify-between text-sm border-t pt-1 mt-1">
                 <span className="font-medium">Total Cost:</span>
-                <span className="font-bold">{formatLabourCost(calculation.cost)}</span>
+                <span className="font-bold">
+                  {formatLabourCost(calculation.cost)}
+                </span>
               </div>
               {selectedStaff && (
                 <div className="flex justify-between text-sm">
@@ -416,10 +495,13 @@ export function ShiftDialog({ open, onOpenChange, shift, defaultDate, onSave }: 
                   </span>
                 </div>
               )}
-              {calculation.penaltyType !== 'none' && (
+              {calculation.penaltyType !== "none" && (
                 <div className="mt-2">
-                  <Badge variant="outline" className="text-[10px] text-orange-600 border-orange-200 bg-orange-50 capitalize">
-                    {calculation.penaltyType.replace('_', ' ')} rate applies
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] text-orange-600 border-orange-200 bg-orange-50 capitalize"
+                  >
+                    {calculation.penaltyType.replace("_", " ")} rate applies
                   </Badge>
                 </div>
               )}
@@ -429,7 +511,10 @@ export function ShiftDialog({ open, onOpenChange, shift, defaultDate, onSave }: 
             {calculation.warnings && calculation.warnings.length > 0 && (
               <div className="rounded-lg bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 p-3 space-y-1">
                 {calculation.warnings.map((warning, i) => (
-                  <div key={i} className="flex items-start gap-2 text-sm text-orange-700 dark:text-orange-400">
+                  <div
+                    key={i}
+                    className="flex items-start gap-2 text-sm text-orange-700 dark:text-orange-400"
+                  >
                     <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                     <span>{warning}</span>
                   </div>
@@ -439,16 +524,22 @@ export function ShiftDialog({ open, onOpenChange, shift, defaultDate, onSave }: 
 
             {/* Availability warning */}
             {availabilityWarning && (
-              <div className={`flex items-start gap-2 rounded-lg p-3 ${
-                availabilityWarning.isPreference
-                  ? "bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400"
-                  : "bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400"
-              }`}>
+              <div
+                className={`flex items-start gap-2 rounded-lg p-3 ${
+                  availabilityWarning.isPreference
+                    ? "bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400"
+                    : "bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400"
+                }`}
+              >
                 <UserX className="h-4 w-4 mt-0.5 shrink-0" />
                 <div>
-                  <span className="text-sm font-medium">{availabilityWarning.message}</span>
+                  <span className="text-sm font-medium">
+                    {availabilityWarning.message}
+                  </span>
                   {availabilityWarning.notes && (
-                    <p className="text-xs mt-0.5 opacity-80">{availabilityWarning.notes}</p>
+                    <p className="text-xs mt-0.5 opacity-80">
+                      {availabilityWarning.notes}
+                    </p>
                   )}
                 </div>
               </div>
@@ -458,7 +549,9 @@ export function ShiftDialog({ open, onOpenChange, shift, defaultDate, onSave }: 
             {hasConflict && (
               <div className="flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-destructive">
                 <AlertCircle className="h-4 w-4" />
-                <span className="text-sm">This shift overlaps with an existing shift</span>
+                <span className="text-sm">
+                  This shift overlaps with an existing shift
+                </span>
               </div>
             )}
 
@@ -496,5 +589,5 @@ export function ShiftDialog({ open, onOpenChange, shift, defaultDate, onSave }: 
         </Form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

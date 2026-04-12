@@ -16,7 +16,16 @@ version: 1.0.0
 license: MIT
 author: Jeremy Longshore <jeremy@intentsolutions.io>
 compatible-with: claude-code, codex, openclaw
-tags: [saas, supabase, governance, security, rls, naming-conventions, cost-management]
+tags:
+  [
+    saas,
+    supabase,
+    governance,
+    security,
+    rls,
+    naming-conventions,
+    cost-management,
+  ]
 ---
 
 # Supabase Policy Guardrails
@@ -213,17 +222,17 @@ $$ LANGUAGE plpgsql;
 
 ### Naming Convention Reference
 
-| Object | Convention | Example |
-|--------|-----------|---------|
-| Tables | Plural snake_case | `user_profiles`, `order_items` |
-| Columns | snake_case | `created_at`, `full_name` |
-| Foreign keys | `{referenced_table_singular}_id` | `user_id`, `order_id` |
-| Booleans | `is_` or `has_` prefix | `is_active`, `has_verified_email` |
-| Timestamps | `_at` suffix | `created_at`, `updated_at`, `deleted_at` |
-| RLS policies | `{scope}_{operation}` | `owner_select`, `org_insert` |
-| Functions | `verb_noun` | `create_user`, `get_dashboard_metrics` |
-| Indexes | `idx_{table}_{columns}` | `idx_orders_user_id_created_at` |
-| Migrations | `{timestamp}_{verb}_{description}` | `20250322000000_create_orders_table.sql` |
+| Object       | Convention                         | Example                                  |
+| ------------ | ---------------------------------- | ---------------------------------------- |
+| Tables       | Plural snake_case                  | `user_profiles`, `order_items`           |
+| Columns      | snake_case                         | `created_at`, `full_name`                |
+| Foreign keys | `{referenced_table_singular}_id`   | `user_id`, `order_id`                    |
+| Booleans     | `is_` or `has_` prefix             | `is_active`, `has_verified_email`        |
+| Timestamps   | `_at` suffix                       | `created_at`, `updated_at`, `deleted_at` |
+| RLS policies | `{scope}_{operation}`              | `owner_select`, `org_insert`             |
+| Functions    | `verb_noun`                        | `create_user`, `get_dashboard_metrics`   |
+| Indexes      | `idx_{table}_{columns}`            | `idx_orders_user_id_created_at`          |
+| Migrations   | `{timestamp}_{verb}_{description}` | `20250322000000_create_orders_table.sql` |
 
 ## Step 2 — Migration Review Process with CI Checks
 
@@ -236,7 +245,7 @@ name: Supabase Migration Guardrails
 on:
   pull_request:
     paths:
-      - 'supabase/migrations/**'
+      - "supabase/migrations/**"
 
 jobs:
   migration-review:
@@ -377,28 +386,28 @@ npx husky add .husky/pre-commit 'bash scripts/supabase-pre-commit.sh'
 
 ```typescript
 // scripts/supabase-cost-monitor.ts
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from "@supabase/supabase-js";
 
 // Use the Supabase Management API for cost monitoring
-const SUPABASE_ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN!
-const PROJECT_REF = process.env.SUPABASE_PROJECT_REF!
+const SUPABASE_ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN!;
+const PROJECT_REF = process.env.SUPABASE_PROJECT_REF!;
 
 interface UsageMetrics {
-  database_size_gb: number
-  storage_size_gb: number
-  bandwidth_gb: number
-  edge_function_invocations: number
-  monthly_active_users: number
+  database_size_gb: number;
+  storage_size_gb: number;
+  bandwidth_gb: number;
+  edge_function_invocations: number;
+  monthly_active_users: number;
 }
 
 // Cost thresholds — adjust per your budget
 const THRESHOLDS = {
-  database_size_gb: 8,          // Pro includes 8 GB
-  storage_size_gb: 100,         // Pro includes 100 GB
-  bandwidth_gb: 250,            // Pro includes 250 GB
-  edge_function_invocations: 2_000_000,  // Pro includes 2M
-  monthly_active_users: 100_000,          // Pro limit
-}
+  database_size_gb: 8, // Pro includes 8 GB
+  storage_size_gb: 100, // Pro includes 100 GB
+  bandwidth_gb: 250, // Pro includes 250 GB
+  edge_function_invocations: 2_000_000, // Pro includes 2M
+  monthly_active_users: 100_000, // Pro limit
+};
 
 async function checkCostAlerts() {
   // Fetch current usage via Supabase Management API
@@ -406,50 +415,54 @@ async function checkCostAlerts() {
     `https://api.supabase.com/v1/projects/${PROJECT_REF}/usage`,
     {
       headers: { Authorization: `Bearer ${SUPABASE_ACCESS_TOKEN}` },
-    }
-  )
+    },
+  );
 
   if (!response.ok) {
-    console.error('Failed to fetch usage:', response.statusText)
-    return
+    console.error("Failed to fetch usage:", response.statusText);
+    return;
   }
 
-  const usage: UsageMetrics = await response.json()
+  const usage: UsageMetrics = await response.json();
 
-  const alerts: string[] = []
+  const alerts: string[] = [];
 
   for (const [metric, threshold] of Object.entries(THRESHOLDS)) {
-    const current = usage[metric as keyof UsageMetrics] as number
-    const percent = (current / threshold) * 100
+    const current = usage[metric as keyof UsageMetrics] as number;
+    const percent = (current / threshold) * 100;
 
     if (percent >= 90) {
-      alerts.push(`CRITICAL: ${metric} at ${percent.toFixed(1)}% (${current}/${threshold})`)
+      alerts.push(
+        `CRITICAL: ${metric} at ${percent.toFixed(1)}% (${current}/${threshold})`,
+      );
     } else if (percent >= 75) {
-      alerts.push(`WARNING: ${metric} at ${percent.toFixed(1)}% (${current}/${threshold})`)
+      alerts.push(
+        `WARNING: ${metric} at ${percent.toFixed(1)}% (${current}/${threshold})`,
+      );
     }
   }
 
   if (alerts.length > 0) {
-    console.warn('Cost alerts:\n' + alerts.join('\n'))
+    console.warn("Cost alerts:\n" + alerts.join("\n"));
     // Send to Slack, PagerDuty, email, etc.
-    await sendCostAlert(alerts)
+    await sendCostAlert(alerts);
   } else {
-    console.log('All usage metrics within budget')
+    console.log("All usage metrics within budget");
   }
 }
 
 async function sendCostAlert(alerts: string[]) {
   // Example: Slack webhook
-  const webhookUrl = process.env.SLACK_WEBHOOK_URL
-  if (!webhookUrl) return
+  const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+  if (!webhookUrl) return;
 
   await fetch(webhookUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      text: `*Supabase Cost Alert* (${PROJECT_REF})\n${alerts.join('\n')}`,
+      text: `*Supabase Cost Alert* (${PROJECT_REF})\n${alerts.join("\n")}`,
     }),
-  })
+  });
 }
 ```
 
@@ -457,45 +470,45 @@ async function sendCostAlert(alerts: string[]) {
 
 ```typescript
 // scripts/supabase-security-audit.ts
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-)
+  { auth: { autoRefreshToken: false, persistSession: false } },
+);
 
 interface AuditFinding {
-  severity: 'critical' | 'high' | 'medium' | 'low'
-  category: string
-  description: string
-  remediation: string
+  severity: "critical" | "high" | "medium" | "low";
+  category: string;
+  description: string;
+  remediation: string;
 }
 
 export async function runSecurityAudit(): Promise<AuditFinding[]> {
-  const findings: AuditFinding[] = []
+  const findings: AuditFinding[] = [];
 
   // Check 1: Tables without RLS
-  const { data: noRls } = await supabase.rpc('run_sql', {
+  const { data: noRls } = await supabase.rpc("run_sql", {
     sql: `
       SELECT tablename FROM pg_tables
       WHERE schemaname = 'public'
       AND rowsecurity = false
       AND tablename NOT LIKE '\\_%'
     `,
-  })
+  });
 
   for (const row of noRls ?? []) {
     findings.push({
-      severity: 'critical',
-      category: 'RLS',
+      severity: "critical",
+      category: "RLS",
       description: `Table "${row.tablename}" has RLS disabled`,
       remediation: `ALTER TABLE public.${row.tablename} ENABLE ROW LEVEL SECURITY;`,
-    })
+    });
   }
 
   // Check 2: Tables with RLS enabled but no policies
-  const { data: noPolicies } = await supabase.rpc('run_sql', {
+  const { data: noPolicies } = await supabase.rpc("run_sql", {
     sql: `
       SELECT t.tablename
       FROM pg_tables t
@@ -504,19 +517,20 @@ export async function runSecurityAudit(): Promise<AuditFinding[]> {
       AND t.rowsecurity = true
       AND p.policyname IS NULL
     `,
-  })
+  });
 
   for (const row of noPolicies ?? []) {
     findings.push({
-      severity: 'high',
-      category: 'RLS',
+      severity: "high",
+      category: "RLS",
       description: `Table "${row.tablename}" has RLS enabled but no policies (blocks all access)`,
-      remediation: 'Add appropriate RLS policies or this table is inaccessible via API',
-    })
+      remediation:
+        "Add appropriate RLS policies or this table is inaccessible via API",
+    });
   }
 
   // Check 3: Overly permissive policies (USING (true) for non-public tables)
-  const { data: permissive } = await supabase.rpc('run_sql', {
+  const { data: permissive } = await supabase.rpc("run_sql", {
     sql: `
       SELECT tablename, policyname, qual
       FROM pg_policies
@@ -524,19 +538,19 @@ export async function runSecurityAudit(): Promise<AuditFinding[]> {
       AND qual = 'true'
       AND cmd != 'SELECT'
     `,
-  })
+  });
 
   for (const row of permissive ?? []) {
     findings.push({
-      severity: 'high',
-      category: 'RLS',
+      severity: "high",
+      category: "RLS",
       description: `Policy "${row.policyname}" on "${row.tablename}" allows unrestricted writes (USING true)`,
-      remediation: 'Restrict policy to owner or organization scope',
-    })
+      remediation: "Restrict policy to owner or organization scope",
+    });
   }
 
   // Check 4: Foreign key columns without indexes
-  const { data: missingIdx } = await supabase.rpc('run_sql', {
+  const { data: missingIdx } = await supabase.rpc("run_sql", {
     sql: `
       SELECT
         tc.table_name,
@@ -551,96 +565,102 @@ export async function runSecurityAudit(): Promise<AuditFinding[]> {
       AND tc.table_schema = 'public'
       AND pi.indexname IS NULL
     `,
-  })
+  });
 
   for (const row of missingIdx ?? []) {
     findings.push({
-      severity: 'medium',
-      category: 'Performance',
+      severity: "medium",
+      category: "Performance",
       description: `Foreign key ${row.table_name}.${row.column_name} has no index`,
       remediation: `CREATE INDEX idx_${row.table_name}_${row.column_name} ON public.${row.table_name}(${row.column_name});`,
-    })
+    });
   }
 
   // Check 5: Storage buckets without RLS
-  const { data: buckets } = await supabase.storage.listBuckets()
+  const { data: buckets } = await supabase.storage.listBuckets();
   for (const bucket of buckets ?? []) {
     if (bucket.public) {
       findings.push({
-        severity: 'low',
-        category: 'Storage',
+        severity: "low",
+        category: "Storage",
         description: `Bucket "${bucket.name}" is public — verify this is intentional`,
-        remediation: 'Set bucket to private if it contains sensitive files',
-      })
+        remediation: "Set bucket to private if it contains sensitive files",
+      });
     }
   }
 
-  return findings
+  return findings;
 }
 
 // Run and display results
 async function main() {
-  const findings = await runSecurityAudit()
+  const findings = await runSecurityAudit();
 
-  const critical = findings.filter(f => f.severity === 'critical')
-  const high = findings.filter(f => f.severity === 'high')
+  const critical = findings.filter((f) => f.severity === "critical");
+  const high = findings.filter((f) => f.severity === "high");
 
-  console.log(`\nSecurity Audit Results:`)
-  console.log(`  Critical: ${critical.length}`)
-  console.log(`  High: ${high.length}`)
-  console.log(`  Medium: ${findings.filter(f => f.severity === 'medium').length}`)
-  console.log(`  Low: ${findings.filter(f => f.severity === 'low').length}`)
+  console.log(`\nSecurity Audit Results:`);
+  console.log(`  Critical: ${critical.length}`);
+  console.log(`  High: ${high.length}`);
+  console.log(
+    `  Medium: ${findings.filter((f) => f.severity === "medium").length}`,
+  );
+  console.log(`  Low: ${findings.filter((f) => f.severity === "low").length}`);
 
   for (const finding of findings) {
-    console.log(`\n[${finding.severity.toUpperCase()}] ${finding.category}: ${finding.description}`)
-    console.log(`  Fix: ${finding.remediation}`)
+    console.log(
+      `\n[${finding.severity.toUpperCase()}] ${finding.category}: ${finding.description}`,
+    );
+    console.log(`  Fix: ${finding.remediation}`);
   }
 
   // Exit with error code if critical/high issues found
   if (critical.length > 0 || high.length > 0) {
-    process.exit(1)
+    process.exit(1);
   }
 }
 
-main()
+main();
 ```
 
 ### Scheduled Audit via Edge Function
 
 ```typescript
 // supabase/functions/security-audit/index.ts
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 Deno.serve(async () => {
   const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  )
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
 
   // Check tables without RLS
   const { data: noRls } = await supabase
-    .from('pg_tables')
-    .select('tablename')
-    .eq('schemaname', 'public')
-    .eq('rowsecurity', false)
+    .from("pg_tables")
+    .select("tablename")
+    .eq("schemaname", "public")
+    .eq("rowsecurity", false);
 
-  const issues = (noRls ?? []).map(t => t.tablename)
+  const issues = (noRls ?? []).map((t) => t.tablename);
 
   if (issues.length > 0) {
     // Store audit result
-    await supabase.from('audit_log').insert({
-      event: 'security_audit',
-      severity: 'critical',
+    await supabase.from("audit_log").insert({
+      event: "security_audit",
+      severity: "critical",
       details: { tables_without_rls: issues },
-    })
+    });
   }
 
-  return new Response(JSON.stringify({
-    status: issues.length === 0 ? 'pass' : 'fail',
-    tables_without_rls: issues,
-    checked_at: new Date().toISOString(),
-  }))
-})
+  return new Response(
+    JSON.stringify({
+      status: issues.length === 0 ? "pass" : "fail",
+      tables_without_rls: issues,
+      checked_at: new Date().toISOString(),
+    }),
+  );
+});
 ```
 
 ## Output
@@ -655,14 +675,14 @@ Deno.serve(async () => {
 
 ## Error Handling
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| CI RLS check fails on new table | Migration missing `ENABLE ROW LEVEL SECURITY` | Add `ALTER TABLE` after `CREATE TABLE` in same migration |
-| Naming convention false positive | Table is intentionally singular (e.g., `config`) | Add to exclusion list in validation function |
-| Cost alert not firing | Missing `SUPABASE_ACCESS_TOKEN` | Generate token at supabase.com/dashboard/account/tokens |
-| Security audit times out | Too many tables to scan | Run audit on specific schemas or paginate results |
-| Pre-commit blocks legitimate JWT in test | Test fixture contains JWT-like string | Add test file path to exclusion pattern |
-| RLS template function not found | Migration not applied | Run `supabase db reset` or apply migration manually |
+| Issue                                    | Cause                                            | Solution                                                 |
+| ---------------------------------------- | ------------------------------------------------ | -------------------------------------------------------- |
+| CI RLS check fails on new table          | Migration missing `ENABLE ROW LEVEL SECURITY`    | Add `ALTER TABLE` after `CREATE TABLE` in same migration |
+| Naming convention false positive         | Table is intentionally singular (e.g., `config`) | Add to exclusion list in validation function             |
+| Cost alert not firing                    | Missing `SUPABASE_ACCESS_TOKEN`                  | Generate token at supabase.com/dashboard/account/tokens  |
+| Security audit times out                 | Too many tables to scan                          | Run audit on specific schemas or paginate results        |
+| Pre-commit blocks legitimate JWT in test | Test fixture contains JWT-like string            | Add test file path to exclusion pattern                  |
+| RLS template function not found          | Migration not applied                            | Run `supabase db reset` or apply migration manually      |
 
 ## Examples
 

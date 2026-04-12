@@ -4,22 +4,24 @@ Multi-venue restaurant operations & financial management platform for Australian
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 18 + TypeScript 5, Vite |
-| Styling | Tailwind CSS + shadcn/ui (Radix) |
-| State | Zustand (client) + React Query (server) |
-| Backend | Supabase (PostgreSQL + Auth + RLS) |
-| Deployment | Vercel |
-| POS | Square (OAuth2, encrypted tokens) |
+| Layer      | Technology                              |
+| ---------- | --------------------------------------- |
+| Frontend   | React 18 + TypeScript 5, Vite           |
+| Styling    | Tailwind CSS + shadcn/ui (Radix)        |
+| State      | Zustand (client) + React Query (server) |
+| Backend    | Supabase (PostgreSQL + Auth + RLS)      |
+| Deployment | Vercel                                  |
+| POS        | Square (OAuth2, encrypted tokens)       |
 
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js >= 18
 - npm
 
 ### Setup
+
 ```bash
 git clone https://github.com/Mortybot50/Supersoltfinal.git
 cd Supersoltfinal
@@ -30,14 +32,16 @@ npm run dev
 ```
 
 ### Available Scripts
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start dev server |
-| `npm run build` | Production build |
-| `npm run lint` | ESLint check |
-| `npx tsc --noEmit` | Type check |
+
+| Command            | Description      |
+| ------------------ | ---------------- |
+| `npm run dev`      | Start dev server |
+| `npm run build`    | Production build |
+| `npm run lint`     | ESLint check     |
+| `npx tsc --noEmit` | Type check       |
 
 ## Project Structure
+
 ```
 src/
 ├── components/          # UI components (shadcn/ui based)
@@ -65,17 +69,20 @@ src/
 ## Architecture
 
 ### Key Patterns
+
 - **DB-first writes**: All mutations go to Supabase first, then update Zustand (ADR-002)
 - **Multi-tenancy**: Row Level Security on all tables, scoped by `org_id` + `venue_id`
 - **State separation**: Zustand for UI state, React Query for server state
 - **POS security**: Square OAuth2 tokens encrypted with AES-256-GCM at rest
 
 ### Database
+
 - 59+ PostgreSQL tables with full RLS policies
 - Migrations in `supabase/migrations/`
 - Auto-generated types: `src/integrations/supabase/types.ts` (do not edit manually)
 
 ## Modules
+
 - **Dashboard** — KPIs, sales trends, labour costs, forecasts
 - **Sales** — Revenue analytics by channel, payment method, time period
 - **Labour** — Hours & cost reports, labour %, rostered vs actual, overtime tracking
@@ -86,4 +93,5 @@ src/
 - **Onboarding** — Employee self-service onboarding with document collection
 
 ## License
+
 Private — all rights reserved.

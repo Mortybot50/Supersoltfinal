@@ -1,2 +1,2 @@
-export { WeeklyForecastCard } from './WeeklyForecastCard'
-export { ForecastAccuracy } from './ForecastAccuracy'
+export { WeeklyForecastCard } from "./WeeklyForecastCard";
+export { ForecastAccuracy } from "./ForecastAccuracy";

@@ -9,138 +9,175 @@
  *   4. Upserts rows in `pos_location_mappings`
  *   5. Redirects the user back to the Integrations page
  */
-import type { VercelRequest, VercelResponse } from './_lib.js'
-import { env, supabaseAdmin, SQUARE_BASE, encrypt, verifyState } from './_lib.js'
+import type { VercelRequest, VercelResponse } from "./_lib.js";
+import {
+  env,
+  supabaseAdmin,
+  SQUARE_BASE,
+  encrypt,
+  verifyState,
+} from "./_lib.js";
 
-const INTEGRATIONS_PATH = '/admin/integrations'
+const INTEGRATIONS_PATH = "/admin/integrations";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' })
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const db = supabaseAdmin()
+  const db = supabaseAdmin();
 
   try {
-    const code = req.query.code as string
-    const stateRaw = req.query.state as string
+    const code = req.query.code as string;
+    const stateRaw = req.query.state as string;
 
     if (!code || !stateRaw) {
-      console.error('[square/callback] Missing code or state', { code: !!code, state: !!stateRaw })
-      return res.status(400).json({ error: 'Missing code or state parameter' })
+      console.error("[square/callback] Missing code or state", {
+        code: !!code,
+        state: !!stateRaw,
+      });
+      return res.status(400).json({ error: "Missing code or state parameter" });
     }
 
     // ── Verify & decode HMAC-signed state ──────────────────────
-    const state = verifyState(stateRaw)
+    const state = verifyState(stateRaw);
     if (!state) {
-      console.error('[square/callback] Invalid or tampered state parameter')
-      return res.status(400).json({ error: 'Invalid state parameter — signature mismatch' })
+      console.error("[square/callback] Invalid or tampered state parameter");
+      return res
+        .status(400)
+        .json({ error: "Invalid state parameter — signature mismatch" });
     }
 
-
     if (!state.org_id || !state.venue_id) {
-      return res.redirect(`${env('APP_URL')}${INTEGRATIONS_PATH}?error=invalid_state`)
+      return res.redirect(
+        `${env("APP_URL")}${INTEGRATIONS_PATH}?error=invalid_state`,
+      );
     }
 
     // ── Validate org_id and venue_id exist in DB ──────────────
     const { data: org, error: orgErr } = await db
-      .from('organizations')
-      .select('id')
-      .eq('id', state.org_id)
-      .single()
+      .from("organizations")
+      .select("id")
+      .eq("id", state.org_id)
+      .single();
 
     if (orgErr || !org) {
-      console.error('[square/callback] Invalid org_id:', { org_id: state.org_id, error: orgErr?.message })
-      return res.redirect(`${env('APP_URL')}${INTEGRATIONS_PATH}?error=invalid_org`)
+      console.error("[square/callback] Invalid org_id:", {
+        org_id: state.org_id,
+        error: orgErr?.message,
+      });
+      return res.redirect(
+        `${env("APP_URL")}${INTEGRATIONS_PATH}?error=invalid_org`,
+      );
     }
 
     const { data: venue, error: venueErr } = await db
-      .from('venues')
-      .select('id')
-      .eq('id', state.venue_id)
-      .eq('org_id', state.org_id)
-      .single()
+      .from("venues")
+      .select("id")
+      .eq("id", state.venue_id)
+      .eq("org_id", state.org_id)
+      .single();
 
     if (venueErr || !venue) {
-      console.error('[square/callback] Invalid venue_id:', { venue_id: state.venue_id, error: venueErr?.message })
-      return res.redirect(`${env('APP_URL')}${INTEGRATIONS_PATH}?error=invalid_venue`)
+      console.error("[square/callback] Invalid venue_id:", {
+        venue_id: state.venue_id,
+        error: venueErr?.message,
+      });
+      return res.redirect(
+        `${env("APP_URL")}${INTEGRATIONS_PATH}?error=invalid_venue`,
+      );
     }
 
     // ── Exchange code for tokens ────────────────────────────────
     const tokenRes = await fetch(`${SQUARE_BASE}/oauth2/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        client_id: env('SQUARE_APP_ID'),
-        client_secret: env('SQUARE_APP_SECRET'),
+        client_id: env("SQUARE_APP_ID"),
+        client_secret: env("SQUARE_APP_SECRET"),
         code,
-        grant_type: 'authorization_code',
-        redirect_uri: `${env('APP_URL')}/api/square/callback`,
+        grant_type: "authorization_code",
+        redirect_uri: `${env("APP_URL")}/api/square/callback`,
       }),
-    })
+    });
 
     if (!tokenRes.ok) {
-      const text = await tokenRes.text()
-      console.error('[square/callback] Token exchange failed:', tokenRes.status, text)
-      return res.redirect(`${env('APP_URL')}${INTEGRATIONS_PATH}?error=token_exchange_failed`)
+      const text = await tokenRes.text();
+      console.error(
+        "[square/callback] Token exchange failed:",
+        tokenRes.status,
+        text,
+      );
+      return res.redirect(
+        `${env("APP_URL")}${INTEGRATIONS_PATH}?error=token_exchange_failed`,
+      );
     }
 
-    const tokenData = await tokenRes.json() as {
-      access_token: string
-      refresh_token: string
-      expires_at: string
-      merchant_id: string
-    }
-
+    const tokenData = (await tokenRes.json()) as {
+      access_token: string;
+      refresh_token: string;
+      expires_at: string;
+      merchant_id: string;
+    };
 
     // ── Fetch merchant locations ────────────────────────────────
     const locRes = await fetch(`${SQUARE_BASE}/v2/locations`, {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
-    })
+    });
 
-    let locations: { id: string; name: string }[] = []
+    let locations: { id: string; name: string }[] = [];
     if (locRes.ok) {
-      const locData = await locRes.json() as { locations?: { id: string; name: string }[] }
-      locations = (locData.locations ?? []).map((l) => ({ id: l.id, name: l.name }))
+      const locData = (await locRes.json()) as {
+        locations?: { id: string; name: string }[];
+      };
+      locations = (locData.locations ?? []).map((l) => ({
+        id: l.id,
+        name: l.name,
+      }));
     }
-
 
     // ── Fetch merchant name ─────────────────────────────────────
-    let merchantName = tokenData.merchant_id
-    const merchantRes = await fetch(`${SQUARE_BASE}/v2/merchants/${tokenData.merchant_id}`, {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` },
-    })
+    let merchantName = tokenData.merchant_id;
+    const merchantRes = await fetch(
+      `${SQUARE_BASE}/v2/merchants/${tokenData.merchant_id}`,
+      {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      },
+    );
     if (merchantRes.ok) {
-      const merchantData = await merchantRes.json() as { merchant?: { business_name?: string } }
-      merchantName = merchantData.merchant?.business_name ?? merchantName
+      const merchantData = (await merchantRes.json()) as {
+        merchant?: { business_name?: string };
+      };
+      merchantName = merchantData.merchant?.business_name ?? merchantName;
     }
-
 
     // ── Upsert pos_connections (tokens encrypted at rest) ───────
     const upsertPayload = {
       org_id: state.org_id,
-      provider: 'square',
+      provider: "square",
       merchant_id: tokenData.merchant_id,
       merchant_name: merchantName,
       access_token: encrypt(tokenData.access_token),
       refresh_token: encrypt(tokenData.refresh_token),
       token_expires_at: tokenData.expires_at,
       is_active: true,
-    }
-
+    };
 
     const { data: connection, error: connError } = await db
-      .from('pos_connections')
-      .upsert(upsertPayload, { onConflict: 'org_id,provider' })
-      .select('id')
-      .single()
+      .from("pos_connections")
+      .upsert(upsertPayload, { onConflict: "org_id,provider" })
+      .select("id")
+      .single();
 
     if (connError) {
-      console.error('[square/callback] DB upsert error:', JSON.stringify(connError))
-      return res.redirect(`${env('APP_URL')}${INTEGRATIONS_PATH}?error=db_error`)
+      console.error(
+        "[square/callback] DB upsert error:",
+        JSON.stringify(connError),
+      );
+      return res.redirect(
+        `${env("APP_URL")}${INTEGRATIONS_PATH}?error=db_error`,
+      );
     }
-
 
     // ── Upsert pos_location_mappings ────────────────────────────
     if (connection && locations.length > 0) {
@@ -150,22 +187,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         pos_location_name: loc.name,
         venue_id: state.venue_id,
         is_active: idx === 0,
-      }))
-
+      }));
 
       const { error: mapError } = await db
-        .from('pos_location_mappings')
-        .upsert(mappings, { onConflict: 'pos_connection_id,pos_location_id' })
+        .from("pos_location_mappings")
+        .upsert(mappings, { onConflict: "pos_connection_id,pos_location_id" });
 
       if (mapError) {
-        console.error('[square/callback] Location mapping error:', JSON.stringify(mapError))
+        console.error(
+          "[square/callback] Location mapping error:",
+          JSON.stringify(mapError),
+        );
         // Non-fatal — continue to redirect
       }
     }
 
-    return res.redirect(`${env('APP_URL')}${INTEGRATIONS_PATH}?connected=square`)
+    return res.redirect(
+      `${env("APP_URL")}${INTEGRATIONS_PATH}?connected=square`,
+    );
   } catch (err: unknown) {
-    console.error('[square/callback] Unhandled error:', err)
-    return res.redirect(`${env('APP_URL')}${INTEGRATIONS_PATH}?error=unknown`)
+    console.error("[square/callback] Unhandled error:", err);
+    return res.redirect(`${env("APP_URL")}${INTEGRATIONS_PATH}?error=unknown`);
   }
 }

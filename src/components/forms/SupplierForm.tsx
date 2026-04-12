@@ -1,50 +1,79 @@
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import * as Types from '@/types'
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import * as Types from "@/types";
 
 const supplierFormSchema = z.object({
   name: z.string().min(1, "Required"),
   contact_person: z.string().optional(),
-  email: z.string().email("Invalid email").optional().or(z.literal('')),
+  email: z.string().email("Invalid email").optional().or(z.literal("")),
   phone: z.string().optional(),
   address: z.string().optional(),
-  category: z.enum(['produce', 'meat', 'dry-goods', 'beverages', 'equipment', 'other']),
-  payment_terms: z.enum(['net-7', 'net-14', 'net-30', 'cod']),
+  category: z.enum([
+    "produce",
+    "meat",
+    "dry-goods",
+    "beverages",
+    "equipment",
+    "other",
+  ]),
+  payment_terms: z.enum(["net-7", "net-14", "net-30", "cod"]),
   account_number: z.string().optional(),
-})
+});
 
-type SupplierFormValues = z.infer<typeof supplierFormSchema>
+type SupplierFormValues = z.infer<typeof supplierFormSchema>;
 
 interface SupplierFormProps {
-  onSubmit: (data: Partial<Types.Supplier>) => void
-  onCancel: () => void
-  initialData?: Partial<Types.Supplier>
+  onSubmit: (data: Partial<Types.Supplier>) => void;
+  onCancel: () => void;
+  initialData?: Partial<Types.Supplier>;
 }
 
-export function SupplierForm({ onSubmit, onCancel, initialData }: SupplierFormProps) {
+export function SupplierForm({
+  onSubmit,
+  onCancel,
+  initialData,
+}: SupplierFormProps) {
   const form = useForm<SupplierFormValues>({
     resolver: zodResolver(supplierFormSchema),
     defaultValues: {
-      name: initialData?.name || '',
-      contact_person: initialData?.contact_person || '',
-      email: initialData?.email || '',
-      phone: initialData?.phone || '',
-      address: initialData?.address || '',
-      category: initialData?.category || 'produce',
-      payment_terms: initialData?.payment_terms || 'net-30',
-      account_number: initialData?.account_number || '',
-    }
-  })
-  
+      name: initialData?.name || "",
+      contact_person: initialData?.contact_person || "",
+      email: initialData?.email || "",
+      phone: initialData?.phone || "",
+      address: initialData?.address || "",
+      category: initialData?.category || "produce",
+      payment_terms: initialData?.payment_terms || "net-30",
+      account_number: initialData?.account_number || "",
+    },
+  });
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit((data) => onSubmit(data as Partial<Types.Supplier>))} className="space-y-4">
+      <form
+        onSubmit={form.handleSubmit((data) =>
+          onSubmit(data as Partial<Types.Supplier>),
+        )}
+        className="space-y-4"
+      >
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -59,7 +88,7 @@ export function SupplierForm({ onSubmit, onCancel, initialData }: SupplierFormPr
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="contact_person"
@@ -74,7 +103,7 @@ export function SupplierForm({ onSubmit, onCancel, initialData }: SupplierFormPr
             )}
           />
         </div>
-        
+
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -89,7 +118,7 @@ export function SupplierForm({ onSubmit, onCancel, initialData }: SupplierFormPr
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="phone"
@@ -104,7 +133,7 @@ export function SupplierForm({ onSubmit, onCancel, initialData }: SupplierFormPr
             )}
           />
         </div>
-        
+
         <FormField
           control={form.control}
           name="address"
@@ -118,7 +147,7 @@ export function SupplierForm({ onSubmit, onCancel, initialData }: SupplierFormPr
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
           name="category"
@@ -144,7 +173,7 @@ export function SupplierForm({ onSubmit, onCancel, initialData }: SupplierFormPr
             </FormItem>
           )}
         />
-        
+
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -152,7 +181,10 @@ export function SupplierForm({ onSubmit, onCancel, initialData }: SupplierFormPr
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Payment Terms *</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue />
@@ -169,7 +201,7 @@ export function SupplierForm({ onSubmit, onCancel, initialData }: SupplierFormPr
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="account_number"
@@ -184,17 +216,19 @@ export function SupplierForm({ onSubmit, onCancel, initialData }: SupplierFormPr
             )}
           />
         </div>
-        
+
         <div className="flex gap-2 pt-4">
           <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Save
-            </Button>
+            {form.formState.isSubmitting && (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            )}
+            Save
+          </Button>
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
         </div>
       </form>
     </Form>
-  )
+  );
 }

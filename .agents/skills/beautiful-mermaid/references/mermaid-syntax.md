@@ -14,12 +14,14 @@ graph TD
 ```
 
 ### Direction
+
 - `TD` / `TB` - Top to bottom
 - `BT` - Bottom to top
 - `LR` - Left to right
 - `RL` - Right to left
 
 ### Node Shapes
+
 - `A[Text]` - Rectangle
 - `A(Text)` - Rounded rectangle
 - `A([Text])` - Stadium/pill
@@ -35,6 +37,7 @@ graph TD
 - `A[\Text/]` - Trapezoid alt
 
 ### Edge Styles
+
 - `A --> B` - Arrow
 - `A --- B` - Line
 - `A -.-> B` - Dotted arrow
@@ -45,6 +48,7 @@ graph TD
 **Important**: Always use pipe syntax `-->|label|` for edge labels. The space-dash syntax `-- label -->` can cause incomplete renders.
 
 ### Subgraphs
+
 ```mermaid
 graph TD
     subgraph Group1 [Label]
@@ -69,6 +73,7 @@ sequenceDiagram
 ```
 
 ### Arrow Types
+
 - `->>` - Solid arrow
 - `-->>` - Dashed arrow
 - `-x` - Solid with x
@@ -77,10 +82,12 @@ sequenceDiagram
 - `--)` - Dashed open arrow
 
 ### Activations
+
 - `+` after arrow activates participant
 - `-` after arrow deactivates participant
 
 ### Notes and Boxes
+
 ```mermaid
 sequenceDiagram
     Note over A,B: Shared note
@@ -91,6 +98,7 @@ sequenceDiagram
 ```
 
 ### Loops and Conditionals
+
 ```mermaid
 sequenceDiagram
     loop Every minute
@@ -119,6 +127,7 @@ stateDiagram-v2
 ```
 
 ### Composite States
+
 ```mermaid
 stateDiagram-v2
     state Active {
@@ -131,6 +140,7 @@ stateDiagram-v2
 ```
 
 ### Notes
+
 ```mermaid
 stateDiagram-v2
     State1 : Description here
@@ -155,6 +165,7 @@ classDiagram
 ```
 
 ### Relationships
+
 - `<|--` - Inheritance
 - `*--` - Composition
 - `o--` - Aggregation
@@ -165,6 +176,7 @@ classDiagram
 - `..` - Link (dashed)
 
 ### Cardinality
+
 ```mermaid
 classDiagram
     Customer "1" --> "*" Order
@@ -172,6 +184,7 @@ classDiagram
 ```
 
 ### Visibility
+
 - `+` Public
 - `-` Private
 - `#` Protected
@@ -187,16 +200,19 @@ erDiagram
 ```
 
 ### Relationship Types
+
 - `||` - Exactly one
 - `|{` - One or more
 - `o{` - Zero or more
 - `o|` - Zero or one
 
 ### Identifying vs Non-identifying
+
 - `--` - Identifying (solid)
 - `..` - Non-identifying (dashed)
 
 ### Attributes
+
 ```mermaid
 erDiagram
     CUSTOMER {
@@ -214,6 +230,7 @@ erDiagram
 ## Styling
 
 ### CSS Classes
+
 ```mermaid
 graph TD
     A:::highlight --> B
@@ -221,6 +238,7 @@ graph TD
 ```
 
 ### Inline Styles
+
 ```mermaid
 graph TD
     A --> B

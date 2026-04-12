@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.next/
+SuperSoltMVP-main/
+SuperSoltMVP-main.zip
+*.lock
+bun.lockb
+package-lock.json
+.git/
+coverage/
+.vercel/
+supabase/.temp/

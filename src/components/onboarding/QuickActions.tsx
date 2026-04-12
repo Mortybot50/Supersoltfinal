@@ -1,11 +1,11 @@
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 
 interface QuickAction {
   id: string;
   label: string;
   value: string;
   icon?: string;
-  action?: 'next' | 'skip' | 'custom';
+  action?: "next" | "skip" | "custom";
 }
 
 interface QuickActionsProps {

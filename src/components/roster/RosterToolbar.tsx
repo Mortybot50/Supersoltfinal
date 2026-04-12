@@ -1,11 +1,11 @@
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   ChevronLeft,
   ChevronRight,
@@ -20,26 +20,26 @@ import {
   Settings,
   LayoutGrid,
   Layers,
-} from "lucide-react"
-import { RosterViewMode, RosterDisplayMode, RosterGroupBy } from "@/types"
+} from "lucide-react";
+import { RosterViewMode, RosterDisplayMode, RosterGroupBy } from "@/types";
 
 interface RosterToolbarProps {
-  dateRangeLabel: string
-  viewMode: RosterViewMode
-  displayMode: RosterDisplayMode
-  groupBy: RosterGroupBy
-  onNavigateBack: () => void
-  onNavigateForward: () => void
-  onViewModeChange: (mode: RosterViewMode) => void
-  onDisplayModeChange: (mode: RosterDisplayMode) => void
-  onGroupByChange: (groupBy: RosterGroupBy) => void
-  onCopyPreviousWeek: () => void
-  onSaveTemplate: () => void
-  onPrint: () => void
-  onManageAvailability: () => void
-  onPublish: () => void
-  publishDisabled: boolean
-  onBackToFortnight?: () => void
+  dateRangeLabel: string;
+  viewMode: RosterViewMode;
+  displayMode: RosterDisplayMode;
+  groupBy: RosterGroupBy;
+  onNavigateBack: () => void;
+  onNavigateForward: () => void;
+  onViewModeChange: (mode: RosterViewMode) => void;
+  onDisplayModeChange: (mode: RosterDisplayMode) => void;
+  onGroupByChange: (groupBy: RosterGroupBy) => void;
+  onCopyPreviousWeek: () => void;
+  onSaveTemplate: () => void;
+  onPrint: () => void;
+  onManageAvailability: () => void;
+  onPublish: () => void;
+  publishDisabled: boolean;
+  onBackToFortnight?: () => void;
 }
 
 const VIEW_MODE_LABELS: Record<RosterViewMode, string> = {
@@ -47,18 +47,18 @@ const VIEW_MODE_LABELS: Record<RosterViewMode, string> = {
   week: "Week",
   fortnight: "Fortnight",
   month: "Month",
-}
+};
 
 const DISPLAY_MODE_LABELS: Record<RosterDisplayMode, string> = {
   staff: "Staff View",
   stacked: "Stacked View",
-}
+};
 
 const GROUP_BY_LABELS: Record<RosterGroupBy, string> = {
   none: "No Grouping",
   team: "Group by Team",
   position: "Group by Position",
-}
+};
 
 export function RosterToolbar({
   dateRangeLabel,
@@ -82,13 +82,25 @@ export function RosterToolbar({
     <div className="bg-white dark:bg-gray-800 border-b px-4 py-2 flex items-center gap-3 print:hidden flex-wrap">
       {/* Date Navigation */}
       <div className="flex items-center gap-1">
-        <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Previous period" onClick={onNavigateBack}>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8"
+          aria-label="Previous period"
+          onClick={onNavigateBack}
+        >
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <Button variant="outline" className="h-8 px-3 font-medium text-sm">
           {dateRangeLabel}
         </Button>
-        <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Next period" onClick={onNavigateForward}>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8"
+          aria-label="Next period"
+          onClick={onNavigateForward}
+        >
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
@@ -117,7 +129,12 @@ export function RosterToolbar({
 
       {/* Back to Fortnight (Day view only) */}
       {viewMode === "day" && onBackToFortnight && (
-        <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={onBackToFortnight}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 text-xs"
+          onClick={onBackToFortnight}
+        >
           ↑ Back to Fortnight view
         </Button>
       )}
@@ -137,15 +154,17 @@ export function RosterToolbar({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
-            {(Object.keys(DISPLAY_MODE_LABELS) as RosterDisplayMode[]).map((mode) => (
-              <DropdownMenuItem
-                key={mode}
-                onClick={() => onDisplayModeChange(mode)}
-                className={displayMode === mode ? "bg-accent" : ""}
-              >
-                {DISPLAY_MODE_LABELS[mode]}
-              </DropdownMenuItem>
-            ))}
+            {(Object.keys(DISPLAY_MODE_LABELS) as RosterDisplayMode[]).map(
+              (mode) => (
+                <DropdownMenuItem
+                  key={mode}
+                  onClick={() => onDisplayModeChange(mode)}
+                  className={displayMode === mode ? "bg-accent" : ""}
+                >
+                  {DISPLAY_MODE_LABELS[mode]}
+                </DropdownMenuItem>
+              ),
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )}
@@ -207,7 +226,13 @@ export function RosterToolbar({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Print roster" onClick={onPrint}>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8"
+          aria-label="Print roster"
+          onClick={onPrint}
+        >
           <Printer className="h-4 w-4" />
         </Button>
 
@@ -215,15 +240,11 @@ export function RosterToolbar({
           <Settings className="h-4 w-4" />
         </Button>
 
-        <Button
-          className="h-8"
-          onClick={onPublish}
-          disabled={publishDisabled}
-        >
+        <Button className="h-8" onClick={onPublish} disabled={publishDisabled}>
           <Send className="h-4 w-4 mr-2" />
           Review & Publish
         </Button>
       </div>
     </div>
-  )
+  );
 }

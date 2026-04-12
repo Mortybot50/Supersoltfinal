@@ -100,6 +100,7 @@ EOF
 ```
 
 **Response:**
+
 ```json
 {
   "connection": {
@@ -154,6 +155,7 @@ GET /vercel/v2/user
 ```
 
 **Response:**
+
 ```json
 {
   "user": {
@@ -180,6 +182,7 @@ GET /vercel/v2/teams
 ```
 
 **Response:**
+
 ```json
 {
   "teams": [
@@ -214,6 +217,7 @@ GET /vercel/v9/projects?limit=20
 ```
 
 **Response:**
+
 ```json
 {
   "projects": [
@@ -244,6 +248,7 @@ GET /vercel/v9/projects/{projectId}
 ```
 
 **Response:**
+
 ```json
 {
   "id": "prj_ET9o8o6WAQTfWbtF8NeFe4XF9uYG",
@@ -305,12 +310,14 @@ GET /vercel/v6/deployments?limit=20
 ```
 
 **Query Parameters:**
+
 - `limit` - Number of results (default: 20)
 - `projectId` - Filter by project ID
 - `target` - Filter by target (`production`, `preview`)
 - `state` - Filter by state (`BUILDING`, `READY`, `ERROR`, `CANCELED`)
 
 **Response:**
+
 ```json
 {
   "deployments": [
@@ -348,6 +355,7 @@ GET /vercel/v13/deployments/{deploymentId}
 ```
 
 **Response:**
+
 ```json
 {
   "id": "dpl_8gFe6M8XZsQ1ohP86VWTemcBAmZJ",
@@ -374,6 +382,7 @@ GET /vercel/v3/deployments/{deploymentId}/events
 ```
 
 **Response:**
+
 ```json
 [
   {
@@ -404,6 +413,7 @@ GET /vercel/v10/projects/{projectId}/env
 ```
 
 **Response:**
+
 ```json
 {
   "envs": [
@@ -460,6 +470,7 @@ GET /vercel/v5/domains
 ```
 
 **Response:**
+
 ```json
 {
   "domains": [
@@ -511,6 +522,7 @@ GET /vercel/v8/artifacts/status
 ```
 
 **Response:**
+
 ```json
 {
   "status": "enabled"
@@ -526,11 +538,13 @@ GET /vercel/v9/projects?limit=20&until=1733304037737
 ```
 
 **Parameters:**
+
 - `limit` - Results per page (varies by endpoint, typically max 100)
 - `until` - Cursor for next page (use `next` from response)
 - `since` - Cursor for previous page (use `prev` from response)
 
 **Response includes:**
+
 ```json
 {
   "pagination": {
@@ -547,12 +561,12 @@ GET /vercel/v9/projects?limit=20&until=1733304037737
 
 ```javascript
 const response = await fetch(
-  'https://gateway.maton.ai/vercel/v9/projects?limit=10',
+  "https://gateway.maton.ai/vercel/v9/projects?limit=10",
   {
     headers: {
-      'Authorization': `Bearer ${process.env.MATON_API_KEY}`
-    }
-  }
+      Authorization: `Bearer ${process.env.MATON_API_KEY}`,
+    },
+  },
 );
 const data = await response.json();
 ```
@@ -599,14 +613,14 @@ deployments = response.json()['deployments']
 
 ## Error Handling
 
-| Status | Meaning |
-|--------|---------|
-| 400 | Missing Vercel connection or invalid request |
-| 401 | Invalid or missing Maton API key |
-| 403 | Insufficient permissions |
-| 404 | Resource not found |
-| 429 | Rate limited |
-| 4xx/5xx | Passthrough error from Vercel API |
+| Status  | Meaning                                      |
+| ------- | -------------------------------------------- |
+| 400     | Missing Vercel connection or invalid request |
+| 401     | Invalid or missing Maton API key             |
+| 403     | Insufficient permissions                     |
+| 404     | Resource not found                           |
+| 429     | Rate limited                                 |
+| 4xx/5xx | Passthrough error from Vercel API            |
 
 ## Resources
 

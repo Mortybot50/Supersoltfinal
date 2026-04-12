@@ -1,6 +1,7 @@
 # SuperSolt — Database Reference
 
 ## Connection
+
 - Provider: Supabase (PostgreSQL 15)
 - Project ID: `vcfmouckydhsmvfoykms`
 - Region: ap-southeast-2 (Sydney)
@@ -11,93 +12,101 @@
 ## Table Overview (53 tables)
 
 ### Core / Auth
-| Table | Description |
-|-------|-------------|
-| `organizations` | Top-level tenant. Every table scoped to `org_id`. |
-| `venues` | Physical locations within an org. |
-| `profiles` | Extended user data linked to `auth.users`. |
-| `org_members` | User ↔ org membership with role. |
-| `venue_access` | Venue-level permission grants per org_member. |
-| `members` | Legacy member records (use org_members for new code). |
-| `invites` | Email invitations (org-level). |
-| `staff_invites` | Staff onboarding invitations. |
-| `user_roles` | Custom role assignments. |
-| `role_definitions` | Role definitions per org. |
-| `pins` | PIN-based authentication tokens. |
-| `device_assignments` | POS terminal device tracking. |
-| `access_audit` | Auth/access event log. |
+
+| Table                | Description                                           |
+| -------------------- | ----------------------------------------------------- |
+| `organizations`      | Top-level tenant. Every table scoped to `org_id`.     |
+| `venues`             | Physical locations within an org.                     |
+| `profiles`           | Extended user data linked to `auth.users`.            |
+| `org_members`        | User ↔ org membership with role.                      |
+| `venue_access`       | Venue-level permission grants per org_member.         |
+| `members`            | Legacy member records (use org_members for new code). |
+| `invites`            | Email invitations (org-level).                        |
+| `staff_invites`      | Staff onboarding invitations.                         |
+| `user_roles`         | Custom role assignments.                              |
+| `role_definitions`   | Role definitions per org.                             |
+| `pins`               | PIN-based authentication tokens.                      |
+| `device_assignments` | POS terminal device tracking.                         |
+| `access_audit`       | Auth/access event log.                                |
 
 ### Inventory
-| Table | Description |
-|-------|-------------|
-| `ingredients` | Ingredient catalogue. `unit_cost`, `yield_percentage`. |
-| `ingredient_price_history` | Price change log per ingredient. |
-| `suppliers` | Supplier directory. `invoice_email_domains` for email parsing. |
-| `purchase_orders` | PO lifecycle: draft → approved → received. |
-| `purchase_order_items` | Line items on each PO. `quantity_received` for GRN. |
-| `inv_locations` | Inventory storage locations (walk-in, dry store, etc.). |
-| `inv_bins` | Bin positions within locations. |
-| `inv_location_assignments` | Ingredient ↔ bin assignments. |
-| `stock_counts` | Stock count sessions. |
-| `stock_count_items` | Per-ingredient counts within a session. |
-| `waste_logs` | Waste/spoilage records with reason codes. |
-| `count_schedules` | Scheduled count frequencies per location. |
-| `orders` | POS orders (synced from Square). |
+
+| Table                      | Description                                                    |
+| -------------------------- | -------------------------------------------------------------- |
+| `ingredients`              | Ingredient catalogue. `unit_cost`, `yield_percentage`.         |
+| `ingredient_price_history` | Price change log per ingredient.                               |
+| `suppliers`                | Supplier directory. `invoice_email_domains` for email parsing. |
+| `purchase_orders`          | PO lifecycle: draft → approved → received.                     |
+| `purchase_order_items`     | Line items on each PO. `quantity_received` for GRN.            |
+| `inv_locations`            | Inventory storage locations (walk-in, dry store, etc.).        |
+| `inv_bins`                 | Bin positions within locations.                                |
+| `inv_location_assignments` | Ingredient ↔ bin assignments.                                  |
+| `stock_counts`             | Stock count sessions.                                          |
+| `stock_count_items`        | Per-ingredient counts within a session.                        |
+| `waste_logs`               | Waste/spoilage records with reason codes.                      |
+| `count_schedules`          | Scheduled count frequencies per location.                      |
+| `orders`                   | POS orders (synced from Square).                               |
 
 ### Invoice Intelligence
-| Table | Description |
-|-------|-------------|
-| `invoices` | Parsed invoices (upload or email). |
-| `invoice_line_items` | Extracted line items with match confidence. |
-| `reconciliation_logs` | Invoice vs PO reconciliation sessions. |
-| `reconciliation_line_items` | Per-line reconciliation status. |
+
+| Table                       | Description                                 |
+| --------------------------- | ------------------------------------------- |
+| `invoices`                  | Parsed invoices (upload or email).          |
+| `invoice_line_items`        | Extracted line items with match confidence. |
+| `reconciliation_logs`       | Invoice vs PO reconciliation sessions.      |
+| `reconciliation_line_items` | Per-line reconciliation status.             |
 
 ### Menu & Costing
-| Table | Description |
-|-------|-------------|
-| `menu_items` | Menu items with selling prices. |
-| `menu_sections` | Menu sections/categories. |
-| `recipes` | Recipe cards. `is_sub_recipe` for nested costing. |
-| `recipe_ingredients` | BOM lines linking recipes → ingredients. |
+
+| Table                | Description                                       |
+| -------------------- | ------------------------------------------------- |
+| `menu_items`         | Menu items with selling prices.                   |
+| `menu_sections`      | Menu sections/categories.                         |
+| `recipes`            | Recipe cards. `is_sub_recipe` for nested costing. |
+| `recipe_ingredients` | BOM lines linking recipes → ingredients.          |
 
 ### Labour / Workforce
-| Table | Description |
-|-------|-------------|
-| `staff` | Staff profiles. `employment_type`: casual/part_time/full_time. |
-| `roster_shifts` | Individual shifts. `shift_date`, `start_time`, `end_time`, `status`. |
-| `shift_swap_requests` | Shift swap requests between staff. |
-| `shift_templates` | Reusable shift definitions. |
-| `roster_patterns` | Weekly roster templates. `shifts: Json` array. |
-| `timesheets` | Weekly timesheet records. `gross_pay`, `status`. |
-| `staff_availability` | Recurring availability windows per staff. |
-| `staff_qualifications` | Certifications/licences per staff. |
-| `qualification_types` | Qualification catalogue per org. |
-| `labor_budgets` | Labour cost budgets per period. |
+
+| Table                  | Description                                                          |
+| ---------------------- | -------------------------------------------------------------------- |
+| `staff`                | Staff profiles. `employment_type`: casual/part_time/full_time.       |
+| `roster_shifts`        | Individual shifts. `shift_date`, `start_time`, `end_time`, `status`. |
+| `shift_swap_requests`  | Shift swap requests between staff.                                   |
+| `shift_templates`      | Reusable shift definitions.                                          |
+| `roster_patterns`      | Weekly roster templates. `shifts: Json` array.                       |
+| `timesheets`           | Weekly timesheet records. `gross_pay`, `status`.                     |
+| `staff_availability`   | Recurring availability windows per staff.                            |
+| `staff_qualifications` | Certifications/licences per staff.                                   |
+| `qualification_types`  | Qualification catalogue per org.                                     |
+| `labor_budgets`        | Labour cost budgets per period.                                      |
 
 ### Payroll / Operations
-| Table | Description |
-|-------|-------------|
-| `venue_settings` | Per-venue config: GST, penalty rates, overtime settings. |
-| `venue_settings_audit` | Change log for venue settings. |
-| `venue_templates` | Venue configuration templates. |
-| `roster_patterns` | (See Labour above) |
-| `daybook_entries` | Manager notes/observations. |
+
+| Table                  | Description                                              |
+| ---------------------- | -------------------------------------------------------- |
+| `venue_settings`       | Per-venue config: GST, penalty rates, overtime settings. |
+| `venue_settings_audit` | Change log for venue settings.                           |
+| `venue_templates`      | Venue configuration templates.                           |
+| `roster_patterns`      | (See Labour above)                                       |
+| `daybook_entries`      | Manager notes/observations.                              |
 
 ### Integrations
-| Table | Description |
-|-------|-------------|
-| `pos_connections` | Square POS OAuth tokens (AES-256-GCM encrypted), sync status. |
-| `pos_location_mappings` | Square location → SuperSolt venue mapping. |
-| `xero_connections` | Xero OAuth tokens (encrypted), tenant info, sync status. |
-| `xero_sync_log` | Sync attempt history (direction, record counts, errors). |
-| `xero_account_mappings` | SuperSolt category → Xero chart of accounts. |
+
+| Table                   | Description                                                   |
+| ----------------------- | ------------------------------------------------------------- |
+| `pos_connections`       | Square POS OAuth tokens (AES-256-GCM encrypted), sync status. |
+| `pos_location_mappings` | Square location → SuperSolt venue mapping.                    |
+| `xero_connections`      | Xero OAuth tokens (encrypted), tenant info, sync status.      |
+| `xero_sync_log`         | Sync attempt history (direction, record counts, errors).      |
+| `xero_account_mappings` | SuperSolt category → Xero chart of accounts.                  |
 
 ### Admin
-| Table | Description |
-|-------|-------------|
-| `admin_data_audit` | Data change audit log. |
-| `admin_data_jobs` | Background job tracking. |
-| `assignments` | Resource assignments (generic). |
+
+| Table              | Description                     |
+| ------------------ | ------------------------------- |
+| `admin_data_audit` | Data change audit log.          |
+| `admin_data_jobs`  | Background job tracking.        |
+| `assignments`      | Resource assignments (generic). |
 
 ---
 
@@ -118,6 +127,7 @@ CREATE POLICY "org members can insert X"
 ```
 
 ### Key Helper Functions
+
 ```sql
 -- Returns array of org IDs the current user belongs to
 get_user_org_ids() → UUID[]
@@ -163,12 +173,12 @@ organizations
 
 ## Key Triggers & Functions
 
-| Name | Purpose |
-|------|---------|
-| `handle_new_user()` | Creates `profiles` row on `auth.users` insert |
-| `get_user_org_ids()` | RLS helper — returns user's org IDs |
-| `get_user_venue_ids()` | RLS helper — returns user's venue IDs |
-| `is_org_admin(org_id)` | RLS helper — checks admin role |
+| Name                   | Purpose                                       |
+| ---------------------- | --------------------------------------------- |
+| `handle_new_user()`    | Creates `profiles` row on `auth.users` insert |
+| `get_user_org_ids()`   | RLS helper — returns user's org IDs           |
+| `get_user_venue_ids()` | RLS helper — returns user's venue IDs         |
+| `is_org_admin(org_id)` | RLS helper — checks admin role                |
 
 ---
 
@@ -194,6 +204,7 @@ Key migrations:
 ## TypeScript Types
 
 Auto-generated from live schema. Regenerate with:
+
 ```bash
 supabase gen types typescript --project-id vcfmouckydhsmvfoykms > src/integrations/supabase/types.ts
 ```

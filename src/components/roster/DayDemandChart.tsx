@@ -3,7 +3,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
-} from "@/components/ui/chart"
+} from "@/components/ui/chart";
 import {
   ComposedChart,
   Area,
@@ -11,16 +11,16 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-} from "recharts"
-import { HourlyStaffing, DayStats } from "@/types"
-import { formatLabourCost, formatHours } from "@/lib/utils/rosterCalculations"
-import type { DemandSlot } from "@/lib/hooks/useDemandForecast"
+} from "recharts";
+import { HourlyStaffing, DayStats } from "@/types";
+import { formatLabourCost, formatHours } from "@/lib/utils/rosterCalculations";
+import type { DemandSlot } from "@/lib/hooks/useDemandForecast";
 
 interface DayDemandChartProps {
-  hourlyStaffing: HourlyStaffing[]
-  dayStats: DayStats
+  hourlyStaffing: HourlyStaffing[];
+  dayStats: DayStats;
   /** POS-derived demand slots. When provided, renders an orange dashed demand curve. */
-  posSlots?: DemandSlot[]
+  posSlots?: DemandSlot[];
 }
 
 const chartConfig: ChartConfig = {
@@ -36,9 +36,13 @@ const chartConfig: ChartConfig = {
     label: "Actual Staff",
     color: "hsl(150, 60%, 45%)",
   },
-}
+};
 
-export function DayDemandChart({ hourlyStaffing, dayStats, posSlots }: DayDemandChartProps) {
+export function DayDemandChart({
+  hourlyStaffing,
+  dayStats,
+  posSlots,
+}: DayDemandChartProps) {
   // Merge hourlyStaffing with posSlots by slot index
   const data = hourlyStaffing.map((slot, i) => ({
     ...slot,
@@ -46,23 +50,24 @@ export function DayDemandChart({ hourlyStaffing, dayStats, posSlots }: DayDemand
     posDemand: posSlots?.[i]?.demandStaff ?? null,
     // For today: actual = rostered (proxy). Future: replace with clock-in data.
     actualStaff: slot.staffCount,
-  }))
+  }));
 
   // Recommended hours = sum of (demandStaff * 0.5h) per slot
   const recommendedHours = posSlots
     ? posSlots.reduce((sum, s) => sum + s.demandStaff * 0.5, 0)
-    : 0
+    : 0;
 
-  const variance = dayStats.totalHours - recommendedHours
-  const variancePct = recommendedHours > 0 ? (Math.abs(variance) / recommendedHours) * 100 : null
+  const variance = dayStats.totalHours - recommendedHours;
+  const variancePct =
+    recommendedHours > 0 ? (Math.abs(variance) / recommendedHours) * 100 : null;
   const varianceColor =
     variancePct === null
       ? "text-muted-foreground"
       : variancePct <= 10
-      ? "text-green-600"
-      : variancePct <= 20
-      ? "text-amber-500"
-      : "text-red-500"
+        ? "text-green-600"
+        : variancePct <= 20
+          ? "text-amber-500"
+          : "text-red-500";
 
   return (
     <div className="flex gap-4">
@@ -87,7 +92,10 @@ export function DayDemandChart({ hourlyStaffing, dayStats, posSlots }: DayDemand
             </div>
           )}
           <div className="flex items-center gap-2">
-            <div className="w-3 h-0 border-t-2 border-green-500" style={{ display: "inline-block" }} />
+            <div
+              className="w-3 h-0 border-t-2 border-green-500"
+              style={{ display: "inline-block" }}
+            />
             <span className="text-xs">Actual</span>
           </div>
         </div>
@@ -95,7 +103,9 @@ export function DayDemandChart({ hourlyStaffing, dayStats, posSlots }: DayDemand
         <div className="space-y-2 pt-2 border-t">
           <div>
             <div className="text-xs text-muted-foreground">Rostered hours</div>
-            <div className="text-lg font-bold">{formatHours(dayStats.totalHours)}</div>
+            <div className="text-lg font-bold">
+              {formatHours(dayStats.totalHours)}
+            </div>
           </div>
           {posSlots && (
             <>
@@ -114,15 +124,23 @@ export function DayDemandChart({ hourlyStaffing, dayStats, posSlots }: DayDemand
           )}
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">Day cost</span>
-            <span className="font-medium">{formatLabourCost(dayStats.totalCost)}</span>
+            <span className="font-medium">
+              {formatLabourCost(dayStats.totalCost)}
+            </span>
           </div>
         </div>
       </div>
 
       {/* Chart */}
       <div className="flex-1">
-        <ChartContainer config={chartConfig} className="aspect-auto h-[180px] w-full">
-          <ComposedChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+        <ChartContainer
+          config={chartConfig}
+          className="aspect-auto h-[180px] w-full"
+        >
+          <ComposedChart
+            data={data}
+            margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+          >
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="displayLabel"
@@ -143,9 +161,9 @@ export function DayDemandChart({ hourlyStaffing, dayStats, posSlots }: DayDemand
                 <ChartTooltipContent
                   labelFormatter={(_, payload) => {
                     if (payload?.[0]?.payload) {
-                      return payload[0].payload.label
+                      return payload[0].payload.label;
                     }
-                    return ""
+                    return "";
                   }}
                 />
               }
@@ -183,5 +201,5 @@ export function DayDemandChart({ hourlyStaffing, dayStats, posSlots }: DayDemand
         </ChartContainer>
       </div>
     </div>
-  )
+  );
 }

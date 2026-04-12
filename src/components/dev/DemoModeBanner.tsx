@@ -1,26 +1,26 @@
-import { useAuth } from '@/contexts/AuthContext'
-import { supabase } from '@/integrations/supabase/client'
-import { Button } from '@/components/ui/button'
-import { AlertTriangle, X } from 'lucide-react'
-import { useState } from 'react'
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, X } from "lucide-react";
+import { useState } from "react";
 
 export default function DemoModeBanner() {
-  const { currentOrg } = useAuth()
-  const [dismissed, setDismissed] = useState(false)
-  
+  const { currentOrg } = useAuth();
+  const [dismissed, setDismissed] = useState(false);
+
   // Only show for demo organizations
-  const isDemoOrg = currentOrg?.name?.includes('Bella Vista')
-  
+  const isDemoOrg = currentOrg?.name?.includes("Bella Vista");
+
   if (!isDemoOrg || dismissed) {
-    return null
+    return null;
   }
 
   const handleExitDemo = async () => {
-    if (confirm('This will sign you out. Continue?')) {
-      await supabase.auth.signOut()
-      window.location.href = '/login'
+    if (confirm("This will sign you out. Continue?")) {
+      await supabase.auth.signOut();
+      window.location.href = "/login";
     }
-  }
+  };
 
   return (
     <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
@@ -54,5 +54,5 @@ export default function DemoModeBanner() {
         </div>
       </div>
     </div>
-  )
+  );
 }

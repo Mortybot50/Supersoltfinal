@@ -1,93 +1,114 @@
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Upload, Download, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
-import { processImport } from '@/lib/services/importProcessor'
-import { downloadTemplate, ImportResult, ImportError, ImportWarning } from '@/lib/utils/excelImport'
-import { importMappings } from '@/lib/config/importMappings'
-import { z } from 'zod'
-import { toast } from 'sonner'
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Upload,
+  Download,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+} from "lucide-react";
+import { processImport } from "@/lib/services/importProcessor";
+import {
+  downloadTemplate,
+  ImportResult,
+  ImportError,
+  ImportWarning,
+} from "@/lib/utils/excelImport";
+import { importMappings } from "@/lib/config/importMappings";
+import { z } from "zod";
+import { toast } from "sonner";
 
 interface ImportWizardProps {
-  entityType: string
-  entityLabel: string
-  validationSchema: z.ZodSchema<unknown>
-  onImportComplete: (data: unknown[]) => void
+  entityType: string;
+  entityLabel: string;
+  validationSchema: z.ZodSchema<unknown>;
+  onImportComplete: (data: unknown[]) => void;
 }
 
-export function ImportWizard({ 
-  entityType, 
-  entityLabel, 
+export function ImportWizard({
+  entityType,
+  entityLabel,
   validationSchema,
-  onImportComplete 
+  onImportComplete,
 }: ImportWizardProps) {
-  const [file, setFile] = useState<File | null>(null)
-  const [importing, setImporting] = useState(false)
-  const [result, setResult] = useState<ImportResult<unknown> | null>(null)
-  const [step, setStep] = useState<'upload' | 'preview' | 'complete'>('upload')
-const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [file, setFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState<ImportResult<unknown> | null>(null);
+  const [step, setStep] = useState<"upload" | "preview" | "complete">("upload");
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
-      setFile(e.target.files[0])
-      setResult(null)
-      setStep('upload')
+      setFile(e.target.files[0]);
+      setResult(null);
+      setStep("upload");
     }
-  }
-  
+  };
+
   const handleImport = async () => {
-    if (!file) return
-    
-    setImporting(true)
+    if (!file) return;
+
+    setImporting(true);
     try {
-      const importResult = await processImport(file, entityType, validationSchema)
-      setResult(importResult)
-      setStep('preview')
-      
+      const importResult = await processImport(
+        file,
+        entityType,
+        validationSchema,
+      );
+      setResult(importResult);
+      setStep("preview");
+
       if (importResult.success) {
-        toast.success("File processed successfully", { description: `${importResult.validRows} records ready to import`, })
+        toast.success("File processed successfully", {
+          description: `${importResult.validRows} records ready to import`,
+        });
       }
     } catch (error) {
-      toast.error("Import failed", { description: error instanceof Error ? error.message : 'Unknown error' })
+      toast.error("Import failed", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     } finally {
-      setImporting(false)
+      setImporting(false);
     }
-  }
-  
+  };
+
   const handleConfirm = () => {
     if (result?.data) {
-      onImportComplete(result.data)
-      setStep('complete')
-      toast.success("Import complete!", { description: `Successfully imported ${result.validRows} ${entityLabel.toLowerCase()}`, })
+      onImportComplete(result.data);
+      setStep("complete");
+      toast.success("Import complete!", {
+        description: `Successfully imported ${result.validRows} ${entityLabel.toLowerCase()}`,
+      });
     }
-  }
-  
+  };
+
   const handleDownloadTemplate = () => {
-    const mappings = importMappings[entityType]
-    downloadTemplate(entityType, mappings)
-    toast.success("Template downloaded", { description: `Check your downloads folder for ${entityType}-import-template.xlsx`, })
-  }
-  
+    const mappings = importMappings[entityType];
+    downloadTemplate(entityType, mappings);
+    toast.success("Template downloaded", {
+      description: `Check your downloads folder for ${entityType}-import-template.xlsx`,
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Step 1: Upload */}
-      {step === 'upload' && (
+      {step === "upload" && (
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Import {entityLabel}</h3>
-          
+
           <div className="space-y-4">
             <div className="border-2 border-dashed rounded-lg p-8 text-center border-border">
               <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              
+
               {!file ? (
                 <>
                   <p className="text-sm text-muted-foreground mb-4">
                     Upload an Excel (.xlsx, .xls) or CSV file
                   </p>
                   <label>
-                    <Button variant="outline">
-                      Choose File
-                    </Button>
-                    <input 
+                    <Button variant="outline">Choose File</Button>
+                    <input
                       type="file"
                       accept=".xlsx,.xls,.csv"
                       className="hidden"
@@ -103,13 +124,11 @@ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
                   </p>
                   <div className="flex gap-2 justify-center">
                     <Button onClick={handleImport} disabled={importing}>
-                      {importing ? 'Processing...' : 'Process File'}
+                      {importing ? "Processing..." : "Process File"}
                     </Button>
                     <label>
-                      <Button variant="outline">
-                        Change File
-                      </Button>
-                      <input 
+                      <Button variant="outline">Change File</Button>
+                      <input
                         type="file"
                         accept=".xlsx,.xls,.csv"
                         className="hidden"
@@ -120,13 +139,13 @@ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
                 </>
               )}
             </div>
-            
+
             <Alert>
               <Download className="h-4 w-4" />
               <AlertDescription>
-                Don't have a file yet? 
-                <Button 
-                  variant="link" 
+                Don't have a file yet?
+                <Button
+                  variant="link"
                   className="px-1 h-auto"
                   onClick={handleDownloadTemplate}
                 >
@@ -138,12 +157,12 @@ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
           </div>
         </Card>
       )}
-      
+
       {/* Step 2: Preview & Validate */}
-      {step === 'preview' && result && (
+      {step === "preview" && result && (
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Import Preview</h3>
-          
+
           {/* Summary */}
           <div className="grid grid-cols-3 gap-4 mb-6">
             <Card className="p-4">
@@ -151,15 +170,19 @@ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
               <div className="text-sm text-muted-foreground">Total Rows</div>
             </Card>
             <Card className="p-4 border-green-600">
-              <div className="text-2xl font-bold text-green-600">{result.validRows}</div>
+              <div className="text-2xl font-bold text-green-600">
+                {result.validRows}
+              </div>
               <div className="text-sm text-muted-foreground">Valid</div>
             </Card>
             <Card className="p-4 border-red-600">
-              <div className="text-2xl font-bold text-red-600">{result.invalidRows}</div>
+              <div className="text-2xl font-bold text-red-600">
+                {result.invalidRows}
+              </div>
               <div className="text-sm text-muted-foreground">Invalid</div>
             </Card>
           </div>
-          
+
           {/* Errors */}
           {result.errors.length > 0 && (
             <div className="mb-6">
@@ -168,13 +191,16 @@ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
                 Errors ({result.errors.length})
               </h4>
               <div className="space-y-2 max-h-48 overflow-y-auto">
-                {result.errors.slice(0, 10).map((error: ImportError, idx: number) => (
-                  <Alert key={idx} variant="destructive">
-                    <AlertDescription>
-                      <strong>Row {error.row}:</strong> {error.field} - {error.message}
-                    </AlertDescription>
-                  </Alert>
-                ))}
+                {result.errors
+                  .slice(0, 10)
+                  .map((error: ImportError, idx: number) => (
+                    <Alert key={idx} variant="destructive">
+                      <AlertDescription>
+                        <strong>Row {error.row}:</strong> {error.field} -{" "}
+                        {error.message}
+                      </AlertDescription>
+                    </Alert>
+                  ))}
                 {result.errors.length > 10 && (
                   <p className="text-sm text-muted-foreground">
                     ... and {result.errors.length - 10} more errors
@@ -183,7 +209,7 @@ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
               </div>
             </div>
           )}
-          
+
           {/* Warnings */}
           {result.warnings.length > 0 && (
             <div className="mb-6">
@@ -195,45 +221,50 @@ const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
                 {result.warnings.map((warning: ImportWarning, idx: number) => (
                   <Alert key={idx}>
                     <AlertDescription>
-                      <strong>Row {warning.row}:</strong> {warning.field} - {warning.message}
+                      <strong>Row {warning.row}:</strong> {warning.field} -{" "}
+                      {warning.message}
                     </AlertDescription>
                   </Alert>
                 ))}
               </div>
             </div>
           )}
-          
+
           {/* Actions */}
           <div className="flex gap-2">
             {result.validRows > 0 && (
               <Button onClick={handleConfirm}>
-                Import {result.validRows} Record{result.validRows !== 1 ? 's' : ''}
+                Import {result.validRows} Record
+                {result.validRows !== 1 ? "s" : ""}
               </Button>
             )}
-            <Button variant="outline" onClick={() => setStep('upload')}>
+            <Button variant="outline" onClick={() => setStep("upload")}>
               Cancel
             </Button>
           </div>
         </Card>
       )}
-      
+
       {/* Step 3: Complete */}
-      {step === 'complete' && (
+      {step === "complete" && (
         <Card className="p-6 text-center">
           <CheckCircle className="w-16 h-16 mx-auto mb-4 text-green-600" />
           <h3 className="text-xl font-semibold mb-2">Import Complete!</h3>
           <p className="text-muted-foreground mb-4">
-            Successfully imported {result?.validRows} {entityLabel.toLowerCase()}
+            Successfully imported {result?.validRows}{" "}
+            {entityLabel.toLowerCase()}
           </p>
-          <Button onClick={() => {
-            setFile(null)
-            setResult(null)
-            setStep('upload')
-          }}>
+          <Button
+            onClick={() => {
+              setFile(null);
+              setResult(null);
+              setStep("upload");
+            }}
+          >
             Import More
           </Button>
         </Card>
       )}
     </div>
-  )
+  );
 }

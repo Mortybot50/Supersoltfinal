@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Mic, MicOff } from 'lucide-react';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Mic, MicOff } from "lucide-react";
 
 interface VoiceInputProps {
   onTranscript: (transcript: string) => void;
@@ -11,15 +11,19 @@ export default function VoiceInput({ onTranscript }: VoiceInputProps) {
   const [isSupported, setIsSupported] = useState(true);
 
   // Check for browser support
-  if (typeof window !== 'undefined' && !('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+  if (
+    typeof window !== "undefined" &&
+    !("webkitSpeechRecognition" in window || "SpeechRecognition" in window)
+  ) {
     return null; // Voice input not supported
   }
 
   const startRecording = () => {
-    const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+    const SpeechRecognition =
+      window.webkitSpeechRecognition || window.SpeechRecognition;
     const recognition = new SpeechRecognition();
 
-    recognition.lang = 'en-AU'; // Australian English
+    recognition.lang = "en-AU"; // Australian English
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
@@ -34,7 +38,7 @@ export default function VoiceInput({ onTranscript }: VoiceInputProps) {
     };
 
     recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
+      console.error("Speech recognition error:", event.error);
       setIsRecording(false);
     };
 
