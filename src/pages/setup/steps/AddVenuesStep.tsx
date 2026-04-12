@@ -3,7 +3,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +16,18 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, MapPin, Building2 } from "lucide-react";
+import { 
+  Loader2, 
+  Plus, 
+  Trash2, 
+  MapPin, 
+  Building2, 
+  ArrowRight, 
+  ArrowLeft,
+  CheckCircle2,
+  Clock 
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 import { fetchVenueTemplates, type VenueTemplate } from "@/lib/venueTemplates";
 
 const AU_TIMEZONES = [
@@ -28,16 +38,6 @@ const AU_TIMEZONES = [
   { value: "Australia/Darwin", label: "Darwin (ACST)" },
   { value: "Australia/Perth", label: "Perth (AWST)" },
   { value: "Australia/Hobart", label: "Hobart (AEST/AEDT)" },
-] as const;
-
-const DAYS = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
 ] as const;
 
 const venueSchema = z
@@ -98,7 +98,6 @@ export default function AddVenuesStep({
   const [venues, setVenues] = useState<ExistingVenue[]>([]);
   const [userOrgs, setUserOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
-  // Trading hours removed from signup - can be added later in venue settings
   const [templates, setTemplates] = useState<VenueTemplate[]>([]);
 
   const {
@@ -123,6 +122,8 @@ export default function AddVenuesStep({
 
   const selectedTimezone = watch("timezone");
   const createNewOrg = watch("createNewOrg");
+  const venueName = watch("name");
+  const venueAddress = watch("address");
 
   useEffect(() => {
     const loadData = async () => {
@@ -286,84 +287,127 @@ export default function AddVenuesStep({
 
   if (loading) {
     return (
-      <Card className="p-6 flex justify-center">
-        <Loader2 className="h-6 w-6 animate-spin" />
-      </Card>
+      <div className="p-8 flex justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
   }
 
   return (
-    <Card className="p-6">
-      <h2 className="text-xl font-bold mb-4">Add Venues</h2>
+    <div className="p-6 sm:p-8 lg:p-10">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="p-3 bg-primary/10 rounded-xl">
+            <MapPin className="w-6 h-6 text-primary" />
+          </div>
+          <h2 className="text-2xl font-bold">Add Your Venues</h2>
+        </div>
+        <p className="text-muted-foreground">
+          Add one or more locations where your business operates. You can always
+          add more venues later.
+        </p>
+      </div>
 
+      {/* Existing Venues */}
       {venues.length > 0 && (
-        <div className="space-y-2 mb-6">
-          <Label className="text-sm font-medium">Your Venues</Label>
-          {venues.map((venue) => (
-            <div
-              key={venue.id}
-              className="flex items-center justify-between p-3 border rounded-lg"
-            >
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-muted-foreground" />
-                <div>
-                  <span className="font-medium">{venue.name}</span>
-                  {venue.org_name && (
-                    <span className="text-xs text-muted-foreground ml-2">
-                      ({venue.org_name})
-                    </span>
-                  )}
-                  {venue.address && (
-                    <span className="text-sm text-muted-foreground ml-2">
-                      {venue.address}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => removeVenue(venue.id)}
+        <div className="space-y-3 mb-8">
+          <Label className="text-base font-medium">Your Venues</Label>
+          <div className="grid gap-3">
+            {venues.map((venue) => (
+              <div
+                key={venue.id}
+                className="group flex items-center justify-between p-4 border rounded-xl hover:bg-muted/30 transition-colors"
               >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </div>
-          ))}
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-primary/5 rounded-lg mt-0.5">
+                    <MapPin className="w-4 h-4 text-primary/70" />
+                  </div>
+                  <div>
+                    <p className="font-medium">{venue.name}</p>
+                    {venue.org_name && (
+                      <p className="text-xs text-muted-foreground">
+                        {venue.org_name}
+                      </p>
+                    )}
+                    {venue.address && (
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        {venue.address}
+                      </p>
+                    )}
+                    {venue.timezone && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <Clock className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">
+                          {AU_TIMEZONES.find((tz) => tz.value === venue.timezone)?.label || venue.timezone}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeVenue(venue.id)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {venues.length} {venues.length === 1 ? "venue" : "venues"} added
+          </p>
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {/* Add Venue Form */}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Toggle for new organization */}
-        <div className="flex items-center space-x-2 p-4 border rounded-lg bg-muted/20">
-          <Checkbox
-            id="createNewOrg"
-            checked={createNewOrg}
-            onCheckedChange={(checked) => setValue("createNewOrg", !!checked)}
-          />
-          <Label
-            htmlFor="createNewOrg"
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-          >
-            Add this venue to a new organization (different ABN)
-          </Label>
-        </div>
+        {userOrgs.length > 0 && (
+          <div className="p-4 border rounded-xl bg-muted/20">
+            <div className="flex items-start space-x-3">
+              <Checkbox
+                id="createNewOrg"
+                checked={createNewOrg}
+                onCheckedChange={(checked) => setValue("createNewOrg", !!checked)}
+                className="mt-0.5"
+              />
+              <div>
+                <Label
+                  htmlFor="createNewOrg"
+                  className="text-sm font-medium cursor-pointer"
+                >
+                  Add to a new organization
+                </Label>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Use this if the venue operates under a different ABN
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* New Organization Fields */}
         {createNewOrg && (
-          <div className="space-y-4 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
-            <div className="flex items-center gap-2 mb-2">
-              <Building2 className="w-4 h-4 text-primary" />
+          <div className="space-y-4 p-6 border-2 border-primary/20 rounded-xl bg-primary/5">
+            <div className="flex items-center gap-2 mb-3">
+              <Building2 className="w-5 h-5 text-primary" />
               <Label className="text-base font-medium">
                 New Organization Details
               </Label>
             </div>
 
-            <div>
-              <Label htmlFor="newOrgName">Organization Name *</Label>
+            <div className="space-y-2">
+              <Label htmlFor="newOrgName">
+                Organization Name <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="newOrgName"
                 placeholder="e.g. My Second Business Pty Ltd"
                 {...register("newOrgName")}
+                className="h-11"
               />
               {errors.newOrgName && (
                 <p className="text-sm text-destructive mt-1">
@@ -372,35 +416,51 @@ export default function AddVenuesStep({
               )}
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="newOrgAbn">ABN</Label>
               <Input
                 id="newOrgAbn"
                 placeholder="11-digit ABN"
                 {...register("newOrgAbn")}
+                className="h-11"
               />
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-3">
               <Switch
                 id="newOrgGst"
                 checked={watch("newOrgGst")}
                 onCheckedChange={(checked) => setValue("newOrgGst", checked)}
               />
-              <Label htmlFor="newOrgGst">GST Registered</Label>
+              <Label htmlFor="newOrgGst" className="cursor-pointer">
+                GST Registered
+              </Label>
             </div>
           </div>
         )}
 
         {/* Venue Details */}
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="venueName">Venue Name *</Label>
-            <Input
-              id="venueName"
-              placeholder="e.g. Main Street Store"
-              {...register("name")}
-            />
+        <div className="space-y-6 bg-muted/5 rounded-xl p-6">
+          <h3 className="font-medium text-lg">New Venue Details</h3>
+          
+          <div className="space-y-2">
+            <Label htmlFor="venueName" className="text-base">
+              Venue Name <span className="text-destructive">*</span>
+            </Label>
+            <div className="relative">
+              <Input
+                id="venueName"
+                placeholder="e.g. Main Street Store"
+                {...register("name")}
+                className={cn(
+                  "h-12 text-base",
+                  errors.name && "border-destructive"
+                )}
+              />
+              {venueName && !errors.name && (
+                <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-600" />
+              )}
+            </div>
             {errors.name && (
               <p className="text-sm text-destructive mt-1">
                 {errors.name.message}
@@ -408,22 +468,32 @@ export default function AddVenuesStep({
             )}
           </div>
 
-          <div>
-            <Label htmlFor="address">Address</Label>
-            <Input
-              id="address"
-              placeholder="123 Main St, Melbourne VIC 3000"
-              {...register("address")}
-            />
+          <div className="space-y-2">
+            <Label htmlFor="address" className="text-base">
+              Address
+            </Label>
+            <div className="relative">
+              <Input
+                id="address"
+                placeholder="123 Main St, Melbourne VIC 3000"
+                {...register("address")}
+                className="h-12 text-base"
+              />
+              {venueAddress && (
+                <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-600" />
+              )}
+            </div>
           </div>
 
-          <div>
-            <Label>Timezone *</Label>
+          <div className="space-y-2">
+            <Label className="text-base">
+              Timezone <span className="text-destructive">*</span>
+            </Label>
             <Select
               value={selectedTimezone}
               onValueChange={(val) => setValue("timezone", val)}
             >
-              <SelectTrigger>
+              <SelectTrigger className="h-12 text-base">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -436,32 +506,56 @@ export default function AddVenuesStep({
             </Select>
           </div>
 
-
+          <Button
+            type="submit"
+            variant="outline"
+            disabled={saving}
+            className="w-full h-12"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Adding Venue...
+              </>
+            ) : (
+              <>
+                <Plus className="mr-2 h-4 w-4" />
+                {createNewOrg ? "Add Venue & Create Organization" : "Add Venue"}
+              </>
+            )}
+          </Button>
         </div>
-
-        <Button
-          type="submit"
-          variant="outline"
-          disabled={saving}
-          className="w-full"
-        >
-          {saving ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Plus className="mr-2 h-4 w-4" />
-          )}
-          {createNewOrg ? "Add Venue & Create Organization" : "Add Venue"}
-        </Button>
       </form>
 
-      <div className="flex justify-between pt-6">
-        <Button variant="ghost" onClick={onBack}>
+      {/* Progress indicator */}
+      <div className="pt-6 pb-2">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <CheckCircle2 className="w-4 h-4" />
+          <span>Step 2 of 5 • Add Venues</span>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex justify-between pt-6 border-t">
+        <Button 
+          variant="ghost" 
+          onClick={onBack}
+          size="lg"
+          className="h-12"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
-        <Button onClick={onNext} disabled={venues.length === 0}>
-          Next
+        <Button 
+          onClick={onNext} 
+          disabled={venues.length === 0}
+          size="lg"
+          className="min-w-[140px] h-12 text-base font-medium"
+        >
+          Next Step
+          <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
-    </Card>
+    </div>
   );
 }
