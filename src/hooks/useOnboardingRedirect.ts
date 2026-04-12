@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
  * Only runs on protected dashboard routes (not on /setup itself).
  */
 export function useOnboardingRedirect() {
-  const { currentOrg, loading } = useAuth();
+  const { user, currentOrg, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [checked, setChecked] = useState(false);
@@ -22,9 +22,15 @@ export function useOnboardingRedirect() {
       return;
     }
 
-    // If no org at all after loading, redirect to setup
-    if (!currentOrg) {
+    // Only redirect to setup if user is authenticated but has no org
+    if (user && !currentOrg) {
       navigate("/setup", { replace: true });
+      return;
+    }
+
+    // If not logged in, let ProtectedRoute handle the redirect to login
+    if (!user) {
+      setChecked(true);
       return;
     }
 

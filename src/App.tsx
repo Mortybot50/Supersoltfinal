@@ -369,11 +369,18 @@ const App = () => (
                       element={<Navigate to="/admin/integrations" replace />}
                     />
 
+                    {/* Setup Wizard */}
+                    <Route
+                      path="setup"
+                      element={
+                        <ProtectedRoute>
+                          <SetupWizard />
+                        </ProtectedRoute>
+                      }
+                    />
+
                     <Route path="*" element={<NotFound />} />
                   </Route>
-
-                  {/* Setup Wizard (TEMPORARILY UNPROTECTED FOR TESTING) */}
-                  <Route path="/setup" element={<SetupWizard />} />
                   {/* Public Onboarding Portal (outside Layout) */}
                   <Route
                     path="onboarding/portal/:token"
