@@ -65,14 +65,13 @@ export default function SetupWizard() {
   const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
-    // 🚨 TESTING MODE: Skip auth check - REMOVE BEFORE PRODUCTION!
+    if (authLoading) return;
+    
+    // Redirect to login if not authenticated
     if (!user) {
-      // For testing, create a fake user context
-      setChecking(false);
+      navigate('/login', { replace: true });
       return;
     }
-
-    if (authLoading) return;
     // currentOrg may be null briefly after signup — wait briefly, then show wizard anyway
     if (!currentOrg) {
       const timeout = setTimeout(() => {
